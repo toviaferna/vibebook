@@ -110,3 +110,35 @@ def test_convert_retries_transient_failure(tiny_epub: Path, tmp_path: Path):
     )
 
     assert provider.calls == 3
+
+
+class PartialProvider(FakeProvider):
+    def synthesize(self, text, voice, out_path, style="neutral"):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(b"partial")
+        raise RuntimeError("boom")
+
+
+@requires_ffmpeg
+def test_convert_discards_partial_files_after_failed_synthesis(
+    tiny_epub: Path, tmp_path: Path
+):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+
+    with pytest.raises(RuntimeError):
+        convert(
+            book,
+            "es-MX-JorgeNeural",
+            "fake",
+            PartialProvider(),
+            out_dir,
+            retry_delay=0.0,
+        )
+
+    assert list((out_dir / "audio" / "segments").glob("*.wav")) == []
+
+    provider = CountingProvider()
+    m4b = convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
+    assert provider.calls == 2
+    assert m4b.exists()

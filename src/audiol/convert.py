@@ -71,6 +71,7 @@ def synthesize_with_retries(
             return
         except Exception as exc:
             last_error = exc
+            out_path.unlink(missing_ok=True)
             if attempt == max_attempts:
                 raise
             time.sleep(retry_delay * (2 ** (attempt - 1)))
