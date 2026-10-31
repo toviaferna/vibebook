@@ -1,6 +1,13 @@
 import argparse
+import json
+from pathlib import Path
 
-from audiol.voices import list_voices
+from audiol.convert import convert, prepare_book, render_markdown
+from audiol.ingest.epub import read_epub
+from audiol.tts.azure import AzureProvider
+from audiol.tts.edge import EdgeProvider
+from audiol.tts.fake import FakeProvider
+from audiol.voices import get_voice, list_voices
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -9,6 +16,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     voices = subparsers.add_parser("voices", help="List available voices")
     voices.add_argument("--locale", default=None, help="Filter by locale, e.g. es-MX")
+
+    convert_parser = subparsers.add_parser("convert", help="Convert an EPUB to M4B")
+    convert_parser.add_argument("epub")
+    convert_parser.add_argument("--voice", default="es-MX-JorgeNeural")
+    convert_parser.add_argument(
+        "--engine", choices=["edge", "azure", "fake"], default="edge"
+    )
+    convert_parser.add_argument("--style", default="neutral")
+    convert_parser.add_argument("--out", default=None)
+    convert_parser.add_argument("--max-chars", type=int, default=400)
+    convert_parser.add_argument("--dry-run", action="store_true")
+    convert_parser.add_argument("--force", action="store_true")
 
     return parser
 
@@ -21,5 +40,68 @@ def main(argv: list[str] | None = None) -> int:
             styles = ",".join(voice.styles) if voice.styles else "-"
             engines = ",".join(voice.engines)
             print(f"{voice.id}\t{voice.locale}\t{voice.gender}\t{engines}\t{styles}")
+        return 0
 
+    if args.command == "convert":
+        return _convert(args)
+
+    return 1
+
+
+def _convert(args: argparse.Namespace) -> int:
+    voice = get_voice(args.voice)
+    if args.engine != "fake" and args.engine not in voice.engines:
+        raise SystemExit(f"{args.voice} does not support engine {args.engine}")
+    if args.style != "neutral":
+        if args.engine != "azure":
+            raise SystemExit("Styles require --engine azure")
+        if args.style not in voice.styles:
+            raise SystemExit(
+                f"{args.voice} does not support style {args.style}; "
+                f"available: {', '.join(voice.styles) or '-'}"
+            )
+
+    book = prepare_book(read_epub(Path(args.epub)), max_chars=args.max_chars)
+    if not book.chapters:
+        raise SystemExit("No chapters found in the EPUB")
+    out_dir = Path(args.out) if args.out else Path("out") / Path(args.epub).stem
+
+    if args.dry_run:
+        stats = {
+            "title": book.title,
+            "chapters": len(book.chapters),
+            "segments": sum(len(chapter.segments) for chapter in book.chapters),
+            "chars": sum(
+                len(segment.text)
+                for chapter in book.chapters
+                for segment in chapter.segments
+            ),
+            "out": str(out_dir),
+        }
+        print(json.dumps(stats, ensure_ascii=False, indent=2))
+        return 0
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "book.md").write_text(render_markdown(book), encoding="utf-8")
+    provider = _make_provider(args.engine)
+    m4b = convert(
+        book,
+        args.voice,
+        args.engine,
+        provider,
+        out_dir,
+        style=args.style,
+        force=args.force,
+    )
+    print(f"M4B: {m4b}")
     return 0
+
+
+def _make_provider(engine: str):
+    if engine == "edge":
+        return EdgeProvider()
+    if engine == "azure":
+        return AzureProvider()
+    if engine == "fake":
+        return FakeProvider()
+    raise ValueError(f"Unknown engine: {engine}")
