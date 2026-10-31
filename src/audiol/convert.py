@@ -61,8 +61,8 @@ def synthesize_with_retries(
     voice: str,
     out_path: Path,
     style: str,
-    max_attempts: int = 3,
-    retry_delay: float = 1.0,
+    max_attempts: int = 5,
+    retry_delay: float = 2.0,
 ) -> None:
     last_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
@@ -86,8 +86,8 @@ def convert(
     out_dir: Path,
     style: str = "neutral",
     force: bool = False,
-    max_attempts: int = 3,
-    retry_delay: float = 1.0,
+    max_attempts: int = 5,
+    retry_delay: float = 2.0,
 ) -> Path:
     if not book.chapters:
         raise ValueError("No chapters to convert")
@@ -106,6 +106,7 @@ def convert(
         for segment in chapter.segments:
             key = cache_key(segment, voice, engine, style)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
+            synthesized = False
             if force or not path.exists() or path.stat().st_size == 0:
                 synthesize_with_retries(
                     provider,
@@ -116,7 +117,12 @@ def convert(
                     max_attempts=max_attempts,
                     retry_delay=retry_delay,
                 )
+                synthesized = True
             segment_files.append(path)
+            if synthesized:
+                delay = getattr(provider, "request_delay", 0.0)
+                if delay > 0:
+                    time.sleep(delay)
 
         chapter_path = chapters_dir / f"chapter_{chapter.index:03d}.mp3"
         concat_to_mp3(segment_files, chapter_path, audio_dir)

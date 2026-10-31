@@ -82,6 +82,27 @@ def test_convert_reuses_cached_segments(tiny_epub: Path, tmp_path: Path):
     assert forced.calls == 2
 
 
+class ThrottledProvider(CountingProvider):
+    request_delay = 0.5
+
+
+@requires_ffmpeg
+def test_convert_throttles_synthesized_segments(
+    monkeypatch, tiny_epub: Path, tmp_path: Path
+):
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "audiol.convert.time.sleep", lambda seconds: sleeps.append(seconds)
+    )
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    provider = ThrottledProvider()
+
+    convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
+
+    assert sleeps == [0.5, 0.5]
+
+
 class FlakyProvider(FakeProvider):
     def __init__(self) -> None:
         super().__init__()

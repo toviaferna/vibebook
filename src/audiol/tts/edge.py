@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 class EdgeProvider:
     name = "edge"
     audio_suffix = ".mp3"
+    request_delay = 1.0
 
     def synthesize(
         self,
