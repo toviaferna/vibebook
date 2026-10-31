@@ -1,0 +1,13 @@
+{
+  "engine": "kokoro",
+  "voice": "em_alex",
+  "chars": 3580,
+  "audio_seconds": 203.675,
+  "wall_seconds": 165.41,
+  "chars_per_wall_second": 21.64,
+  "realtime_factor": 1.23,
+  "bytes": 9776444,
+  "codec": "pcm_s16le",
+  "sample_rate": "24000",
+  "channels": 1
+}

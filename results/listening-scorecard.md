@@ -19,6 +19,11 @@ Puntúa de 1 a 5. La decisión es subjetiva; lo importante es si escucharías un
 - `out/edge_es_alvaro.mp3` (completo)
 - `out/edge_es_elvira.mp3` (completo)
 - `out/edge_es_ximena.mp3` (completo)
+- `out/kokoro_es_alex_preview.mp3` (30 s)
+- `out/kokoro_es_alex.mp3` (completo)
+- `out/kokoro_es_alex_norm_preview.mp3` (30 s, mismo volumen que Edge)
+- `out/kokoro_es_alex.m4b` (capítulo completo con metadata)
+- `out/kokoro_es_alex_m4b_preview.mp3` (30 s del M4B)
 
 ## Criterio
 
