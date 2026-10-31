@@ -1,10 +1,11 @@
 import hashlib
+import os
 import re
 import time
 import unicodedata
 from pathlib import Path
 
-from audiol.assemble import build_m4b, concat_to_mp3
+from audiol.assemble import build_m4b, concat_to_mp3, require_ffmpeg
 from audiol.chunk import chunk_text
 from audiol.clean import clean_paragraphs
 from audiol.manifest import write_manifest
@@ -89,6 +90,7 @@ def convert(
     max_attempts: int = 5,
     retry_delay: float = 2.0,
 ) -> Path:
+    require_ffmpeg()
     if not book.chapters:
         raise ValueError("No chapters to convert")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -98,7 +100,7 @@ def convert(
     segments_dir.mkdir(parents=True, exist_ok=True)
     chapters_dir.mkdir(parents=True, exist_ok=True)
 
-    write_manifest(book, out_dir, voice, engine)
+    write_manifest(book, out_dir, voice, engine, style=style)
 
     chapter_files: list[Path] = []
     for chapter in book.chapters:
@@ -106,23 +108,23 @@ def convert(
         for segment in chapter.segments:
             key = cache_key(segment, voice, engine, style)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
-            synthesized = False
             if force or not path.exists() or path.stat().st_size == 0:
-                synthesize_with_retries(
-                    provider,
-                    segment.text,
-                    voice,
-                    path,
-                    style,
-                    max_attempts=max_attempts,
-                    retry_delay=retry_delay,
-                )
-                synthesized = True
+                temp_path = path.with_name(f"{path.name}.part")
+                try:
+                    synthesize_with_retries(
+                        provider,
+                        segment.text,
+                        voice,
+                        temp_path,
+                        style,
+                        max_attempts=max_attempts,
+                        retry_delay=retry_delay,
+                    )
+                    os.replace(temp_path, path)
+                except BaseException:
+                    temp_path.unlink(missing_ok=True)
+                    raise
             segment_files.append(path)
-            if synthesized:
-                delay = getattr(provider, "request_delay", 0.0)
-                if delay > 0:
-                    time.sleep(delay)
 
         chapter_path = chapters_dir / f"chapter_{chapter.index:03d}.mp3"
         concat_to_mp3(segment_files, chapter_path, audio_dir)

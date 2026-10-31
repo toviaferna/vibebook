@@ -1,5 +1,6 @@
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from audiol.convert import convert, prepare_book, render_markdown
@@ -43,7 +44,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "convert":
-        return _convert(args)
+        try:
+            return _convert(args)
+        except (ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
 
     return 1
 
@@ -81,9 +86,9 @@ def _convert(args: argparse.Namespace) -> int:
         print(json.dumps(stats, ensure_ascii=False, indent=2))
         return 0
 
+    provider = _make_provider(args.engine)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "book.md").write_text(render_markdown(book), encoding="utf-8")
-    provider = _make_provider(args.engine)
     m4b = convert(
         book,
         args.voice,

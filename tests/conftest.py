@@ -79,3 +79,48 @@ def block_text_epub(tmp_path: Path) -> Path:
     path = tmp_path / "blocks.epub"
     epub.write_epub(str(path), book)
     return path
+
+
+@pytest.fixture
+def mixed_block_epub(tmp_path: Path) -> Path:
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-mixed-123")
+    book.set_title("Libro con bloques mixtos")
+    book.set_language("es")
+    book.add_author("Autora")
+
+    chapters = []
+    for index, (title, body) in enumerate(
+        [
+            (
+                "Capítulo mixto",
+                "<h1>Capítulo mixto</h1>"
+                "<p>Intro.</p>"
+                "<blockquote>Cita.</blockquote>"
+                "<div>Bloque.</div>"
+                "<ul><li><p>Anidado.</p></li></ul>",
+            ),
+            (
+                "Capítulo suelto",
+                "<h1>Capítulo suelto</h1>Texto suelto.",
+            ),
+        ],
+        start=1,
+    ):
+        item = epub.EpubHtml(
+            title=title,
+            file_name=f"mixed_{index}.xhtml",
+            lang="es",
+        )
+        item.content = body
+        book.add_item(item)
+        chapters.append(item)
+
+    book.toc = tuple(chapters)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", *[chapter.id for chapter in chapters]]
+
+    path = tmp_path / "mixed.epub"
+    epub.write_epub(str(path), book)
+    return path

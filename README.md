@@ -26,7 +26,7 @@ Fuera de v0: PDF, SFX, base de datos, UI web, clonación de voz y Chatterbox.
 
 - Python 3.10 o superior.
 - `ffmpeg` y `ffprobe` en `PATH` (obligatorios para concatenar y ensamblar).
-- Dependencias de Python: `pip install -e .`.
+- Dependencias de Python: `pip install -e ".[dev]"`.
 - Opcional para Azure: credenciales de Azure Speech.
 
 En este repositorio los binarios de ffmpeg viven en `.tools/bin`; cárgalos con:
@@ -96,8 +96,8 @@ Salidas por conversión:
 - `audio/chapters/` — MP3 por capítulo.
 - `<titulo>.m4b` — AAC con capítulos.
 
-Reejecutar sin `--force` reutiliza los segmentos ya sintetizados y solo genera
-lo que falte.
+Reejecutar sin `--force` solo reutiliza los segmentos TTS ya sintetizados; los
+capítulos y el M4B se reconstruyen en cada ejecución.
 
 ## Voces
 
@@ -109,7 +109,12 @@ lo que falte.
 | `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | — |
 
 Estilos Azure (`--engine azure`): `neutral`, `chat`, `cheerful`, `sad`,
-`excited`, `whispering`. Edge ignora los estilos y usa la voz neutral.
+`excited`, `whispering`. Edge solo soporta estilo neutro; los estilos requieren
+`--engine azure`.
+
+> **Aviso:** Edge TTS es un servicio no oficial y con límites de tasa; si
+> aparecen errores 429, espera y reintenta. La capa gratuita de Azure Speech
+> incluye 0,5 M de caracteres al mes.
 
 ## Pipeline
 
@@ -179,7 +184,7 @@ text = " ".join(parts)
 out = Path("out/bakeoff_latam")
 out.mkdir(parents=True, exist_ok=True)
 provider = AzureProvider()
-for style in ["neutral", "cheerful", "sad", "excited", "whispering"]:
+for style in ["neutral", "chat", "cheerful", "sad", "excited", "whispering"]:
     path = out / f"azure_es-MX-Jorge_{style}.mp3"
     provider.synthesize(text, "es-MX-JorgeNeural", path, style=style)
     print(path)

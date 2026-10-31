@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from pathlib import Path
 
 import edge_tts
@@ -13,6 +14,9 @@ class EdgeProvider:
     name = "edge"
     audio_suffix = ".mp3"
     request_delay = 1.0
+
+    def __init__(self) -> None:
+        self._last_request: float | None = None
 
     def synthesize(
         self,
@@ -30,6 +34,13 @@ class EdgeProvider:
                 "Edge TTS does not support SSML styles; using neutral voice for style=%s",
                 style,
             )
+
+        now = time.monotonic()
+        if self._last_request is not None:
+            wait = self.request_delay - (now - self._last_request)
+            if wait > 0:
+                time.sleep(wait)
+        self._last_request = time.monotonic()
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
         boundaries = asyncio.run(self._stream(text, voice, out_path))

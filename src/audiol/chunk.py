@@ -34,14 +34,26 @@ def split_sentences(text: str) -> list[str]:
 
 def chunk_text(text: str, max_chars: int = 400) -> list[str]:
     chunks: list[str] = []
+    buffer = ""
     for sentence in split_sentences(text):
         sentence = sentence.strip()
         if not sentence:
             continue
-        if len(sentence) <= max_chars:
-            chunks.append(sentence)
-        else:
+        if len(sentence) > max_chars:
+            if buffer:
+                chunks.append(buffer)
+                buffer = ""
             chunks.extend(_split_long(sentence, max_chars))
+            continue
+        candidate = f"{buffer} {sentence}".strip()
+        if len(candidate) <= max_chars:
+            buffer = candidate
+        else:
+            if buffer:
+                chunks.append(buffer)
+            buffer = sentence
+    if buffer:
+        chunks.append(buffer)
     return [chunk for chunk in chunks if chunk]
 
 

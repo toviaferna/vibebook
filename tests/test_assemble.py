@@ -67,3 +67,77 @@ def test_build_m4b_with_chapters(tmp_path: Path):
     chapters = json.loads(probe)["chapters"]
     assert len(chapters) == 2
     assert chapters[0]["tags"]["title"] == "Capítulo 1"
+
+    streams = json.loads(
+        subprocess.check_output(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_streams",
+                "-of",
+                "json",
+                str(output),
+            ],
+            text=True,
+        )
+    )
+    assert streams["streams"][0]["codec_name"] == "aac"
+
+    format_probe = json.loads(
+        subprocess.check_output(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_format",
+                "-of",
+                "json",
+                str(output),
+            ],
+            text=True,
+        )
+    )
+    assert format_probe["format"]["tags"]["title"] == "Libro"
+    assert format_probe["format"]["tags"]["artist"] == "Autora"
+
+
+def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
+    audio = make_wav(tmp_path / "c1.wav", 0.5)
+    output = tmp_path / "book.m4b"
+
+    build_m4b(
+        [audio],
+        ["Capítulo\n1"],
+        {"title": "Libro\ncon\\barra", "author": "Autora"},
+        output,
+        tmp_path,
+    )
+
+    assert output.exists()
+    format_probe = json.loads(
+        subprocess.check_output(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_format",
+                "-of",
+                "json",
+                str(output),
+            ],
+            text=True,
+        )
+    )
+    tags = format_probe["format"]["tags"]
+    assert tags["title"] == "Libro con\\barra"
+    assert "\n" not in tags["title"]
+    assert tags["title"]
+
+    chapters = json.loads(
+        subprocess.check_output(
+            ["ffprobe", "-v", "error", "-show_chapters", "-of", "json", str(output)],
+            text=True,
+        )
+    )["chapters"]
+    assert chapters[0]["tags"]["title"] == "Capítulo 1"

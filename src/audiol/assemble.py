@@ -8,6 +8,13 @@ def require_ffmpeg() -> None:
         raise RuntimeError("ffmpeg and ffprobe must be installed and in PATH")
 
 
+def _ffmetadata_value(value: str) -> str:
+    value = value.replace("\\", "\\\\").replace("\n", " ").replace("\r", " ")
+    if value.startswith((";", "#")):
+        value = "\\" + value
+    return value
+
+
 def probe_duration(path: Path) -> float:
     require_ffmpeg()
     output = subprocess.check_output(
@@ -86,8 +93,8 @@ def build_m4b(
     durations = [probe_duration(file) for file in chapter_files]
     metadata_lines = [
         ";FFMETADATA1",
-        f"title={metadata.get('title', '')}",
-        f"artist={metadata.get('author', '')}",
+        f"title={_ffmetadata_value(metadata.get('title', ''))}",
+        f"artist={_ffmetadata_value(metadata.get('author', ''))}",
     ]
     start_ms = 0
     for title, duration in zip(chapter_titles, durations):
@@ -98,7 +105,7 @@ def build_m4b(
                 "TIMEBASE=1/1000",
                 f"START={start_ms}",
                 f"END={end_ms}",
-                f"title={title}",
+                f"title={_ffmetadata_value(title)}",
             ]
         )
         start_ms = end_ms
