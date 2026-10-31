@@ -6,6 +6,7 @@ from pathlib import Path
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
 from audiol.tts.azure import AzureProvider
+from audiol.tts.base import validate_rate
 from audiol.tts.edge import EdgeProvider
 from audiol.tts.fake import FakeProvider
 from audiol.voices import get_voice, list_voices
@@ -25,6 +26,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--engine", choices=["edge", "azure", "fake"], default="edge"
     )
     convert_parser.add_argument("--style", default="neutral")
+    convert_parser.add_argument(
+        "--rate",
+        default="-6%",
+        help="Speech rate percentage, e.g. '-6%%' or '+0%%'",
+    )
     convert_parser.add_argument("--out", default=None)
     convert_parser.add_argument("--max-chars", type=int, default=400)
     convert_parser.add_argument("--dry-run", action="store_true")
@@ -33,8 +39,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _normalize_rate_args(argv: list[str]) -> list[str]:
+    """Allow `--rate -6%`; argparse otherwise reads the value as an option."""
+    normalized: list[str] = []
+    index = 0
+    while index < len(argv):
+        if argv[index] == "--rate" and index + 1 < len(argv):
+            normalized.append(f"--rate={argv[index + 1]}")
+            index += 2
+        else:
+            normalized.append(argv[index])
+            index += 1
+    return normalized
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    raw_argv = sys.argv[1:] if argv is None else list(argv)
+    args = build_parser().parse_args(_normalize_rate_args(raw_argv))
 
     if args.command == "voices":
         for voice in list_voices(args.locale):
@@ -66,6 +87,7 @@ def _convert(args: argparse.Namespace) -> int:
                 f"available: {', '.join(voice.styles) or '-'}"
             )
 
+    rate = validate_rate(args.rate)
     book = prepare_book(read_epub(Path(args.epub)), max_chars=args.max_chars)
     if not book.chapters:
         raise SystemExit("No chapters found in the EPUB")
@@ -81,6 +103,7 @@ def _convert(args: argparse.Namespace) -> int:
                 for chapter in book.chapters
                 for segment in chapter.segments
             ),
+            "rate": rate,
             "out": str(out_dir),
         }
         print(json.dumps(stats, ensure_ascii=False, indent=2))
@@ -96,6 +119,7 @@ def _convert(args: argparse.Namespace) -> int:
         provider,
         out_dir,
         style=args.style,
+        rate=rate,
         force=args.force,
     )
     print(f"M4B: {m4b}")

@@ -45,10 +45,17 @@ audiol voices --locale es-MX
 audiol voices --locale es-PY
 ```
 
-Convertir un EPUB con Edge (motor y voz por defecto):
+Convertir un EPUB con Edge (motor y voz por defecto). La velocidad por defecto
+es `-6%`, un poco más pausada que la voz original:
 
 ```bash
 audiol convert samples/excerpt.epub --out out/excerpt
+```
+
+Elegir una velocidad más pausada:
+
+```bash
+audiol convert samples/excerpt.epub --rate -8% --out out/excerpt-lento
 ```
 
 Convertir con una voz concreta:
@@ -83,6 +90,7 @@ Opciones de `audiol convert`:
 | `--voice` | `es-MX-JorgeNeural` | Voz del catálogo |
 | `--engine` | `edge` | `edge`, `azure` o `fake` (tests) |
 | `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
+| `--rate` | `-6%` | Velocidad; acepta `-10%` … `+10%`, por ejemplo `-8%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
 | `--max-chars` | `400` | Tamaño máximo de cada segmento |
 | `--dry-run` | — | No escribe nada; imprime estadísticas |
@@ -91,7 +99,7 @@ Opciones de `audiol convert`:
 Salidas por conversión:
 
 - `book.md` — texto limpio y segmentado.
-- `manifest.json` — metadata, voz, motor y segmentos.
+- `manifest.json` — metadata, voz, motor, estilo, velocidad y segmentos.
 - `audio/segments/` — audio por segmento (caché reanudable).
 - `audio/chapters/` — MP3 por capítulo.
 - `<titulo>.m4b` — AAC con capítulos.
@@ -121,7 +129,7 @@ Estilos Azure (`--engine azure`): `neutral`, `chat`, `cheerful`, `sad`,
 1. Leer el EPUB (`read_epub`).
 2. Limpiar el texto y dividirlo en segmentos de hasta 400 caracteres
    (`prepare_book`).
-3. Sintetizar cada segmento con Edge o Azure, con caché por voz/motor/estilo.
+3. Sintetizar cada segmento con Edge o Azure, con caché por voz/motor/estilo/velocidad.
 4. Concatenar los segmentos por capítulo y normalizar el volumen.
 5. Ensamblar un M4B AAC con metadata y capítulos (`ffmpeg`).
 

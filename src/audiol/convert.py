@@ -51,8 +51,10 @@ def render_markdown(book: Book) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def cache_key(segment: Segment, voice: str, engine: str, style: str) -> str:
-    payload = f"{segment.text}|{voice}|{engine}|{style}".encode("utf-8")
+def cache_key(
+    segment: Segment, voice: str, engine: str, style: str, rate: str
+) -> str:
+    payload = f"{segment.text}|{voice}|{engine}|{style}|{rate}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
@@ -62,13 +64,14 @@ def synthesize_with_retries(
     voice: str,
     out_path: Path,
     style: str,
+    rate: str,
     max_attempts: int = 5,
     retry_delay: float = 2.0,
 ) -> None:
     last_error: Exception | None = None
     for attempt in range(1, max_attempts + 1):
         try:
-            provider.synthesize(text, voice, out_path, style=style)
+            provider.synthesize(text, voice, out_path, style=style, rate=rate)
             return
         except Exception as exc:
             last_error = exc
@@ -86,6 +89,7 @@ def convert(
     provider: TTSProvider,
     out_dir: Path,
     style: str = "neutral",
+    rate: str = "+0%",
     force: bool = False,
     max_attempts: int = 5,
     retry_delay: float = 2.0,
@@ -100,13 +104,13 @@ def convert(
     segments_dir.mkdir(parents=True, exist_ok=True)
     chapters_dir.mkdir(parents=True, exist_ok=True)
 
-    write_manifest(book, out_dir, voice, engine, style=style)
+    write_manifest(book, out_dir, voice, engine, style=style, rate=rate)
 
     chapter_files: list[Path] = []
     for chapter in book.chapters:
         segment_files: list[Path] = []
         for segment in chapter.segments:
-            key = cache_key(segment, voice, engine, style)
+            key = cache_key(segment, voice, engine, style, rate)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
             if force or not path.exists() or path.stat().st_size == 0:
                 temp_path = path.with_name(f"{path.name}.part")
@@ -117,6 +121,7 @@ def convert(
                         voice,
                         temp_path,
                         style,
+                        rate,
                         max_attempts=max_attempts,
                         retry_delay=retry_delay,
                     )

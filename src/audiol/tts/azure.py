@@ -4,7 +4,7 @@ from xml.sax.saxutils import escape
 
 import requests
 
-from audiol.tts.base import AudioResult
+from audiol.tts.base import AudioResult, validate_rate
 
 ALLOWED_STYLES = {
     "neutral",
@@ -28,11 +28,18 @@ class AzureProvider:
                 "Azure requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION"
             )
 
-    def build_ssml(self, text: str, voice: str, style: str = "neutral") -> str:
+    def build_ssml(
+        self,
+        text: str,
+        voice: str,
+        style: str = "neutral",
+        rate: str = "+0%",
+    ) -> str:
         if style not in ALLOWED_STYLES:
             raise ValueError(f"Unsupported Azure style: {style}")
+        rate = validate_rate(rate)
         locale = "-".join(voice.split("-")[:2])
-        inner = escape(text)
+        inner = f'<prosody rate="{rate}">{escape(text)}</prosody>'
         if style != "neutral":
             inner = (
                 f'<mstts:express-as style="{style}" styledegree="1.2">'
@@ -54,8 +61,9 @@ class AzureProvider:
         voice: str,
         out_path: Path,
         style: str = "neutral",
+        rate: str = "+0%",
     ) -> AudioResult:
-        ssml = self.build_ssml(text, voice, style)
+        ssml = self.build_ssml(text, voice, style, rate=rate)
         url = f"https://{self.region}.tts.speech.microsoft.com/cognitiveservices/v1"
         headers = {
             "Ocp-Apim-Subscription-Key": self.key,
