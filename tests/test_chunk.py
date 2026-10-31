@@ -15,3 +15,9 @@ def test_chunk_text_respects_max_chars():
 
 def test_chunk_text_does_not_return_empty_chunks():
     assert chunk_text("   ") == []
+
+
+def test_chunk_text_packs_short_sentences():
+    assert chunk_text("Hola. ¿Qué tal? Adiós.", max_chars=400) == [
+        "Hola. ¿Qué tal? Adiós."
+    ]

@@ -63,6 +63,7 @@ def test_convert_writes_manifest_and_audio(tiny_epub: Path, tmp_path: Path):
     assert provider.calls == 2
     manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["voice"] == "es-MX-JorgeNeural"
+    assert manifest["style"] == "neutral"
     assert len(manifest["chapters"]) == 2
 
 
@@ -80,27 +81,6 @@ def test_convert_reuses_cached_segments(tiny_epub: Path, tmp_path: Path):
     forced = CountingProvider()
     convert(book, "es-MX-JorgeNeural", "fake", forced, out_dir, force=True)
     assert forced.calls == 2
-
-
-class ThrottledProvider(CountingProvider):
-    request_delay = 0.5
-
-
-@requires_ffmpeg
-def test_convert_throttles_synthesized_segments(
-    monkeypatch, tiny_epub: Path, tmp_path: Path
-):
-    sleeps: list[float] = []
-    monkeypatch.setattr(
-        "audiol.convert.time.sleep", lambda seconds: sleeps.append(seconds)
-    )
-    book = prepare_book(read_epub(tiny_epub))
-    out_dir = tmp_path / "book"
-    provider = ThrottledProvider()
-
-    convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
-
-    assert sleeps == [0.5, 0.5]
 
 
 class FlakyProvider(FakeProvider):
@@ -163,3 +143,33 @@ def test_convert_discards_partial_files_after_failed_synthesis(
     m4b = convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
     assert provider.calls == 2
     assert m4b.exists()
+
+
+class InterruptingProvider(FakeProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    def synthesize(self, text, voice, out_path, style="neutral"):
+        self.calls += 1
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(b"partial")
+        raise KeyboardInterrupt()
+
+
+@requires_ffmpeg
+def test_convert_removes_partial_temp_on_keyboard_interrupt(
+    tiny_epub: Path, tmp_path: Path
+):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    provider = InterruptingProvider()
+
+    with pytest.raises(KeyboardInterrupt):
+        convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
+
+    assert not list((out_dir / "audio" / "segments").glob("*"))
+
+    fresh = CountingProvider()
+    convert(book, "es-MX-JorgeNeural", "fake", fresh, out_dir)
+    assert fresh.calls == 2

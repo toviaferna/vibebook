@@ -9,6 +9,8 @@ from audiol.models import Book, Chapter, Segment
 
 logger = logging.getLogger(__name__)
 
+BLOCK_TAGS = ["p", "li", "blockquote", "pre", "div"]
+
 
 def read_epub(path: Path) -> Book:
     raw = epub.read_epub(str(path))
@@ -19,7 +21,9 @@ def read_epub(path: Path) -> Book:
     chapters: list[Chapter] = []
     chapter_index = 0
 
-    for idref, _linear in raw.spine:
+    for idref, linear in raw.spine:
+        if linear == "no":
+            continue
         item = raw.get_item_with_id(idref)
         if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
             continue
@@ -34,11 +38,11 @@ def read_epub(path: Path) -> Book:
         )
         paragraphs = [
             element.get_text(" ", strip=True)
-            for element in soup.find_all(["p", "li"])
+            for element in _top_level_blocks(soup)
         ]
         paragraphs = [paragraph for paragraph in paragraphs if paragraph]
         if not paragraphs:
-            paragraphs = _extract_block_text(soup)
+            paragraphs = _extract_bare_text(soup)
         if not paragraphs:
             logger.warning(
                 "Skipping spine document %s: no readable text", item.get_name()
@@ -67,18 +71,23 @@ def _first_metadata(book: epub.EpubBook, name: str) -> str | None:
     return values[0][0] if values else None
 
 
-def _extract_block_text(soup: BeautifulSoup) -> list[str]:
-    blocks = [
-        block
-        for block in soup.find_all(["div", "blockquote"])
-        if block.find_parent(["div", "blockquote"]) is None
-    ]
-    texts = [block.get_text(" ", strip=True) for block in blocks]
-    texts = [text for text in texts if text]
-    if texts:
-        return texts
+def _top_level_blocks(soup: BeautifulSoup) -> list:
+    selected = []
+    for block in soup.find_all(BLOCK_TAGS):
+        if block.name == "div" and block.find(BLOCK_TAGS):
+            continue
+        if block.find_parent(["p", "li", "blockquote", "pre"]) is not None:
+            continue
+        selected.append(block)
+    return selected
 
-    container = soup.body or soup
+
+def _extract_bare_text(soup: BeautifulSoup) -> list[str]:
+    fallback = BeautifulSoup(str(soup), "lxml")
+    for heading in fallback.find_all(["h1", "h2", "h3"]):
+        heading.decompose()
+
+    container = fallback.body or fallback
     return [
         line.strip()
         for line in container.get_text("\n", strip=True).splitlines()

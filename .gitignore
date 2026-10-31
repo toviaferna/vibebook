@@ -5,6 +5,8 @@ out/
 audio/
 __pycache__/
 *.pyc
+*.egg-info/
+.pytest_cache/
 *.log
 *.wav
 *.mp3

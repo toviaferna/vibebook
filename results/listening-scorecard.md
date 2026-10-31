@@ -22,6 +22,7 @@ versión Edge de la misma voz.
 | Motor | Voz | Estilo | Naturalidad | Emoción | Pronunciación | Ritmo/pausas | ¿30 min? | Notas |
 |---|---|---|---:|---:|---:|---:|---|---|
 | Azure | `es-MX-JorgeNeural` | `neutral` | | | | | | |
+| Azure | `es-MX-JorgeNeural` | `chat` | | | | | | |
 | Azure | `es-MX-JorgeNeural` | `cheerful` | | | | | | |
 | Azure | `es-MX-JorgeNeural` | `sad` | | | | | | |
 | Azure | `es-MX-JorgeNeural` | `excited` | | | | | | |

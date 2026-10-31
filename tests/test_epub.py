@@ -27,3 +27,17 @@ def test_read_epub_keeps_chapters_without_paragraphs(block_text_epub: Path):
         segment.text == "Texto suelto sin etiquetas."
         for segment in book.chapters[1].segments
     )
+
+
+def test_read_epub_keeps_mixed_block_markup(mixed_block_epub: Path):
+    book = read_epub(mixed_block_epub)
+    texts = [segment.text for segment in book.chapters[0].segments]
+    assert texts == ["Intro.", "Cita.", "Bloque.", "Anidado."]
+    assert texts.count("Anidado.") == 1
+
+
+def test_read_epub_skips_heading_in_bare_text_chapter(mixed_block_epub: Path):
+    book = read_epub(mixed_block_epub)
+    texts = [segment.text for segment in book.chapters[1].segments]
+    assert texts == ["Texto suelto."]
+    assert "Capítulo suelto" not in texts

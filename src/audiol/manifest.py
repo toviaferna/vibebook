@@ -10,6 +10,7 @@ def write_manifest(
     out_dir: Path,
     voice: str,
     engine: str,
+    style: str = "neutral",
 ) -> Path:
     data = {
         "title": book.title,
@@ -17,6 +18,7 @@ def write_manifest(
         "language": book.language,
         "voice": voice,
         "engine": engine,
+        "style": style,
         "chapters": [
             {
                 "index": chapter.index,

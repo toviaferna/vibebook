@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from audiol.chunk import chunk_text
@@ -25,7 +26,14 @@ def main() -> None:
     provider = EdgeProvider()
     for voice in VOICES:
         output = OUT / f"{voice}.mp3"
-        provider.synthesize(preview, voice, output)
+        for attempt in range(3):
+            try:
+                provider.synthesize(preview, voice, output)
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+                time.sleep(2 * (attempt + 1))
         print(output)
 
 

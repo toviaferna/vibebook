@@ -34,3 +34,19 @@ def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
 def test_edge_provider_rejects_empty_text():
     with pytest.raises(ValueError):
         EdgeProvider().synthesize("   ", "es-MX-JorgeNeural", Path("x.mp3"))
+
+
+def test_edge_provider_paces_requests(monkeypatch, tmp_path: Path):
+    sleeps: list[float] = []
+    monkeypatch.setattr("audiol.tts.edge.time.monotonic", lambda: 0.0)
+    monkeypatch.setattr(
+        "audiol.tts.edge.time.sleep", lambda seconds: sleeps.append(seconds)
+    )
+    monkeypatch.setattr("audiol.tts.edge.edge_tts.Communicate", FakeCommunicate)
+    provider = EdgeProvider()
+
+    provider.synthesize("Hola", "es-MX-JorgeNeural", tmp_path / "a.mp3")
+    provider.synthesize("Hola", "es-MX-JorgeNeural", tmp_path / "b.mp3")
+
+    assert provider.request_delay == 1.0
+    assert sleeps == [1.0]
