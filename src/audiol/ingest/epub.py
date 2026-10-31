@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import ebooklib
@@ -5,6 +6,8 @@ from bs4 import BeautifulSoup
 from ebooklib import epub
 
 from audiol.models import Book, Chapter, Segment
+
+logger = logging.getLogger(__name__)
 
 
 def read_epub(path: Path) -> Book:
@@ -35,6 +38,11 @@ def read_epub(path: Path) -> Book:
         ]
         paragraphs = [paragraph for paragraph in paragraphs if paragraph]
         if not paragraphs:
+            paragraphs = _extract_block_text(soup)
+        if not paragraphs:
+            logger.warning(
+                "Skipping spine document %s: no readable text", item.get_name()
+            )
             continue
 
         chapter_index += 1
@@ -57,3 +65,22 @@ def read_epub(path: Path) -> Book:
 def _first_metadata(book: epub.EpubBook, name: str) -> str | None:
     values = book.get_metadata("DC", name)
     return values[0][0] if values else None
+
+
+def _extract_block_text(soup: BeautifulSoup) -> list[str]:
+    blocks = [
+        block
+        for block in soup.find_all(["div", "blockquote"])
+        if block.find_parent(["div", "blockquote"]) is None
+    ]
+    texts = [block.get_text(" ", strip=True) for block in blocks]
+    texts = [text for text in texts if text]
+    if texts:
+        return texts
+
+    container = soup.body or soup
+    return [
+        line.strip()
+        for line in container.get_text("\n", strip=True).splitlines()
+        if line.strip()
+    ]
