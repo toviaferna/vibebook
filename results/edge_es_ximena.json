@@ -1,0 +1,13 @@
+{
+  "engine": "edge-tts",
+  "voice": "es-ES-XimenaNeural",
+  "chars": 3580,
+  "audio_seconds": 220.152,
+  "wall_seconds": 31.55,
+  "chars_per_wall_second": 113.47,
+  "realtime_factor": 6.98,
+  "bytes": 1320912,
+  "codec": "mp3",
+  "sample_rate": "24000",
+  "channels": 1
+}

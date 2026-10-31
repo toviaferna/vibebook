@@ -1,4 +1,5 @@
 .venv/
+.venv-edge/
 .tools/
 out/
 audio/
@@ -11,3 +12,4 @@ __pycache__/
 *.m4a
 *.flac
 samples/*.epub
+samples/*.txt

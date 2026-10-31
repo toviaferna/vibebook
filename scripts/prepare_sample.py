@@ -1,13 +1,14 @@
-"""Extract one chapter from the sample EPUB and build a one-chapter EPUB.
+"""Extract the test chapter and build bake-off EPUBs.
 
 This is a bake-off utility, not the product cleaner. It keeps the chapter text
-and a minimal EPUB container so Audiblez can process a single chapter quickly.
+and minimal one-chapter EPUBs so the engines can process a short sample fast.
 """
 
 from __future__ import annotations
 
 import html
 import re
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -16,8 +17,9 @@ SRC = ROOT / "samples" / "lazarillo.epub"
 CHAPTER = "OEBPS/9106994058927650652_320-h-2.htm.html"
 OUT_TXT = ROOT / "samples" / "tratado_primero.txt"
 OUT_EPUB = ROOT / "samples" / "tratado_primero.epub"
-BOOK_ID = "audiol-sample-lazarillo-tratado-1"
-BOOK_TITLE = "Lazarillo de Tormes - Tratado Primero"
+OUT_EXCERPT_TXT = ROOT / "samples" / "excerpt.txt"
+OUT_EXCERPT_EPUB = ROOT / "samples" / "excerpt.epub"
+EXCERPT_TARGET = 3300
 
 
 def clean_fragment(fragment: str) -> str:
@@ -45,19 +47,23 @@ def extract_chapter() -> tuple[str, str, list[str]]:
     return h2, h3, deduped
 
 
-def xhtml_body(h2: str, h3: str, paragraphs: list[str]) -> str:
-    body = [f"<h1>{html.escape(h2)}</h1>", f"<h2>{html.escape(h3)}</h2>"]
+def build_epub(
+    out_path: Path,
+    title: str,
+    subtitle: str,
+    paragraphs: list[str],
+    book_id: str | None = None,
+) -> None:
+    book_id = book_id or f"urn:uuid:{uuid.uuid4()}"
+    body = [f"<h1>{html.escape(title)}</h1>", f"<h2>{html.escape(subtitle)}</h2>"]
     body.extend(f"<p>{html.escape(p)}</p>" for p in paragraphs)
-    return "\n".join(body)
 
-
-def build_epub(h2: str, h3: str, paragraphs: list[str]) -> None:
     chapter = f"""<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="es">
-<head><title>{html.escape(h2)}</title><meta charset="utf-8"/></head>
+<head><title>{html.escape(title)}</title><meta charset="utf-8"/></head>
 <body>
-{xhtml_body(h2, h3, paragraphs)}
+{chr(10).join(body)}
 </body>
 </html>
 """
@@ -65,9 +71,9 @@ def build_epub(h2: str, h3: str, paragraphs: list[str]) -> None:
     opf = f"""<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:title>{html.escape(BOOK_TITLE)}</dc:title>
+    <dc:title>{html.escape(title)}</dc:title>
     <dc:language>es</dc:language>
-    <dc:identifier id="bookid">{BOOK_ID}</dc:identifier>
+    <dc:identifier id="bookid">{book_id}</dc:identifier>
     <dc:creator>Anonimo</dc:creator>
   </metadata>
   <manifest>
@@ -80,11 +86,11 @@ def build_epub(h2: str, h3: str, paragraphs: list[str]) -> None:
 
     ncx = f"""<?xml version="1.0" encoding="utf-8"?>
 <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-  <head><meta name="dtb:uid" content="{BOOK_ID}"/></head>
-  <docTitle><text>{html.escape(BOOK_TITLE)}</text></docTitle>
+  <head><meta name="dtb:uid" content="{book_id}"/></head>
+  <docTitle><text>{html.escape(title)}</text></docTitle>
   <navMap>
     <navPoint id="np1" playOrder="1">
-      <navLabel><text>{html.escape(h2)}</text></navLabel>
+      <navLabel><text>{html.escape(title)}</text></navLabel>
       <content src="chapter.xhtml"/>
     </navPoint>
   </navMap>
@@ -99,7 +105,7 @@ def build_epub(h2: str, h3: str, paragraphs: list[str]) -> None:
 </container>
 """
 
-    with zipfile.ZipFile(OUT_EPUB, "w") as z:
+    with zipfile.ZipFile(out_path, "w") as z:
         z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
         z.writestr("META-INF/container.xml", container, compress_type=zipfile.ZIP_DEFLATED)
         z.writestr("OEBPS/content.opf", opf, compress_type=zipfile.ZIP_DEFLATED)
@@ -110,12 +116,28 @@ def build_epub(h2: str, h3: str, paragraphs: list[str]) -> None:
 def main() -> None:
     if not SRC.exists():
         raise SystemExit(f"Missing {SRC}; run scripts/fetch_sample.sh first.")
+
     h2, h3, paragraphs = extract_chapter()
-    text = f"# {h2}\n\n## {h3}\n\n" + "\n\n".join(paragraphs) + "\n"
-    OUT_TXT.write_text(text, encoding="utf-8")
-    build_epub(h2, h3, paragraphs)
-    print(f"Wrote {OUT_TXT} ({len(text)} chars)")
+    full_text = f"# {h2}\n\n## {h3}\n\n" + "\n\n".join(paragraphs) + "\n"
+    OUT_TXT.write_text(full_text, encoding="utf-8")
+    build_epub(OUT_EPUB, h2, h3, paragraphs, "audiol-sample-lazarillo-tratado-1")
+
+    excerpt: list[str] = []
+    size = 0
+    for paragraph in paragraphs:
+        if size >= EXCERPT_TARGET and excerpt:
+            break
+        excerpt.append(paragraph)
+        size += len(paragraph) + 2
+
+    excerpt_text = f"{h2}\n\n{h3}\n\n" + "\n\n".join(excerpt) + "\n"
+    OUT_EXCERPT_TXT.write_text(excerpt_text, encoding="utf-8")
+    build_epub(OUT_EXCERPT_EPUB, h2, h3, excerpt, "audiol-sample-lazarillo-excerpt")
+
+    print(f"Wrote {OUT_TXT} ({len(full_text)} chars)")
     print(f"Wrote {OUT_EPUB}")
+    print(f"Wrote {OUT_EXCERPT_TXT} ({len(excerpt_text)} chars)")
+    print(f"Wrote {OUT_EXCERPT_EPUB}")
 
 
 if __name__ == "__main__":
