@@ -19,9 +19,9 @@ class CountingProvider(FakeProvider):
         super().__init__()
         self.calls = 0
 
-    def synthesize(self, text, voice, out_path, style="neutral"):
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
         self.calls += 1
-        return super().synthesize(text, voice, out_path, style)
+        return super().synthesize(text, voice, out_path, style, rate)
 
 
 def test_prepare_book_chunks_and_cleans(tiny_epub: Path):
@@ -56,7 +56,9 @@ def test_convert_writes_manifest_and_audio(tiny_epub: Path, tmp_path: Path):
     out_dir = tmp_path / "book"
     provider = CountingProvider()
 
-    m4b = convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir)
+    m4b = convert(
+        book, "es-MX-JorgeNeural", "fake", provider, out_dir, rate="-6%"
+    )
 
     assert m4b.exists()
     assert (out_dir / "manifest.json").exists()
@@ -64,6 +66,7 @@ def test_convert_writes_manifest_and_audio(tiny_epub: Path, tmp_path: Path):
     manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["voice"] == "es-MX-JorgeNeural"
     assert manifest["style"] == "neutral"
+    assert manifest["rate"] == "-6%"
     assert len(manifest["chapters"]) == 2
 
 
@@ -83,16 +86,29 @@ def test_convert_reuses_cached_segments(tiny_epub: Path, tmp_path: Path):
     assert forced.calls == 2
 
 
+@requires_ffmpeg
+def test_convert_rate_changes_cache_key(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    first = CountingProvider()
+    convert(book, "es-MX-JorgeNeural", "fake", first, out_dir, rate="-6%")
+
+    second = CountingProvider()
+    convert(book, "es-MX-JorgeNeural", "fake", second, out_dir, rate="-10%")
+
+    assert second.calls == 2
+
+
 class FlakyProvider(FakeProvider):
     def __init__(self) -> None:
         super().__init__()
         self.calls = 0
 
-    def synthesize(self, text, voice, out_path, style="neutral"):
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
         self.calls += 1
         if self.calls == 1:
             raise RuntimeError("transient")
-        return super().synthesize(text, voice, out_path, style)
+        return super().synthesize(text, voice, out_path, style, rate)
 
 
 @requires_ffmpeg
@@ -114,7 +130,7 @@ def test_convert_retries_transient_failure(tiny_epub: Path, tmp_path: Path):
 
 
 class PartialProvider(FakeProvider):
-    def synthesize(self, text, voice, out_path, style="neutral"):
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(b"partial")
         raise RuntimeError("boom")
@@ -150,7 +166,7 @@ class InterruptingProvider(FakeProvider):
         super().__init__()
         self.calls = 0
 
-    def synthesize(self, text, voice, out_path, style="neutral"):
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
         self.calls += 1
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(b"partial")

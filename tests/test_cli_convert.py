@@ -20,6 +20,8 @@ def test_cli_convert_with_fake_provider(tiny_epub: Path, tmp_path: Path, capsys)
             str(tiny_epub),
             "--engine",
             "fake",
+            "--rate",
+            "-4%",
             "--out",
             str(out_dir),
         ]
@@ -28,6 +30,7 @@ def test_cli_convert_with_fake_provider(tiny_epub: Path, tmp_path: Path, capsys)
     assert (out_dir / "book.md").exists()
     assert (out_dir / "manifest.json").exists()
     assert list(out_dir.glob("*.m4b"))
+    assert '"rate": "-4%"' in (out_dir / "manifest.json").read_text(encoding="utf-8")
     assert "M4B:" in capsys.readouterr().out
 
 

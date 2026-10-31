@@ -3,7 +3,7 @@ import struct
 import wave
 from pathlib import Path
 
-from audiol.tts.base import AudioResult
+from audiol.tts.base import AudioResult, validate_rate
 
 
 class FakeProvider:
@@ -19,7 +19,9 @@ class FakeProvider:
         voice: str,
         out_path: Path,
         style: str = "neutral",
+        rate: str = "+0%",
     ) -> AudioResult:
+        validate_rate(rate)
         duration = max(0.2, len(text) / 20.0)
         frame_count = int(duration * self.sample_rate)
         frames = bytearray()

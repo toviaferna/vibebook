@@ -5,7 +5,7 @@ from pathlib import Path
 
 import edge_tts
 
-from audiol.tts.base import AudioResult
+from audiol.tts.base import AudioResult, validate_rate
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +24,12 @@ class EdgeProvider:
         voice: str,
         out_path: Path,
         style: str = "neutral",
+        rate: str = "+0%",
     ) -> AudioResult:
         text = text.strip()
         if not text:
             raise ValueError("Edge TTS received empty text")
+        rate = validate_rate(rate)
 
         if style != "neutral":
             logger.warning(
@@ -43,11 +45,13 @@ class EdgeProvider:
         self._last_request = time.monotonic()
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        boundaries = asyncio.run(self._stream(text, voice, out_path))
+        boundaries = asyncio.run(self._stream(text, voice, out_path, rate))
         return AudioResult(path=out_path, word_boundaries=boundaries)
 
-    async def _stream(self, text: str, voice: str, out_path: Path) -> list[dict]:
-        communicate = edge_tts.Communicate(text, voice)
+    async def _stream(
+        self, text: str, voice: str, out_path: Path, rate: str
+    ) -> list[dict]:
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
         boundaries: list[dict] = []
         with out_path.open("wb") as audio_file:
             async for chunk in communicate.stream():
