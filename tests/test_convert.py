@@ -1,16 +1,26 @@
 import json
-import shutil
 from pathlib import Path
 
 import pytest
 
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
+from audiol.tools import find_binary
 from audiol.tts.fake import FakeProvider
 
+
+def _has_ffmpeg() -> bool:
+    try:
+        find_binary("ffmpeg")
+        find_binary("ffprobe")
+        return True
+    except RuntimeError:
+        return False
+
+
 requires_ffmpeg = pytest.mark.skipif(
-    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
-    reason="ffmpeg/ffprobe not installed",
+    not _has_ffmpeg(),
+    reason="ffmpeg/ffprobe not available",
 )
 
 
@@ -56,9 +66,7 @@ def test_convert_writes_manifest_and_audio(tiny_epub: Path, tmp_path: Path):
     out_dir = tmp_path / "book"
     provider = CountingProvider()
 
-    m4b = convert(
-        book, "es-MX-JorgeNeural", "fake", provider, out_dir, rate="-6%"
-    )
+    m4b = convert(book, "es-MX-JorgeNeural", "fake", provider, out_dir, rate="-6%")
 
     assert m4b.exists()
     assert (out_dir / "manifest.json").exists()
@@ -137,9 +145,7 @@ class PartialProvider(FakeProvider):
 
 
 @requires_ffmpeg
-def test_convert_discards_partial_files_after_failed_synthesis(
-    tiny_epub: Path, tmp_path: Path
-):
+def test_convert_discards_partial_files_after_failed_synthesis(tiny_epub: Path, tmp_path: Path):
     book = prepare_book(read_epub(tiny_epub))
     out_dir = tmp_path / "book"
 
@@ -174,9 +180,7 @@ class InterruptingProvider(FakeProvider):
 
 
 @requires_ffmpeg
-def test_convert_removes_partial_temp_on_keyboard_interrupt(
-    tiny_epub: Path, tmp_path: Path
-):
+def test_convert_removes_partial_temp_on_keyboard_interrupt(tiny_epub: Path, tmp_path: Path):
     book = prepare_book(read_epub(tiny_epub))
     out_dir = tmp_path / "book"
     provider = InterruptingProvider()

@@ -1,6 +1,5 @@
 import json
 import math
-import shutil
 import subprocess
 import wave
 from pathlib import Path
@@ -8,10 +7,21 @@ from pathlib import Path
 import pytest
 
 from audiol.assemble import build_m4b, concat_to_mp3, probe_duration
+from audiol.tools import find_binary
+
+
+def _has_ffmpeg() -> bool:
+    try:
+        find_binary("ffmpeg")
+        find_binary("ffprobe")
+        return True
+    except RuntimeError:
+        return False
+
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
-    reason="ffmpeg/ffprobe not installed",
+    not _has_ffmpeg(),
+    reason="ffmpeg/ffprobe not available",
 )
 
 
@@ -61,7 +71,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
 
     assert output.exists()
     probe = subprocess.check_output(
-        ["ffprobe", "-v", "error", "-show_chapters", "-of", "json", str(output)],
+        [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
         text=True,
     )
     chapters = json.loads(probe)["chapters"]
@@ -71,7 +81,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
     streams = json.loads(
         subprocess.check_output(
             [
-                "ffprobe",
+                find_binary("ffprobe"),
                 "-v",
                 "error",
                 "-show_streams",
@@ -87,7 +97,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
     format_probe = json.loads(
         subprocess.check_output(
             [
-                "ffprobe",
+                find_binary("ffprobe"),
                 "-v",
                 "error",
                 "-show_format",
@@ -118,7 +128,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
     format_probe = json.loads(
         subprocess.check_output(
             [
-                "ffprobe",
+                find_binary("ffprobe"),
                 "-v",
                 "error",
                 "-show_format",
@@ -136,7 +146,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
 
     chapters = json.loads(
         subprocess.check_output(
-            ["ffprobe", "-v", "error", "-show_chapters", "-of", "json", str(output)],
+            [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
             text=True,
         )
     )["chapters"]

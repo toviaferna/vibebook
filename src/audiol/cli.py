@@ -13,7 +13,7 @@ from audiol.voices import get_voice, list_voices
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="audiol")
+    parser = argparse.ArgumentParser(prog="vibebook")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     voices = subparsers.add_parser("voices", help="List available voices")
@@ -22,9 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser = subparsers.add_parser("convert", help="Convert an EPUB to M4B")
     convert_parser.add_argument("epub")
     convert_parser.add_argument("--voice", default="es-MX-JorgeNeural")
-    convert_parser.add_argument(
-        "--engine", choices=["edge", "azure", "fake"], default="edge"
-    )
+    convert_parser.add_argument("--engine", choices=["edge", "azure", "fake"], default="edge")
     convert_parser.add_argument("--style", default="neutral")
     convert_parser.add_argument(
         "--rate",
@@ -99,9 +97,7 @@ def _convert(args: argparse.Namespace) -> int:
             "chapters": len(book.chapters),
             "segments": sum(len(chapter.segments) for chapter in book.chapters),
             "chars": sum(
-                len(segment.text)
-                for chapter in book.chapters
-                for segment in chapter.segments
+                len(segment.text) for chapter in book.chapters for segment in chapter.segments
             ),
             "rate": rate,
             "out": str(out_dir),

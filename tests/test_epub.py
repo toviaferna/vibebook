@@ -24,8 +24,7 @@ def test_read_epub_keeps_chapters_without_paragraphs(block_text_epub: Path):
     assert len(book.chapters) == 2
     assert book.chapters[0].segments[0].text == "Texto del capítulo sin párrafos."
     assert any(
-        segment.text == "Texto suelto sin etiquetas."
-        for segment in book.chapters[1].segments
+        segment.text == "Texto suelto sin etiquetas." for segment in book.chapters[1].segments
     )
 
 

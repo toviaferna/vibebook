@@ -48,9 +48,7 @@ class EdgeProvider:
         boundaries = asyncio.run(self._stream(text, voice, out_path, rate))
         return AudioResult(path=out_path, word_boundaries=boundaries)
 
-    async def _stream(
-        self, text: str, voice: str, out_path: Path, rate: str
-    ) -> list[dict]:
+    async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> list[dict]:
         communicate = edge_tts.Communicate(text, voice, rate=rate)
         boundaries: list[dict] = []
         with out_path.open("wb") as audio_file:

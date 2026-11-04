@@ -8,11 +8,14 @@ import json
 import subprocess
 from pathlib import Path
 
+from audiol.tools import require_ffmpeg
+
 
 def probe(path: Path) -> dict:
+    _, ffprobe = require_ffmpeg()
     output = subprocess.check_output(
         [
-            "ffprobe",
+            ffprobe,
             "-v",
             "error",
             "-show_entries",

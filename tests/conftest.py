@@ -52,8 +52,7 @@ def block_text_epub(tmp_path: Path) -> Path:
         [
             (
                 "Capítulo de bloque",
-                "<h1>Capítulo de bloque</h1>"
-                "<div>Texto del capítulo sin párrafos.</div>",
+                "<h1>Capítulo de bloque</h1><div>Texto del capítulo sin párrafos.</div>",
             ),
             (
                 "Capítulo suelto",

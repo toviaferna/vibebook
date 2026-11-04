@@ -42,9 +42,7 @@ def test_synthesize_writes_audio(monkeypatch, tmp_path: Path):
     output = tmp_path / "azure.mp3"
     provider = AzureProvider(key="test-key", region="eastus")
 
-    result = provider.synthesize(
-        "Hola", "es-MX-JorgeNeural", output, style="cheerful", rate="-6%"
-    )
+    result = provider.synthesize("Hola", "es-MX-JorgeNeural", output, style="cheerful", rate="-6%")
 
     assert result.path == output
     assert output.read_bytes() == b"ID3azure"

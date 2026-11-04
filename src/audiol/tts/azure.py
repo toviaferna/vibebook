@@ -19,14 +19,16 @@ ALLOWED_STYLES = {
 class AzureProvider:
     name = "azure"
     audio_suffix = ".mp3"
+    key: str
+    region: str
 
     def __init__(self, key: str | None = None, region: str | None = None) -> None:
-        self.key = key or os.environ.get("AZURE_SPEECH_KEY")
-        self.region = region or os.environ.get("AZURE_SPEECH_REGION")
-        if not self.key or not self.region:
-            raise ValueError(
-                "Azure requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION"
-            )
+        resolved_key = key or os.environ.get("AZURE_SPEECH_KEY")
+        resolved_region = region or os.environ.get("AZURE_SPEECH_REGION")
+        if not resolved_key or not resolved_region:
+            raise ValueError("Azure requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION")
+        self.key = resolved_key
+        self.region = resolved_region
 
     def build_ssml(
         self,
@@ -42,9 +44,7 @@ class AzureProvider:
         inner = f'<prosody rate="{rate}">{escape(text)}</prosody>'
         if style != "neutral":
             inner = (
-                f'<mstts:express-as style="{style}" styledegree="1.2">'
-                f"{inner}"
-                "</mstts:express-as>"
+                f'<mstts:express-as style="{style}" styledegree="1.2">{inner}</mstts:express-as>'
             )
         return (
             '<speak version="1.0" '
@@ -79,13 +79,10 @@ class AzureProvider:
         )
         if response.status_code == 401:
             raise RuntimeError(
-                "Azure TTS rejected the key (401). "
-                "Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION."
+                "Azure TTS rejected the key (401). Check AZURE_SPEECH_KEY and AZURE_SPEECH_REGION."
             )
         if response.status_code != 200:
-            raise RuntimeError(
-                f"Azure TTS failed: {response.status_code} {response.text[:200]}"
-            )
+            raise RuntimeError(f"Azure TTS failed: {response.status_code} {response.text[:200]}")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(response.content)
         return AudioResult(path=out_path)

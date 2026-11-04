@@ -1,11 +1,7 @@
-import shutil
 import subprocess
 from pathlib import Path
 
-
-def require_ffmpeg() -> None:
-    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
-        raise RuntimeError("ffmpeg and ffprobe must be installed and in PATH")
+from audiol.tools import require_ffmpeg
 
 
 def _ffmetadata_value(value: str) -> str:
@@ -16,10 +12,10 @@ def _ffmetadata_value(value: str) -> str:
 
 
 def probe_duration(path: Path) -> float:
-    require_ffmpeg()
+    _, ffprobe = require_ffmpeg()
     output = subprocess.check_output(
         [
-            "ffprobe",
+            ffprobe,
             "-v",
             "error",
             "-show_entries",
@@ -36,7 +32,7 @@ def probe_duration(path: Path) -> float:
 def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
     if not files:
         raise ValueError("No audio files to concatenate")
-    require_ffmpeg()
+    ffmpeg, _ = require_ffmpeg()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +44,7 @@ def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
 
     subprocess.run(
         [
-            "ffmpeg",
+            ffmpeg,
             "-y",
             "-f",
             "concat",
@@ -80,7 +76,7 @@ def build_m4b(
         raise ValueError("No chapters to assemble")
     if len(chapter_files) != len(chapter_titles):
         raise ValueError("chapter_files and chapter_titles must have the same length")
-    require_ffmpeg()
+    ffmpeg, _ = require_ffmpeg()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -97,7 +93,7 @@ def build_m4b(
         f"artist={_ffmetadata_value(metadata.get('author', ''))}",
     ]
     start_ms = 0
-    for title, duration in zip(chapter_titles, durations):
+    for title, duration in zip(chapter_titles, durations, strict=True):
         end_ms = start_ms + int(round(duration * 1000))
         metadata_lines.extend(
             [
@@ -115,7 +111,7 @@ def build_m4b(
 
     subprocess.run(
         [
-            "ffmpeg",
+            ffmpeg,
             "-y",
             "-f",
             "concat",
