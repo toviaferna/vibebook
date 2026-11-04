@@ -16,12 +16,6 @@ class FakeCommunicate:
 
     async def stream(self):
         yield {"type": "audio", "data": b"ID3fake-audio"}
-        yield {
-            "type": "WordBoundary",
-            "text": "Hola",
-            "offset": 1_000_000,
-            "duration": 5_000_000,
-        }
 
 
 def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
@@ -32,7 +26,6 @@ def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
 
     assert result.path == output
     assert output.read_bytes() == b"ID3fake-audio"
-    assert result.word_boundaries[0]["text"] == "Hola"
     assert FakeCommunicate.last.rate == "-6%"
 
 

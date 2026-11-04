@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from audiol.convert import convert, prepare_book, render_markdown
+from audiol.convert import (
+    convert,
+    prepare_book,
+    render_markdown,
+    synthesize_with_retries,
+)
 from audiol.ingest.epub import read_epub
 from audiol.tools import find_binary
 from audiol.tts.fake import FakeProvider
@@ -22,6 +27,19 @@ requires_ffmpeg = pytest.mark.skipif(
     not _has_ffmpeg(),
     reason="ffmpeg/ffprobe not available",
 )
+
+
+def test_synthesize_with_retries_rejects_zero_attempts(tmp_path: Path):
+    with pytest.raises(ValueError):
+        synthesize_with_retries(
+            FakeProvider(),
+            "Hola",
+            "es-MX-JorgeNeural",
+            tmp_path / "x.wav",
+            "neutral",
+            "+0%",
+            max_attempts=0,
+        )
 
 
 class CountingProvider(FakeProvider):
@@ -117,6 +135,27 @@ class FlakyProvider(FakeProvider):
         if self.calls == 1:
             raise RuntimeError("transient")
         return super().synthesize(text, voice, out_path, style, rate)
+
+
+class InvalidProvider(FakeProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
+        self.calls += 1
+        raise ValueError("invalid input")
+
+
+@requires_ffmpeg
+def test_convert_does_not_retry_value_errors(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    provider = InvalidProvider()
+
+    with pytest.raises(ValueError):
+        convert(book, "es-MX-JorgeNeural", "fake", provider, tmp_path / "book")
+
+    assert provider.calls == 1
 
 
 @requires_ffmpeg

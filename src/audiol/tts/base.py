@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -15,7 +15,6 @@ def validate_rate(rate: str) -> str:
 @dataclass
 class AudioResult:
     path: Path
-    word_boundaries: list[dict] = field(default_factory=list)
 
 
 class TTSProvider(Protocol):

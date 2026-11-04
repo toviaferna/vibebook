@@ -10,34 +10,36 @@ class Voice:
     styles: tuple[str, ...] = ()
 
 
-VOICES: dict[str, Voice] = {
-    "es-MX-JorgeNeural": Voice(
+_VOICE_LIST = (
+    Voice(
         id="es-MX-JorgeNeural",
         locale="es-MX",
         gender="male",
         engines=("edge", "azure"),
         styles=("chat", "cheerful", "excited", "sad", "whispering"),
     ),
-    "es-MX-DaliaNeural": Voice(
+    Voice(
         id="es-MX-DaliaNeural",
         locale="es-MX",
         gender="female",
         engines=("edge", "azure"),
         styles=("cheerful", "sad", "whispering"),
     ),
-    "es-PY-MarioNeural": Voice(
+    Voice(
         id="es-PY-MarioNeural",
         locale="es-PY",
         gender="male",
         engines=("edge",),
     ),
-    "es-PY-TaniaNeural": Voice(
+    Voice(
         id="es-PY-TaniaNeural",
         locale="es-PY",
         gender="female",
         engines=("edge",),
     ),
-}
+)
+
+VOICES: dict[str, Voice] = {voice.id: voice for voice in _VOICE_LIST}
 
 
 def list_voices(locale: str | None = None) -> list[Voice]:

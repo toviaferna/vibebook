@@ -64,18 +64,20 @@ def synthesize_with_retries(
     max_attempts: int = 5,
     retry_delay: float = 2.0,
 ) -> None:
-    last_error: Exception | None = None
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be >= 1")
     for attempt in range(1, max_attempts + 1):
         try:
             provider.synthesize(text, voice, out_path, style=style, rate=rate)
             return
-        except Exception as exc:
-            last_error = exc
+        except ValueError:
+            out_path.unlink(missing_ok=True)
+            raise
+        except Exception:
             out_path.unlink(missing_ok=True)
             if attempt == max_attempts:
                 raise
             time.sleep(retry_delay * (2 ** (attempt - 1)))
-    raise RuntimeError("unreachable") from last_error
 
 
 def convert(

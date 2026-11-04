@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 from audiol.convert import convert, prepare_book, render_markdown
@@ -14,6 +15,7 @@ from audiol.voices import get_voice, list_voices
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="vibebook")
+    parser.add_argument("--version", action="version", version=f"vibebook {version('vibebook')}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     voices = subparsers.add_parser("voices", help="List available voices")

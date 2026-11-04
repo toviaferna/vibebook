@@ -7,8 +7,6 @@ class Segment:
     chapter_index: int
     paragraph_index: int
     text: str
-    style: str = "neutral"
-    voice: str | None = None
 
 
 @dataclass

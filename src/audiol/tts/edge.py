@@ -45,22 +45,12 @@ class EdgeProvider:
         self._last_request = time.monotonic()
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        boundaries = asyncio.run(self._stream(text, voice, out_path, rate))
-        return AudioResult(path=out_path, word_boundaries=boundaries)
+        asyncio.run(self._stream(text, voice, out_path, rate))
+        return AudioResult(path=out_path)
 
-    async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> list[dict]:
+    async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> None:
         communicate = edge_tts.Communicate(text, voice, rate=rate)
-        boundaries: list[dict] = []
         with out_path.open("wb") as audio_file:
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     audio_file.write(chunk["data"])
-                elif chunk["type"] == "WordBoundary":
-                    boundaries.append(
-                        {
-                            "text": chunk["text"],
-                            "offset": chunk["offset"],
-                            "duration": chunk["duration"],
-                        }
-                    )
-        return boundaries
