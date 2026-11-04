@@ -14,6 +14,8 @@ class EdgeProvider:
     name = "edge"
     audio_suffix = ".mp3"
     request_delay = 1.0
+    cooldown_seconds = 60.0
+    max_cooldowns = 4
 
     def __init__(self) -> None:
         self._last_request: float | None = None
@@ -45,8 +47,22 @@ class EdgeProvider:
         self._last_request = time.monotonic()
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        asyncio.run(self._stream(text, voice, out_path, rate))
-        return AudioResult(path=out_path)
+        attempt = 0
+        while True:
+            try:
+                asyncio.run(self._stream(text, voice, out_path, rate))
+                return AudioResult(path=out_path)
+            except edge_tts.exceptions.NoAudioReceived:
+                out_path.unlink(missing_ok=True)
+                if attempt >= self.max_cooldowns:
+                    raise
+                wait = self.cooldown_seconds * (2**attempt)
+                logger.warning(
+                    "Edge TTS returned no audio; waiting %.0f seconds before retrying",
+                    wait,
+                )
+                time.sleep(wait)
+                attempt += 1
 
     async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> None:
         communicate = edge_tts.Communicate(text, voice, rate=rate)
