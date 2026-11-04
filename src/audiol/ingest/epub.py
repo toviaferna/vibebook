@@ -1,8 +1,9 @@
 import logging
+import re
 from pathlib import Path
 
 import ebooklib
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from ebooklib import epub
 
 from audiol.models import Book, Chapter, Segment
@@ -10,6 +11,20 @@ from audiol.models import Book, Chapter, Segment
 logger = logging.getLogger(__name__)
 
 BLOCK_TAGS = ["p", "li", "blockquote", "pre", "div"]
+NAV_TITLES = {
+    "contents",
+    "copyright",
+    "cubierta",
+    "dedication",
+    "dedicatoria",
+    "document outline",
+    "fin",
+    "indice",
+    "portada",
+    "table of contents",
+    "title page",
+    "índice",
+}
 
 
 def read_epub(path: Path) -> Book:
@@ -17,6 +32,7 @@ def read_epub(path: Path) -> Book:
     title = _first_metadata(raw, "title") or path.stem
     author = _first_metadata(raw, "creator") or "Desconocido"
     language = _first_metadata(raw, "language") or "es"
+    toc = _toc_by_item(raw, title, author)
 
     chapters: list[Chapter] = []
     chapter_index = 0
@@ -32,7 +48,16 @@ def read_epub(path: Path) -> Book:
             continue
 
         soup = BeautifulSoup(item.get_content(), "lxml")
+        entries = toc.get(item.get_name())
+        if entries:
+            for chapter_title, paragraphs in _split_document(soup, entries):
+                chapter_index = _append_chapter(chapters, chapter_index, chapter_title, paragraphs)
+            continue
+
         heading = soup.find(["h1", "h2", "h3"])
+        if heading and _normalize(heading.get_text(" ", strip=True)) in NAV_TITLES:
+            logger.warning("Skipping navigation document %s", item.get_name())
+            continue
         chapter_title = (
             heading.get_text(" ", strip=True) if heading else f"Capítulo {chapter_index + 1}"
         )
@@ -43,25 +68,133 @@ def read_epub(path: Path) -> Book:
         if not paragraphs:
             logger.warning("Skipping spine document %s: no readable text", item.get_name())
             continue
-
-        chapter_index += 1
-        segments = [
-            Segment(
-                id=f"c{chapter_index:03d}p{index + 1:04d}",
-                chapter_index=chapter_index,
-                paragraph_index=index + 1,
-                text=text,
-            )
-            for index, text in enumerate(paragraphs)
-        ]
-        chapters.append(Chapter(index=chapter_index, title=chapter_title, segments=segments))
+        chapter_index = _append_chapter(chapters, chapter_index, chapter_title, paragraphs)
 
     return Book(title=title, author=author, language=language, chapters=chapters)
+
+
+def _append_chapter(
+    chapters: list[Chapter], chapter_index: int, title: str, paragraphs: list[str]
+) -> int:
+    paragraphs = [paragraph for paragraph in paragraphs if paragraph]
+    if not paragraphs:
+        return chapter_index
+    chapter_index += 1
+    segments = [
+        Segment(
+            id=f"c{chapter_index:03d}p{index + 1:04d}",
+            chapter_index=chapter_index,
+            paragraph_index=index + 1,
+            text=text,
+        )
+        for index, text in enumerate(paragraphs)
+    ]
+    chapters.append(Chapter(index=chapter_index, title=title, segments=segments))
+    return chapter_index
 
 
 def _first_metadata(book: epub.EpubBook, name: str) -> str | None:
     values = book.get_metadata("DC", name)
     return values[0][0] if values else None
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().casefold()
+
+
+def _flatten_toc(items) -> list:
+    links = []
+    for item in items:
+        if isinstance(item, tuple):
+            _, children = item
+            links.extend(_flatten_toc(children))
+        elif getattr(item, "href", None):
+            links.append(item)
+    return links
+
+
+def _toc_by_item(
+    book: epub.EpubBook, title: str, author: str
+) -> dict[str, list[tuple[str | None, str]]]:
+    grouped: dict[str, list[tuple[str | None, str]]] = {}
+    normalized_book_title = _normalize(title)
+    normalized_author = _normalize(author)
+    for link in _flatten_toc(book.toc):
+        raw_title = (link.title or "").strip()
+        if not raw_title:
+            continue
+        normalized_title = _normalize(raw_title)
+        if normalized_title in NAV_TITLES:
+            continue
+        if normalized_title in {normalized_book_title, normalized_author}:
+            continue
+        if normalized_book_title in normalized_title and normalized_author in normalized_title:
+            continue
+        item_name, _, fragment = link.href.partition("#")
+        if not item_name:
+            continue
+        grouped.setdefault(item_name, []).append((fragment or None, _chapter_title(raw_title)))
+    for item_name, entries in grouped.items():
+        fragments = [entry for entry in entries if entry[0]]
+        if fragments:
+            grouped[item_name] = fragments
+    return grouped
+
+
+def _chapter_title(title: str) -> str:
+    return f"Capítulo {title}" if title.isdigit() else title
+
+
+def _split_document(
+    soup: BeautifulSoup, entries: list[tuple[str | None, str]]
+) -> list[tuple[str, list[str]]]:
+    blocks = _top_level_blocks(soup)
+    if len(entries) == 1 and entries[0][0] is None:
+        return [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup))]
+
+    order = {id(tag): index for index, tag in enumerate(soup.find_all(True))}
+    anchors: list[tuple[int, str | None, str]] = []
+    for anchor, title in entries:
+        if anchor is None:
+            anchors.append((-1, None, title))
+            continue
+        tag = soup.find(id=anchor)
+        if tag is None:
+            logger.warning("TOC anchor %s not found", anchor)
+            continue
+        anchors.append((order[id(tag)], anchor, title))
+    if not anchors:
+        return [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup))]
+
+    chapters: list[tuple[str, list[str]]] = []
+    for block in blocks:
+        anchor_ids = {tag.get("id") for tag in block.find_all(id=True)}
+        inside = [entry for entry in anchors if entry[1] in anchor_ids]
+        block_position = order[id(block)]
+        before = [entry for entry in anchors if entry[0] < block_position]
+        candidate = inside[0] if inside else (before[-1] if before else None)
+        if candidate is None:
+            continue
+        title = candidate[2]
+        if not chapters or chapters[-1][0] != title:
+            chapters.append((title, []))
+        text = block.get_text(" ", strip=True)
+        if text and not _is_label(text, title):
+            chapters[-1][1].append(text)
+    if not any(paragraphs for _, paragraphs in chapters):
+        return [(entries[0][1], _extract_bare_text(soup))]
+    return chapters
+
+
+def _block_texts(blocks: list[Tag]) -> list[str]:
+    return [block.get_text(" ", strip=True) for block in blocks if block.get_text(" ", strip=True)]
+
+
+def _is_label(text: str, title: str) -> bool:
+    normalized = _normalize(text)
+    if normalized.isdigit() and _normalize(title) == f"capítulo {normalized}":
+        return True
+    return normalized == _normalize(title)
 
 
 def _top_level_blocks(soup: BeautifulSoup) -> list:

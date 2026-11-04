@@ -22,3 +22,7 @@ def test_clean_paragraphs_removes_page_numbers_and_boilerplate():
 
 def test_clean_paragraphs_keeps_accents():
     assert clean_paragraphs(["Canción de cuna."]) == ["Canción de cuna."]
+
+
+def test_clean_paragraphs_removes_watermark():
+    assert clean_paragraphs(["Hola.", "OceanofPDF.com", "Mundo."]) == ["Hola.", "Mundo."]

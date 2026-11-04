@@ -110,6 +110,10 @@ def convert(
         for segment in chapter.segments:
             key = cache_key(segment, voice, engine, style, rate)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
+            if not force and not path.exists():
+                cached = next(segments_dir.glob(f"*_{key}{provider.audio_suffix}"), None)
+                if cached is not None:
+                    path = cached
             if force or not path.exists() or path.stat().st_size == 0:
                 temp_path = path.with_name(f"{path.name}.part")
                 try:

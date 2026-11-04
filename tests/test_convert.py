@@ -113,6 +113,22 @@ def test_convert_reuses_cached_segments(tiny_epub: Path, tmp_path: Path):
 
 
 @requires_ffmpeg
+def test_convert_reuses_cache_by_text_key(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    first = CountingProvider()
+    convert(book, "es-MX-JorgeNeural", "fake", first, out_dir)
+
+    segments = out_dir / "audio" / "segments"
+    for path in list(segments.glob("*.wav")):
+        path.rename(path.with_name(f"old_{path.name}"))
+
+    second = CountingProvider()
+    convert(book, "es-MX-JorgeNeural", "fake", second, out_dir)
+    assert second.calls == 0
+
+
+@requires_ffmpeg
 def test_convert_rate_changes_cache_key(tiny_epub: Path, tmp_path: Path):
     book = prepare_book(read_epub(tiny_epub))
     out_dir = tmp_path / "book"
