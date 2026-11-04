@@ -11,6 +11,14 @@ def _ffmetadata_value(value: str) -> str:
     return value
 
 
+def _write_concat_list(path: Path, files: list[Path]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(f"file '{file.resolve()}'" for file in files) + "\n",
+        encoding="utf-8",
+    )
+
+
 def probe_duration(path: Path) -> float:
     _, ffprobe = require_ffmpeg()
     output = subprocess.check_output(
@@ -26,7 +34,10 @@ def probe_duration(path: Path) -> float:
         ],
         text=True,
     )
-    return float(output.strip())
+    try:
+        return float(output.strip())
+    except ValueError as exc:
+        raise RuntimeError(f"Could not read duration from {path}") from exc
 
 
 def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
@@ -37,14 +48,15 @@ def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     list_path = work_dir / f"{out_path.stem}_concat.txt"
-    list_path.write_text(
-        "\n".join(f"file '{file.resolve()}'" for file in files) + "\n",
-        encoding="utf-8",
-    )
+    _write_concat_list(list_path, files)
 
     subprocess.run(
         [
             ffmpeg,
+            "-nostdin",
+            "-hide_banner",
+            "-loglevel",
+            "error",
             "-y",
             "-f",
             "concat",
@@ -80,11 +92,8 @@ def build_m4b(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work_dir.mkdir(parents=True, exist_ok=True)
 
-    list_path = work_dir / "m4b_concat.txt"
-    list_path.write_text(
-        "\n".join(f"file '{file.resolve()}'" for file in chapter_files) + "\n",
-        encoding="utf-8",
-    )
+    list_path = work_dir / f"{out_path.stem}_m4b_concat.txt"
+    _write_concat_list(list_path, chapter_files)
 
     durations = [probe_duration(file) for file in chapter_files]
     metadata_lines = [
@@ -106,12 +115,16 @@ def build_m4b(
         )
         start_ms = end_ms
 
-    metadata_path = work_dir / "ffmetadata.txt"
+    metadata_path = work_dir / f"{out_path.stem}_ffmetadata.txt"
     metadata_path.write_text("\n".join(metadata_lines) + "\n", encoding="utf-8")
 
     subprocess.run(
         [
             ffmpeg,
+            "-nostdin",
+            "-hide_banner",
+            "-loglevel",
+            "error",
             "-y",
             "-f",
             "concat",

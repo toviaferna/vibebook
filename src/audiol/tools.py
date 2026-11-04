@@ -6,14 +6,7 @@ from pathlib import Path
 
 
 def find_binary(name: str) -> str:
-    """Find a native binary without requiring shell activation.
-
-    Resolution order:
-    1. ``<NAME>_BINARY`` environment variable.
-    2. ``PATH`` (system installation or an activated environment).
-    3. Project-local ``.tools/bin`` used by this repository.
-    4. ``static-ffmpeg`` bundled download (first call may download).
-    """
+    """Resolve a native binary from env, PATH, .tools/bin, or static-ffmpeg."""
     env_name = f"{name.upper()}_BINARY"
     if configured := os.environ.get(env_name):
         return configured
