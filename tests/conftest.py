@@ -104,15 +104,22 @@ def toc_epub(tmp_path: Path) -> Path:
     outline.content = "<h1>Document Outline</h1><ul><li>1</li><li>2</li></ul>"
     book.add_item(outline)
 
+    continuation = epub.EpubHtml(title="Continuación", file_name="continuation.xhtml", lang="es")
+    continuation.content = (
+        '<p>Continuación del capítulo 2.</p><p><a id="ch3"></a>3</p><p>Cuarto párrafo.</p>'
+    )
+    book.add_item(continuation)
+
     book.toc = (
         epub.Link("content.xhtml#top", "Libro con índice", "top"),
         epub.Link("content.xhtml#ch1", "1", "ch1"),
         epub.Link("content.xhtml#ch2", "2", "ch2"),
+        epub.Link("continuation.xhtml#ch3", "3", "ch3"),
         epub.Link("content.xhtml#top", "FIN", "fin"),
     )
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
-    book.spine = ["nav", content.id, outline.id]
+    book.spine = ["nav", content.id, continuation.id, outline.id]
 
     path = tmp_path / "toc.epub"
     epub.write_epub(str(path), book)
