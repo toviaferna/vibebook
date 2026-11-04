@@ -45,17 +45,11 @@ versión Edge de la misma voz.
 
 ## Histórico (descartado)
 
-Estas muestras pertenecen al bake-off inicial con acento de España y Kokoro.
-No compiten con las voces LatAm: Kokoro quedó descartado por lentitud en CPU y
-por no dividir texto en español.
-
-| Motor | Voz | Naturalidad | Emoción | Pronunciación | Ritmo/pausas | ¿30 min? | Notas |
-|---|---|---:|---:|---:|---:|---|---|
-| Edge TTS | `es-ES-AlvaroNeural` | | | | | | Histórico |
-| Edge TTS | `es-ES-ElviraNeural` | | | | | | Histórico |
-| Edge TTS | `es-ES-XimenaNeural` | | | | | | Histórico |
-| Kokoro | `em_alex` | | | | | | Descartado |
-| Chatterbox V3 | por definir | | | | | | Fuera de v0 |
+Las muestras de España y Kokoro pertenecen al bake-off inicial y no compiten
+con las voces LatAm. Los datos están en
+[`docs/archive/bakeoff-2026-10.md`](../docs/archive/bakeoff-2026-10.md).
+Kokoro se descartó por la escucha y por no dividir texto en español sin código
+propio. Chatterbox V3 queda fuera de v0.
 
 ## Criterio
 
