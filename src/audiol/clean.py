@@ -5,6 +5,7 @@ GUTENBERG = re.compile(
     r"project gutenberg|gutenberg\.org|produced by|transcriber|proofread",
     re.IGNORECASE,
 )
+WATERMARK = re.compile(r"^\s*(?:https?://)?(?:www\.)?oceanofpdf\.com/?\s*$", re.IGNORECASE)
 
 
 def clean_text(text: str) -> str:
@@ -22,6 +23,8 @@ def clean_paragraphs(paragraphs: list[str]) -> list[str]:
         if not paragraph:
             continue
         if PAGE_NUMBER.match(paragraph) or GUTENBERG.search(paragraph):
+            continue
+        if WATERMARK.match(paragraph):
             continue
         if cleaned and paragraph == cleaned[-1]:
             continue

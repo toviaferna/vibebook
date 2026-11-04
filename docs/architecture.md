@@ -44,10 +44,11 @@ EPUB
 
 ### Etapas
 
-- `ingest/epub.py`: lee el spine, extrae párrafos y bloques, ignora documentos
-  no lineales y avisa si un documento no tiene texto.
-- `clean.py`: elimina números de página, encabezados de Gutenberg, líneas
-  duplicadas y corrige guiones.
+- `ingest/epub.py`: lee el spine, usa los anclajes del índice para dividir
+  documentos que agrupan varios capítulos, ignora documentos de navegación y
+  avisa si un documento no tiene texto.
+- `clean.py`: elimina números de página, encabezados de Gutenberg, marcas de
+  agua, líneas duplicadas y corrige guiones.
 - `chunk.py`: agrupa frases hasta 400 caracteres; parte las frases largas.
 - `tts/`: adaptadores con el contrato `TTSProvider` y `AudioResult`.
 - `convert.py`: prepara el libro, cachea segmentos, reintenta fallos
@@ -70,7 +71,8 @@ conversión y en el manifiesto, no en cada segmento.
 
 La clave es `sha256(texto + voz + motor + estilo + rate)`. El audio se escribe
 en un archivo temporal y se publica con `os.replace` solo cuando termina. Un
-fallo elimina el temporal; la siguiente ejecución reanuda.
+fallo elimina el temporal; la siguiente ejecución reanuda. Si cambian los IDs
+de los segmentos pero el texto es el mismo, el caché se reutiliza por clave.
 
 Edge espera 1 segundo entre peticiones y reintenta hasta 5 veces con backoff
 exponencial desde 2 segundos.

@@ -81,6 +81,45 @@ def block_text_epub(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def toc_epub(tmp_path: Path) -> Path:
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-toc-123")
+    book.set_title("Libro con índice")
+    book.set_language("es")
+    book.add_author("Autora")
+
+    content = epub.EpubHtml(title="Contenido", file_name="content.xhtml", lang="es")
+    content.content = (
+        "<p>Front matter.</p>"
+        '<p><a id="top"></a>Libro con índice</p>'
+        '<p><a id="ch1"></a>1</p>'
+        "<p>Primer párrafo.</p>"
+        "<p>Segundo párrafo.</p>"
+        '<p><a id="ch2"></a>2</p>'
+        "<p>Tercer párrafo.</p>"
+    )
+    book.add_item(content)
+
+    outline = epub.EpubHtml(title="Document Outline", file_name="outline.xhtml", lang="es")
+    outline.content = "<h1>Document Outline</h1><ul><li>1</li><li>2</li></ul>"
+    book.add_item(outline)
+
+    book.toc = (
+        epub.Link("content.xhtml#top", "Libro con índice", "top"),
+        epub.Link("content.xhtml#ch1", "1", "ch1"),
+        epub.Link("content.xhtml#ch2", "2", "ch2"),
+        epub.Link("content.xhtml#top", "FIN", "fin"),
+    )
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", content.id, outline.id]
+
+    path = tmp_path / "toc.epub"
+    epub.write_epub(str(path), book)
+    return path
+
+
+@pytest.fixture
 def mixed_block_epub(tmp_path: Path) -> Path:
     book = epub.EpubBook()
     book.set_identifier("audiol-test-mixed-123")

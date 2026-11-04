@@ -40,3 +40,13 @@ def test_read_epub_skips_heading_in_bare_text_chapter(mixed_block_epub: Path):
     texts = [segment.text for segment in book.chapters[1].segments]
     assert texts == ["Texto suelto."]
     assert "Capítulo suelto" not in texts
+
+
+def test_read_epub_splits_by_toc_anchors(toc_epub: Path):
+    book = read_epub(toc_epub)
+    assert [chapter.title for chapter in book.chapters] == ["Capítulo 1", "Capítulo 2"]
+    assert [segment.text for segment in book.chapters[0].segments] == [
+        "Primer párrafo.",
+        "Segundo párrafo.",
+    ]
+    assert [segment.text for segment in book.chapters[1].segments] == ["Tercer párrafo."]
