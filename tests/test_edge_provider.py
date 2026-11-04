@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import edge_tts
 import pytest
 
 from audiol.tts.edge import EdgeProvider
@@ -37,6 +38,44 @@ def test_edge_provider_rejects_empty_text():
 def test_edge_provider_rejects_invalid_rate():
     with pytest.raises(ValueError):
         EdgeProvider().synthesize("Hola", "es-MX-JorgeNeural", Path("x.mp3"), rate="fast")
+
+
+def test_edge_provider_cools_down_without_audio(monkeypatch, tmp_path: Path):
+    calls: list[int] = []
+    sleeps: list[float] = []
+    output = tmp_path / "sample.mp3"
+
+    async def fake_stream(self, text, voice, out_path, rate):
+        calls.append(1)
+        if len(calls) < 3:
+            raise edge_tts.exceptions.NoAudioReceived("no audio")
+        out_path.write_bytes(b"ID3fake-audio")
+
+    monkeypatch.setattr("audiol.tts.edge.EdgeProvider._stream", fake_stream)
+    monkeypatch.setattr("audiol.tts.edge.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    result = EdgeProvider().synthesize("Hola", "es-MX-JorgeNeural", output)
+
+    assert result.path == output
+    assert output.read_bytes() == b"ID3fake-audio"
+    assert sleeps == [60.0, 120.0]
+
+
+def test_edge_provider_raises_after_cooldowns(monkeypatch, tmp_path: Path):
+    sleeps: list[float] = []
+    output = tmp_path / "sample.mp3"
+
+    async def fake_stream(self, text, voice, out_path, rate):
+        raise edge_tts.exceptions.NoAudioReceived("no audio")
+
+    monkeypatch.setattr("audiol.tts.edge.EdgeProvider._stream", fake_stream)
+    monkeypatch.setattr("audiol.tts.edge.time.sleep", lambda seconds: sleeps.append(seconds))
+
+    with pytest.raises(edge_tts.exceptions.NoAudioReceived):
+        EdgeProvider().synthesize("Hola", "es-MX-JorgeNeural", output)
+
+    assert not output.exists()
+    assert sleeps == [60.0, 120.0, 240.0, 480.0]
 
 
 def test_edge_provider_paces_requests(monkeypatch, tmp_path: Path):
