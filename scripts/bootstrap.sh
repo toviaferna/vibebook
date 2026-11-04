@@ -2,12 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VENV="${AUDIOL_VENV:-$HOME/.venvs/audiol}"
+cd "$ROOT"
 
-python3 -m venv "$VENV"
-"$VENV/bin/python" -m pip install --upgrade pip
-"$VENV/bin/python" -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-"$VENV/bin/python" -m pip install audiblez edge-tts
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv no está instalado."
+  echo "Instálalo con: curl -LsSf https://astral.sh/uv/install.sh | sh"
+  exit 1
+fi
 
-echo "Venv: $VENV"
-echo "Siguiente: source $ROOT/scripts/env.sh"
+uv sync
+echo "Listo. Ejecuta: uv run vibebook --help"

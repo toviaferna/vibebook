@@ -35,9 +35,7 @@ def extract_chapter() -> tuple[str, str, list[str]]:
 
     h2 = clean_fragment(re.search(r"<h2[^>]*>(.*?)</h2>", raw, re.S).group(1))
     h3 = clean_fragment(re.search(r"<h3[^>]*>(.*?)</h3>", raw, re.S).group(1))
-    paragraphs = [
-        clean_fragment(p) for p in re.findall(r"<p[^>]*>(.*?)</p>", raw, re.S)
-    ]
+    paragraphs = [clean_fragment(p) for p in re.findall(r"<p[^>]*>(.*?)</p>", raw, re.S)]
     paragraphs = [p for p in paragraphs if p]
 
     deduped: list[str] = []

@@ -1,13 +1,23 @@
-import shutil
 from pathlib import Path
 
 import pytest
 
 from audiol.cli import main
+from audiol.tools import find_binary
+
+
+def _has_ffmpeg() -> bool:
+    try:
+        find_binary("ffmpeg")
+        find_binary("ffprobe")
+        return True
+    except RuntimeError:
+        return False
+
 
 requires_ffmpeg = pytest.mark.skipif(
-    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
-    reason="ffmpeg/ffprobe not installed",
+    not _has_ffmpeg(),
+    reason="ffmpeg/ffprobe not available",
 )
 
 

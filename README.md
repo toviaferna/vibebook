@@ -1,6 +1,9 @@
-# audiol
+# vibebook
 
 Generador de audiolibros en español latinoamericano a partir de EPUB.
+
+El paquete Python se llama `audiol`; el comando instalado es **`vibebook`**
+(también se mantiene el alias `audiol`).
 
 v0 usa **Edge TTS** por defecto y **Azure Speech** como opción para estilos
 emocionales. El idioma por defecto es `es-MX`; también se soporta `es-PY`.
@@ -17,51 +20,55 @@ La salida es un M4B AAC con capítulos y metadata.
   `whispering`, etc.) sobre las voces `es-MX`.
 - **Kokoro queda descartado:** era el baseline CPU del bake-off inicial, pero
   no divide texto en español y tarda ~1,2x tiempo real (un libro de 10 h
-  tardaría ~8 h). Los scripts de Kokoro quedan solo como referencia histórica;
-  el producto no los importa.
+  tardaría ~8 h). El producto no lo usa; los scripts se eliminaron y quedan
+  en el historial de git.
 
 Fuera de v0: PDF, SFX, base de datos, UI web, clonación de voz y Chatterbox.
 
 ## Requisitos
 
-- Python 3.10 o superior.
-- `ffmpeg` y `ffprobe` en `PATH` (obligatorios para concatenar y ensamblar).
-- Dependencias de Python: `pip install -e ".[dev]"`.
-- Opcional para Azure: credenciales de Azure Speech.
+- [uv](https://docs.astral.sh/uv/) (gestiona Python y las dependencias).
+- `ffmpeg` y `ffprobe`: el proyecto usa `static-ffmpeg` si no los encuentra en
+  el sistema ni en `.tools/bin`. La primera ejecución puede descargarlos.
+- Opcional para Azure: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
 
-En este repositorio los binarios de ffmpeg viven en `.tools/bin`; cárgalos con:
+Instalación:
 
 ```bash
-source scripts/env.sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync
 ```
+
+No hay que activar ningún venv. `uv run` usa el entorno del proyecto
+automáticamente.
 
 ## Uso
 
 Listar voces:
 
 ```bash
-audiol voices
-audiol voices --locale es-MX
-audiol voices --locale es-PY
+uv run vibebook voices
+uv run vibebook voices --locale es-MX
+uv run vibebook voices --locale es-PY
 ```
 
 Convertir un EPUB con Edge (motor y voz por defecto). La velocidad por defecto
 es `-6%`, un poco más pausada que la voz original:
 
 ```bash
-audiol convert samples/excerpt.epub --out out/excerpt
+uv run vibebook convert samples/excerpt.epub --out out/excerpt
 ```
 
 Elegir una velocidad más pausada:
 
 ```bash
-audiol convert samples/excerpt.epub --rate -8% --out out/excerpt-lento
+uv run vibebook convert samples/excerpt.epub --rate -8% --out out/excerpt-lento
 ```
 
 Convertir con una voz concreta:
 
 ```bash
-audiol convert samples/excerpt.epub \
+uv run vibebook convert samples/excerpt.epub \
   --voice es-PY-MarioNeural \
   --out out/excerpt-py
 ```
@@ -70,20 +77,20 @@ Simular la conversión sin escribir archivos (cuenta capítulos, segmentos y
 caracteres):
 
 ```bash
-audiol convert samples/excerpt.epub --dry-run --out out/excerpt
+uv run vibebook convert samples/excerpt.epub --dry-run --out out/excerpt
 ```
 
 Elegir motor y estilo (los estilos solo existen en Azure):
 
 ```bash
-audiol convert samples/excerpt.epub \
+uv run vibebook convert samples/excerpt.epub \
   --engine azure \
   --voice es-MX-JorgeNeural \
   --style cheerful \
   --out out/excerpt-azure
 ```
 
-Opciones de `audiol convert`:
+Opciones de `vibebook convert`:
 
 | Opción | Default | Descripción |
 |---|---|---|
@@ -136,19 +143,18 @@ Estilos Azure (`--engine azure`): `neutral`, `chat`, `cheerful`, `sad`,
 ## Tests
 
 ```bash
-source scripts/env.sh
-~/.venvs/audiol/bin/python -m pytest tests/test_cli_convert.py -q -rs
-~/.venvs/audiol/bin/python -m pytest -q -rs
+uv run pytest tests/test_cli_convert.py -q -rs
+uv run pytest
 ```
 
 Los tests de CLI usan `--engine fake` y no tocan la red. Los tests de ensamblado
-se saltan si `ffmpeg`/`ffprobe` no están en `PATH`; con `scripts/env.sh` deben
-correr, no saltarse.
+usan `find_binary()` y corren con ffmpeg del sistema, `.tools/bin` o
+`static-ffmpeg`.
 
 Smoke test del CLI sin red:
 
 ```bash
-audiol convert samples/excerpt.epub --engine fake --out out/smoke
+uv run vibebook convert samples/excerpt.epub --engine fake --out out/smoke
 ```
 
 ## Bake-off LatAm
@@ -156,8 +162,7 @@ audiol convert samples/excerpt.epub --engine fake --out out/smoke
 Genera cuatro previews Edge (~800 caracteres) para escuchar MX y PY:
 
 ```bash
-source scripts/env.sh
-~/.venvs/audiol/bin/python scripts/bakeoff_latam.py
+uv run python scripts/bakeoff_latam.py
 ls -lh out/bakeoff_latam/
 ```
 
@@ -175,8 +180,7 @@ se mantiene `es-MX-JorgeNeural`.
 Bake-off opcional de estilos Azure (solo si existen las credenciales):
 
 ```bash
-source scripts/env.sh
-~/.venvs/audiol/bin/python - <<'PY'
+uv run python - <<'PY'
 from pathlib import Path
 
 from audiol.chunk import chunk_text
@@ -206,7 +210,7 @@ El capítulo de prueba es el **Tratado Primero**.
 
 ```bash
 ./scripts/fetch_sample.sh
-python3 scripts/prepare_sample.py
+uv run python scripts/prepare_sample.py
 ```
 
 Genera:
@@ -238,10 +242,10 @@ Hallazgos que motivaron la decisión:
 
 ## Entorno de referencia
 
-- WSL2 Ubuntu 22.04.
-- `ffmpeg`/`ffprobe` estáticos en `.tools/bin`.
-- Python 3.10 en `~/.venvs/audiol` (ext4); el venv no se guarda en `/mnt/c`.
-- `source scripts/env.sh` deja ffmpeg y las dependencias de audio en `PATH`.
+- WSL2 Ubuntu.
+- `uv` gestiona Python 3.12 y las dependencias.
+- `ffmpeg`/`ffprobe`: sistema, `.tools/bin` o `static-ffmpeg` (automático).
+- `uv run` usa `.venv`; no hay que activar nada.
 
 ## Estado
 
@@ -249,7 +253,8 @@ Hallazgos que motivaron la decisión:
 - [x] Proveedores Edge y Azure, contrato común y proveedor fake para tests.
 - [x] Ensamblado de capítulos y M4B AAC con metadata.
 - [x] Orquestador reanudable con caché por segmento.
-- [x] CLI `audiol voices` y `audiol convert`.
+- [x] CLI `vibebook voices` y `vibebook convert` (alias `audiol`).
+- [x] Proyecto migrado a `uv`, con `uv.lock`, lint, tipos y CI.
 - [x] Bake-off LatAm MX/PY generado.
 - [ ] Elección de voz MX/PY por escucha (usuario).
 - [ ] Estilos Azure evaluados (requiere credenciales).

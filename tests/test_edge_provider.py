@@ -28,9 +28,7 @@ def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
     monkeypatch.setattr("audiol.tts.edge.edge_tts.Communicate", FakeCommunicate)
     output = tmp_path / "sample.mp3"
 
-    result = EdgeProvider().synthesize(
-        "Hola", "es-MX-JorgeNeural", output, rate="-6%"
-    )
+    result = EdgeProvider().synthesize("Hola", "es-MX-JorgeNeural", output, rate="-6%")
 
     assert result.path == output
     assert output.read_bytes() == b"ID3fake-audio"
@@ -45,17 +43,13 @@ def test_edge_provider_rejects_empty_text():
 
 def test_edge_provider_rejects_invalid_rate():
     with pytest.raises(ValueError):
-        EdgeProvider().synthesize(
-            "Hola", "es-MX-JorgeNeural", Path("x.mp3"), rate="fast"
-        )
+        EdgeProvider().synthesize("Hola", "es-MX-JorgeNeural", Path("x.mp3"), rate="fast")
 
 
 def test_edge_provider_paces_requests(monkeypatch, tmp_path: Path):
     sleeps: list[float] = []
     monkeypatch.setattr("audiol.tts.edge.time.monotonic", lambda: 0.0)
-    monkeypatch.setattr(
-        "audiol.tts.edge.time.sleep", lambda seconds: sleeps.append(seconds)
-    )
+    monkeypatch.setattr("audiol.tts.edge.time.sleep", lambda seconds: sleeps.append(seconds))
     monkeypatch.setattr("audiol.tts.edge.edge_tts.Communicate", FakeCommunicate)
     provider = EdgeProvider()
 

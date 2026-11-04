@@ -36,17 +36,12 @@ def read_epub(path: Path) -> Book:
         chapter_title = (
             heading.get_text(" ", strip=True) if heading else f"Capítulo {chapter_index + 1}"
         )
-        paragraphs = [
-            element.get_text(" ", strip=True)
-            for element in _top_level_blocks(soup)
-        ]
+        paragraphs = [element.get_text(" ", strip=True) for element in _top_level_blocks(soup)]
         paragraphs = [paragraph for paragraph in paragraphs if paragraph]
         if not paragraphs:
             paragraphs = _extract_bare_text(soup)
         if not paragraphs:
-            logger.warning(
-                "Skipping spine document %s: no readable text", item.get_name()
-            )
+            logger.warning("Skipping spine document %s: no readable text", item.get_name())
             continue
 
         chapter_index += 1
@@ -59,9 +54,7 @@ def read_epub(path: Path) -> Book:
             )
             for index, text in enumerate(paragraphs)
         ]
-        chapters.append(
-            Chapter(index=chapter_index, title=chapter_title, segments=segments)
-        )
+        chapters.append(Chapter(index=chapter_index, title=chapter_title, segments=segments))
 
     return Book(title=title, author=author, language=language, chapters=chapters)
 
@@ -89,7 +82,5 @@ def _extract_bare_text(soup: BeautifulSoup) -> list[str]:
 
     container = fallback.body or fallback
     return [
-        line.strip()
-        for line in container.get_text("\n", strip=True).splitlines()
-        if line.strip()
+        line.strip() for line in container.get_text("\n", strip=True).splitlines() if line.strip()
     ]

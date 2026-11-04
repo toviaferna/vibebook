@@ -31,9 +31,7 @@ def prepare_book(book: Book, max_chars: int = 400) -> Book:
                     )
                 )
         if segments:
-            chapters.append(
-                Chapter(index=chapter.index, title=chapter.title, segments=segments)
-            )
+            chapters.append(Chapter(index=chapter.index, title=chapter.title, segments=segments))
     return Book(
         title=book.title,
         author=book.author,
@@ -51,10 +49,8 @@ def render_markdown(book: Book) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def cache_key(
-    segment: Segment, voice: str, engine: str, style: str, rate: str
-) -> str:
-    payload = f"{segment.text}|{voice}|{engine}|{style}|{rate}".encode("utf-8")
+def cache_key(segment: Segment, voice: str, engine: str, style: str, rate: str) -> str:
+    payload = f"{segment.text}|{voice}|{engine}|{style}|{rate}".encode()
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
@@ -147,10 +143,6 @@ def convert(
 
 
 def slugify(text: str) -> str:
-    ascii_text = (
-        unicodedata.normalize("NFKD", text)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-    )
+    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_text).strip("-").lower()
     return slug or "audiolibro"
