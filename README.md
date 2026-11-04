@@ -2,45 +2,25 @@
 
 Generador de audiolibros en español latinoamericano a partir de EPUB.
 
-El paquete Python se llama `audiol`; el comando instalado es **`vibebook`**
-(también se mantiene el alias `audiol`).
+El paquete Python se llama `audiol`; el comando instalado es `vibebook` y
+también existe el alias `audiol`. v0 usa Edge TTS por defecto y Azure Speech
+como opción para estilos. La salida es un M4B AAC con capítulos y metadata.
 
-v0 usa **Edge TTS** por defecto y **Azure Speech** como opción para estilos
-emocionales. El idioma por defecto es `es-MX`; también se soporta `es-PY`.
-La salida es un M4B AAC con capítulos y metadata.
+## Instalación
 
-## Decisión actual
+Requisitos:
 
-- **Motor por defecto:** Edge TTS, rápido y sin credenciales.
-- **Voz por defecto:** `es-MX-JorgeNeural`.
-- **Acentos aceptados:** México (`es-MX`) y Paraguay (`es-PY`). La voz final se
-  elige por escucha con el bake-off de `scripts/bakeoff_latam.py`.
-- **Azure Speech (opcional):** requiere `AZURE_SPEECH_KEY` y
-  `AZURE_SPEECH_REGION`. Aporta estilos (`cheerful`, `sad`, `excited`,
-  `whispering`, etc.) sobre las voces `es-MX`.
-- **Kokoro queda descartado:** era el baseline CPU del bake-off inicial, pero
-  no divide texto en español y tarda ~1,2x tiempo real (un libro de 10 h
-  tardaría ~8 h). El producto no lo usa; los scripts se eliminaron y quedan
-  en el historial de git.
-
-Fuera de v0: PDF, SFX, base de datos, UI web, clonación de voz y Chatterbox.
-
-## Requisitos
-
-- [uv](https://docs.astral.sh/uv/) (gestiona Python y las dependencias).
-- `ffmpeg` y `ffprobe`: el proyecto usa `static-ffmpeg` si no los encuentra en
-  el sistema ni en `.tools/bin`. La primera ejecución puede descargarlos.
-- Opcional para Azure: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
-
-Instalación:
+- `uv`, que gestiona Python 3.12 y las dependencias.
+- `ffmpeg` y `ffprobe`. Si no están en el sistema, `static-ffmpeg` los
+  descarga la primera vez.
+- Azure es opcional: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-No hay que activar ningún venv. `uv run` usa el entorno del proyecto
-automáticamente.
+No hay que activar ningún venv. `uv run` usa el entorno del proyecto.
 
 ## Uso
 
@@ -52,67 +32,65 @@ uv run vibebook voices --locale es-MX
 uv run vibebook voices --locale es-PY
 ```
 
-Convertir un EPUB con Edge (motor y voz por defecto). La velocidad por defecto
-es `-6%`, un poco más pausada que la voz original:
+Convertir un EPUB:
 
 ```bash
-uv run vibebook convert samples/excerpt.epub --out out/excerpt
+uv run vibebook convert libro.epub --out out/libro
 ```
 
-Elegir una velocidad más pausada:
+La velocidad por defecto es `-6%`:
 
 ```bash
-uv run vibebook convert samples/excerpt.epub --rate -8% --out out/excerpt-lento
+uv run vibebook convert libro.epub --rate -8% --out out/libro-lento
 ```
 
-Convertir con una voz concreta:
+Elegir voz:
 
 ```bash
-uv run vibebook convert samples/excerpt.epub \
+uv run vibebook convert libro.epub \
   --voice es-PY-MarioNeural \
-  --out out/excerpt-py
+  --out out/libro-py
 ```
 
-Simular la conversión sin escribir archivos (cuenta capítulos, segmentos y
-caracteres):
+Simular sin escribir archivos:
 
 ```bash
-uv run vibebook convert samples/excerpt.epub --dry-run --out out/excerpt
+uv run vibebook convert libro.epub --dry-run
 ```
 
-Elegir motor y estilo (los estilos solo existen en Azure):
+Azure con estilo:
 
 ```bash
-uv run vibebook convert samples/excerpt.epub \
+uv run vibebook convert libro.epub \
   --engine azure \
   --voice es-MX-JorgeNeural \
   --style cheerful \
-  --out out/excerpt-azure
+  --out out/libro-azure
 ```
 
-Opciones de `vibebook convert`:
+### Opciones de `vibebook convert`
 
 | Opción | Default | Descripción |
 |---|---|---|
 | `--voice` | `es-MX-JorgeNeural` | Voz del catálogo |
-| `--engine` | `edge` | `edge`, `azure` o `fake` (tests) |
+| `--engine` | `edge` | `edge`, `azure` o `fake` para tests |
 | `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
-| `--rate` | `-6%` | Velocidad; acepta `-10%` … `+10%`, por ejemplo `-8%` |
+| `--rate` | `-6%` | Velocidad entre `-100%` y `+100%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
 | `--max-chars` | `400` | Tamaño máximo de cada segmento |
-| `--dry-run` | — | No escribe nada; imprime estadísticas |
-| `--force` | — | Re-sintetiza aunque exista el caché |
+| `--dry-run` | No | No escribe archivos; imprime estadísticas |
+| `--force` | No | Re-sintetiza aunque exista el caché |
 
-Salidas por conversión:
+### Salidas
 
-- `book.md` — texto limpio y segmentado.
-- `manifest.json` — metadata, voz, motor, estilo, velocidad y segmentos.
-- `audio/segments/` — audio por segmento (caché reanudable).
-- `audio/chapters/` — MP3 por capítulo.
-- `<titulo>.m4b` — AAC con capítulos.
+- `book.md`: texto limpio y segmentado.
+- `manifest.json`: metadata, voz, motor, estilo, velocidad y segmentos.
+- `audio/segments/`: audio por segmento con caché reanudable.
+- `audio/chapters/`: MP3 por capítulo.
+- `<titulo>.m4b`: AAC con capítulos.
 
-Reejecutar sin `--force` solo reutiliza los segmentos TTS ya sintetizados; los
-capítulos y el M4B se reconstruyen en cada ejecución.
+Reejecutar sin `--force` reutiliza los segmentos ya sintetizados. Los capítulos
+y el M4B se reconstruyen.
 
 ## Voces
 
@@ -120,141 +98,49 @@ capítulos y el M4B se reconstruyen en cada ejecución.
 |---|---|---|---|---|
 | `es-MX-JorgeNeural` | `es-MX` | masculino | Edge, Azure | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
 | `es-MX-DaliaNeural` | `es-MX` | femenino | Edge, Azure | `cheerful`, `sad`, `whispering` |
-| `es-PY-MarioNeural` | `es-PY` | masculino | Edge | — |
-| `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | — |
+| `es-PY-MarioNeural` | `es-PY` | masculino | Edge | - |
+| `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | - |
 
-Estilos Azure (`--engine azure`): `neutral`, `chat`, `cheerful`, `sad`,
-`excited`, `whispering`. Edge solo soporta estilo neutro; los estilos requieren
-`--engine azure`.
+Edge solo admite estilo neutral. Los estilos requieren `--engine azure`.
 
-> **Aviso:** Edge TTS es un servicio no oficial y con límites de tasa; si
-> aparecen errores 429, espera y reintenta. La capa gratuita de Azure Speech
-> incluye 0,5 M de caracteres al mes.
+Edge TTS es un servicio no oficial y puede limitar peticiones. Azure Speech
+incluye 0,5 M de caracteres al mes en la capa gratuita.
 
 ## Pipeline
 
-1. Leer el EPUB (`read_epub`).
-2. Limpiar el texto y dividirlo en segmentos de hasta 400 caracteres
-   (`prepare_book`).
-3. Sintetizar cada segmento con Edge o Azure, con caché por voz/motor/estilo/velocidad.
-4. Concatenar los segmentos por capítulo y normalizar el volumen.
-5. Ensamblar un M4B AAC con metadata y capítulos (`ffmpeg`).
+1. Leer el EPUB.
+2. Limpiar y segmentar el texto.
+3. Sintetizar con Edge o Azure, con caché por voz, motor, estilo y velocidad.
+4. Concatenar por capítulo y normalizar el volumen.
+5. Ensamblar el M4B con ffmpeg.
 
-## Tests
+## Tests y calidad
 
 ```bash
-uv run pytest tests/test_cli_convert.py -q -rs
 uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy src
+make check
 ```
 
-Los tests de CLI usan `--engine fake` y no tocan la red. Los tests de ensamblado
-usan `find_binary()` y corren con ffmpeg del sistema, `.tools/bin` o
-`static-ffmpeg`.
+Los tests usan `FakeProvider` para no tocar la red. Los tests de ffmpeg usan
+`find_binary()` y se saltan si no hay binario disponible.
 
-Smoke test del CLI sin red:
+## Desarrollo
 
-```bash
-uv run vibebook convert samples/excerpt.epub --engine fake --out out/smoke
-```
-
-## Bake-off LatAm
-
-Genera cuatro previews Edge (~800 caracteres) para escuchar MX y PY:
-
-```bash
-uv run python scripts/bakeoff_latam.py
-ls -lh out/bakeoff_latam/
-```
-
-Archivos:
-
-- `out/bakeoff_latam/es-MX-JorgeNeural.mp3`
-- `out/bakeoff_latam/es-MX-DaliaNeural.mp3`
-- `out/bakeoff_latam/es-PY-MarioNeural.mp3`
-- `out/bakeoff_latam/es-PY-TaniaNeural.mp3`
-
-Puntúa las muestras en `results/listening-scorecard.md`. Si gana una voz PY, el
-default del CLI cambia a `es-PY-MarioNeural` o `es-PY-TaniaNeural`; si gana MX,
-se mantiene `es-MX-JorgeNeural`.
-
-Bake-off opcional de estilos Azure (solo si existen las credenciales):
-
-```bash
-uv run python - <<'PY'
-from pathlib import Path
-
-from audiol.chunk import chunk_text
-from audiol.tts.azure import AzureProvider
-
-chunks = chunk_text(Path("samples/excerpt.txt").read_text(encoding="utf-8"))
-parts = []
-for chunk in chunks:
-    parts.append(chunk)
-    if len(" ".join(parts)) >= 800:
-        break
-text = " ".join(parts)
-out = Path("out/bakeoff_latam")
-out.mkdir(parents=True, exist_ok=True)
-provider = AzureProvider()
-for style in ["neutral", "chat", "cheerful", "sad", "excited", "whispering"]:
-    path = out / f"azure_es-MX-Jorge_{style}.mp3"
-    provider.synthesize(text, "es-MX-JorgeNeural", path, style=style)
-    print(path)
-PY
-```
-
-## Muestra
-
-`El Lazarillo de Tormes` (Project Gutenberg #320, dominio público, español).
-El capítulo de prueba es el **Tratado Primero**.
+Herramientas de muestra y bake-off:
 
 ```bash
 ./scripts/fetch_sample.sh
 uv run python scripts/prepare_sample.py
+uv run python scripts/bakeoff_latam.py
 ```
 
-Genera:
+Documentación:
 
-- `samples/tratado_primero.txt` — capítulo completo (~25k caracteres).
-- `samples/tratado_primero.epub` — EPUB de un solo capítulo.
-- `samples/excerpt.txt` — extracto plano de ~3.500 caracteres.
-- `samples/excerpt.epub` — EPUB del extracto para pruebas rápidas.
-
-## Historial del bake-off
-
-| Motor | Voz | Caracteres | Audio | Muro | Factor tiempo real | Estado |
-|---|---|---:|---:|---:|---:|---|
-| Edge TTS | `es-ES-AlvaroNeural` | 3.580 | 214,0 s | 36,8 s | 5,82x | Histórico (España) |
-| Edge TTS | `es-ES-ElviraNeural` | 3.580 | 211,4 s | 34,4 s | 6,14x | Histórico (España) |
-| Edge TTS | `es-ES-XimenaNeural` | 3.580 | 220,2 s | 31,6 s | 6,98x | Histórico (España) |
-| Kokoro | `em_alex` | 3.580 | 203,7 s | 165,4 s | 1,23x | Descartado |
-| Chatterbox V3 | — | — | — | — | — | Fuera de v0 |
-
-Hallazgos que motivaron la decisión:
-
-- Edge TTS es 5,8–7x tiempo real; Kokoro en CPU solo 1,23x.
-- Kokoro no implementa chunking para idiomas distintos del inglés y truncaba
-  párrafos largos.
-- Audiblez 0.4.9 tenía el CLI roto y generaba M4B PCM a 384 kbps; este proyecto
-  usa ffmpeg directamente y codifica AAC a 64 kbps.
-- El concat de ffmpeg exige rutas absolutas; el ensamblador las resuelve.
-- La calidad subjetiva se decide escuchando el bake-off MX/PY, no con métricas.
-
-## Entorno de referencia
-
-- WSL2 Ubuntu.
-- `uv` gestiona Python 3.12 y las dependencias.
-- `ffmpeg`/`ffprobe`: sistema, `.tools/bin` o `static-ffmpeg` (automático).
-- `uv run` usa `.venv`; no hay que activar nada.
-
-## Estado
-
-- [x] Ingesta de EPUB, limpieza, chunking y manifiesto.
-- [x] Proveedores Edge y Azure, contrato común y proveedor fake para tests.
-- [x] Ensamblado de capítulos y M4B AAC con metadata.
-- [x] Orquestador reanudable con caché por segmento.
-- [x] CLI `vibebook voices` y `vibebook convert` (alias `audiol`).
-- [x] Proyecto migrado a `uv`, con `uv.lock`, lint, tipos y CI.
-- [x] Bake-off LatAm MX/PY generado.
-- [ ] Elección de voz MX/PY por escucha (usuario).
-- [ ] Estilos Azure evaluados (requiere credenciales).
+- [Arquitectura](docs/architecture.md)
+- [Desarrollo](docs/development.md)
+- [Roadmap](docs/roadmap.md)
+- [Bake-off histórico](docs/archive/bakeoff-2026-10.md)
+- [Scorecard de escucha](results/listening-scorecard.md)

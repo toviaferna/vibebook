@@ -17,12 +17,14 @@ aunque `uv sync` ya lo instala en editable.
 
 ```bash
 uv run vibebook --help
+uv run vibebook --version
 uv run vibebook voices --locale es-MX
 uv run vibebook convert libro.epub --voice es-MX-JorgeNeural --rate -6%
 uv run pytest
 uv run ruff check .
 uv run ruff format .
 uv run mypy src
+uv build
 ```
 
 También:
@@ -34,6 +36,7 @@ make lint
 make format
 make typecheck
 make check
+make build
 ```
 
 ## ffmpeg
@@ -45,7 +48,7 @@ make check
 3. `.tools/bin` del repositorio.
 4. `static-ffmpeg` (descarga la primera vez).
 
-No hace falta `source scripts/env.sh`.
+No hace falta activar un venv ni exportar rutas a mano.
 
 ## Azure
 
@@ -69,6 +72,7 @@ La cuota gratuita F0 de Azure Speech es 0,5 M de caracteres al mes.
 - `ruff format --check`
 - `mypy src`
 - `pytest`
+- `uv build`
 
 ## Estructura
 
@@ -83,7 +87,7 @@ src/audiol/
   cli.py            comandos vibebook/audiol
   tools.py          descubrimiento de binarios
 tests/              tests unitarios e integración con ffmpeg
-docs/               arquitectura y desarrollo
+docs/               arquitectura, desarrollo, roadmap y archivo histórico
 scripts/            herramientas de muestras y bake-off
 ```
 
