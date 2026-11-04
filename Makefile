@@ -1,4 +1,4 @@
-.PHONY: sync test lint format typecheck check run
+.PHONY: sync test lint format typecheck check build run
 
 sync:
 	uv sync
@@ -16,6 +16,9 @@ typecheck:
 	uv run mypy src
 
 check: lint typecheck test
+
+build:
+	uv build
 
 run:
 	uv run vibebook --help
