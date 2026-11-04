@@ -1,11 +1,12 @@
 .venv/
-.venv-edge/
 .tools/
 out/
 audio/
 __pycache__/
 *.pyc
 *.egg-info/
+dist/
+build/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
