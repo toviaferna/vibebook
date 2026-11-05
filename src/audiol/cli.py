@@ -28,8 +28,8 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument("--style", default="neutral")
     convert_parser.add_argument(
         "--rate",
-        default="-6%",
-        help="Speech rate percentage, e.g. '-6%%' or '+0%%'",
+        default="-10%",
+        help="Speech rate percentage, e.g. '-10%%' or '+0%%'",
     )
     convert_parser.add_argument("--out", default=None)
     convert_parser.add_argument("--max-chars", type=int, default=400)
@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _normalize_rate_args(argv: list[str]) -> list[str]:
-    """Allow `--rate -6%`; argparse otherwise reads the value as an option."""
+    """Allow `--rate -10%`; argparse otherwise reads the value as an option."""
     normalized: list[str] = []
     index = 0
     while index < len(argv):

@@ -19,7 +19,7 @@ aunque `uv sync` ya lo instala en editable.
 uv run vibebook --help
 uv run vibebook --version
 uv run vibebook voices --locale es-MX
-uv run vibebook convert libro.epub --voice es-MX-JorgeNeural --rate -6%
+uv run vibebook convert libro.epub --voice es-MX-JorgeNeural --rate -10%
 uv run pytest
 uv run ruff check .
 uv run ruff format .

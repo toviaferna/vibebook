@@ -8,8 +8,7 @@ impacto en la escucha, no por dificultad.
 - [ ] Comparar `es-MX-JorgeNeural`, `es-MX-DaliaNeural`, `es-PY-MarioNeural` y
   `es-PY-TaniaNeural` durante 30 minutos.
 - [ ] Elegir entre MX y PY y actualizar el default del CLI y este documento.
-- [ ] Confirmar la velocidad. El default es `-6%`; las muestras de apoyo están
-  en `out/speed_mx_4`, `out/speed_mx_7` y `out/speed_mx_10`.
+- [x] Velocidad confirmada en `-10%`; es el default del CLI.
 - [ ] Anotar el resultado en
   [`results/listening-scorecard.md`](../results/listening-scorecard.md).
 
