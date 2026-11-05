@@ -1,6 +1,11 @@
 import pytest
 
-from audiol.cli import main
+from audiol.cli import build_parser, main
+
+
+def test_cli_default_rate_is_minus_ten_percent():
+    args = build_parser().parse_args(["convert", "libro.epub"])
+    assert args.rate == "-10%"
 
 
 def test_cli_version(capsys):

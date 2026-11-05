@@ -8,7 +8,7 @@ RATE_PATTERN = re.compile(r"^[+-]?(100|\d{1,2})%$")
 
 def validate_rate(rate: str) -> str:
     if not RATE_PATTERN.match(rate):
-        raise ValueError(f"Invalid rate: {rate!r}; expected a percentage such as '-6%' or '+0%'")
+        raise ValueError(f"Invalid rate: {rate!r}; expected a percentage such as '-10%' or '+0%'")
     return rate
 
 

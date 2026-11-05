@@ -28,7 +28,7 @@ alias `audiol`.
 | Descartado | Kokoro | - | - | No se usa |
 
 La voz por defecto es `es-MX-JorgeNeural` con Edge. El rate por defecto es
-`-6%`.
+`-10%`.
 
 ## Pipeline
 

@@ -38,7 +38,7 @@ Convertir un EPUB:
 uv run vibebook convert libro.epub --out out/libro
 ```
 
-La velocidad por defecto es `-6%`:
+La velocidad por defecto es `-10%`:
 
 ```bash
 uv run vibebook convert libro.epub --rate -8% --out out/libro-lento
@@ -75,7 +75,7 @@ uv run vibebook convert libro.epub \
 | `--voice` | `es-MX-JorgeNeural` | Voz del catálogo |
 | `--engine` | `edge` | `edge`, `azure` o `fake` para tests |
 | `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
-| `--rate` | `-6%` | Velocidad entre `-100%` y `+100%` |
+| `--rate` | `-10%` | Velocidad entre `-100%` y `+100%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
 | `--max-chars` | `400` | Tamaño máximo de cada segmento |
 | `--dry-run` | No | No escribe archivos; imprime estadísticas |
