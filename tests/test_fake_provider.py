@@ -15,3 +15,11 @@ def test_fake_provider_writes_wav(tmp_path: Path):
         assert wav.getnchannels() == 1
         assert wav.getframerate() == 24000
         assert wav.getnframes() > 0
+
+    assert [word.text for word in result.words] == ["Hola", "mundo"]
+    assert result.words[0].start_ms == 0
+    assert all(
+        left.end_ms <= right.start_ms
+        for left, right in zip(result.words, result.words[1:], strict=False)
+    )
+    assert result.words[-1].end_ms > 0

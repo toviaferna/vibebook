@@ -5,6 +5,7 @@ from pathlib import Path
 
 import edge_tts
 
+from audiol.models import WordTiming
 from audiol.tts.base import AudioResult, validate_rate
 
 logger = logging.getLogger(__name__)
@@ -50,8 +51,8 @@ class EdgeProvider:
         attempt = 0
         while True:
             try:
-                asyncio.run(self._stream(text, voice, out_path, rate))
-                return AudioResult(path=out_path)
+                words = asyncio.run(self._stream(text, voice, out_path, rate))
+                return AudioResult(path=out_path, words=words or [])
             except edge_tts.exceptions.NoAudioReceived:
                 out_path.unlink(missing_ok=True)
                 if attempt >= self.max_cooldowns:
@@ -64,9 +65,18 @@ class EdgeProvider:
                 time.sleep(wait)
                 attempt += 1
 
-    async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> None:
+    async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> list[WordTiming]:
         communicate = edge_tts.Communicate(text, voice, rate=rate)
+        words: list[WordTiming] = []
         with out_path.open("wb") as audio_file:
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     audio_file.write(chunk["data"])
+                elif chunk["type"] == "WordBoundary":
+                    word = chunk.get("text", "").strip()
+                    if not word:
+                        continue
+                    start_ms = int(chunk.get("offset", 0) / 10_000)
+                    end_ms = start_ms + max(1, int(chunk.get("duration", 0) / 10_000))
+                    words.append(WordTiming(text=word, start_ms=start_ms, end_ms=end_ms))
+        return words
