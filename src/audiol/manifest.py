@@ -3,9 +3,60 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from audiol.models import Book
+from audiol.models import Book, Chapter, Segment, make_segment_id
 
 SCHEMA_VERSION = 2
+
+
+def load_manifest(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid manifest at {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"Invalid manifest at {path}: expected a JSON object")
+    chapters = data.get("chapters")
+    if not isinstance(chapters, list):
+        raise ValueError(f"Invalid manifest at {path}: missing chapters")
+    return data
+
+
+def book_from_manifest(data: dict) -> Book:
+    chapters: list[Chapter] = []
+    for chapter_data in data.get("chapters", []):
+        chapter_index = int(chapter_data.get("index", len(chapters) + 1))
+        segments: list[Segment] = []
+        for position, segment_data in enumerate(chapter_data.get("segments", []), start=1):
+            paragraph_index = int(segment_data.get("paragraph_index", position))
+            chunk_index = int(segment_data.get("chunk_index", 0))
+            segments.append(
+                Segment(
+                    id=segment_data.get(
+                        "id", make_segment_id(chapter_index, paragraph_index, chunk_index)
+                    ),
+                    chapter_index=int(segment_data.get("chapter_index", chapter_index)),
+                    paragraph_index=paragraph_index,
+                    text=str(segment_data["text"]),
+                    chunk_index=chunk_index,
+                    source_href=segment_data.get("source_href"),
+                    source_fragment=segment_data.get("source_fragment"),
+                )
+            )
+        chapters.append(
+            Chapter(
+                index=chapter_index,
+                title=str(chapter_data.get("title", f"Capítulo {chapter_index}")),
+                segments=segments,
+                source_href=chapter_data.get("source_href"),
+                source_fragment=chapter_data.get("source_fragment"),
+            )
+        )
+    return Book(
+        title=str(data.get("title", "")),
+        author=str(data.get("author", "Desconocido")),
+        language=str(data.get("language", "es-419")),
+        chapters=chapters,
+    )
 
 
 def write_manifest(

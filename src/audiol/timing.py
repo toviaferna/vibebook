@@ -138,6 +138,30 @@ def build_chapter_timing(
     )
 
 
+def ensure_chapter_timing(
+    book_dir: Path,
+    chapter: Chapter,
+    chapter_duration_ms: int,
+) -> ChapterTiming:
+    if chapter_duration_ms <= 0:
+        raise ValueError("chapter_duration_ms must be positive")
+    if not chapter.segments:
+        raise ValueError("chapter has no segments")
+    path = book_dir / "timings" / f"chapter_{chapter.index:03d}.json"
+    if path.exists():
+        return read_chapter_timing(path)
+
+    durations = _distribute_duration(chapter, chapter_duration_ms)
+    timing = build_chapter_timing(
+        chapter,
+        durations,
+        [[] for _ in chapter.segments],
+        chapter_duration_ms=chapter_duration_ms,
+    )
+    write_chapter_timing(path, timing)
+    return timing
+
+
 def write_chapter_timing(path: Path, timing: ChapterTiming) -> None:
     payload = {
         "schema_version": 1,
@@ -263,6 +287,24 @@ def _scale_segments(segments: list[SegmentTiming], duration_ms: int) -> list[Seg
         )
         cursor = end
     return scaled
+
+
+def _distribute_duration(chapter: Chapter, duration_ms: int) -> list[int]:
+    if duration_ms < len(chapter.segments):
+        raise ValueError("chapter duration is too short for its segments")
+    total_chars = sum(max(1, len(segment.text)) for segment in chapter.segments)
+    durations: list[int] = []
+    previous = 0
+    elapsed_chars = 0
+    for segment in chapter.segments:
+        elapsed_chars += max(1, len(segment.text))
+        end = max(
+            previous + 1,
+            round(duration_ms * elapsed_chars / total_chars),
+        )
+        durations.append(end - previous)
+        previous = end
+    return durations
 
 
 def _write_json_atomic(path: Path, payload: dict) -> None:
