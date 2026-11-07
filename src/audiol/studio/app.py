@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from audiol.studio.api import books
+from audiol.studio.api import books, jobs
 from audiol.studio.db import Database
 from audiol.studio.errors import install_error_handlers
 from audiol.studio.jobs import JobManager
@@ -31,7 +31,7 @@ def create_app(
     resolved_factory = provider_factory or (
         lambda engine: make_provider(engine, allow_fake=settings.allow_fake)
     )
-    jobs = JobManager(
+    job_manager = JobManager(
         db,
         library,
         resolved_factory,
@@ -42,7 +42,7 @@ def create_app(
     async def lifespan(app: FastAPI):
         db.migrate()
         db.reconcile(library.scan())
-        jobs.mark_interrupted()
+        job_manager.mark_interrupted()
         yield
 
     app = FastAPI(
@@ -53,7 +53,7 @@ def create_app(
     app.state.settings = settings
     app.state.library = library
     app.state.db = db
-    app.state.jobs = jobs
+    app.state.jobs = job_manager
     app.state.provider_factory = resolved_factory
 
     app.add_middleware(
@@ -71,6 +71,7 @@ def create_app(
     install_security_middleware(app, settings)
 
     app.include_router(books.router, prefix="/api")
+    app.include_router(jobs.router, prefix="/api")
 
     @app.get("/api/health", tags=["system"])
     def health() -> dict:
