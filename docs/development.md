@@ -64,6 +64,22 @@ npm run desktop:build
 como recurso y lo lanza al abrir la ventana. El detalle está en
 [desktop.md](desktop.md).
 
+## E2E
+
+Los tests end-to-end usan Playwright, levantan el backend con motor fake y Vite,
+y cubren importar → convertir → leer → recargar, además de axe.
+
+```powershell
+cd web
+npx playwright install chromium
+npm run e2e
+npm run e2e:ui
+```
+
+También se pueden correr desde la raíz con `npm run e2e`. Los fixtures viven en
+`tests/fixtures/` y se regeneran con
+`uv run python scripts/make-e2e-fixtures.py`.
+
 ## ffmpeg
 
 `audiol.tools.find_binary()` resuelve, en orden:
@@ -100,6 +116,7 @@ La cuota gratuita F0 de Azure Speech es 0,5 M de caracteres al mes.
 - `uv build`
 - `npm run lint`, `typecheck`, `test`, `build`
 - En Windows: PyInstaller del sidecar, `cargo fmt --check` y `cargo check`.
+- En Linux: Playwright E2E con motor fake y axe.
 
 ## Estructura
 

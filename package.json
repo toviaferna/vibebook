@@ -8,7 +8,8 @@
     "build:web": "npm --prefix web run build",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml"
+    "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "e2e": "npm --prefix web run e2e"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4"

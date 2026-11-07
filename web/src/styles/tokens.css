@@ -6,7 +6,7 @@
   --surface-raised: #fffdf8;
   --ink: #24211d;
   --ink-soft: #5e574d;
-  --ink-faint: #8b8174;
+  --ink-faint: #6b6257;
   --line: #d9d0c0;
   --line-strong: #b9ac99;
   --accent: #a94e36;
@@ -84,7 +84,7 @@ body[data-theme="sepia"] {
   --surface-raised: #fbf3e4;
   --ink: #332a20;
   --ink-soft: #675845;
-  --ink-faint: #8b7962;
+  --ink-faint: #6b5943;
   --line: #d8c6a6;
   --line-strong: #bda783;
   --accent: #9d4b32;
