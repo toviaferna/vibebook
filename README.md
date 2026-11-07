@@ -68,6 +68,15 @@ uv run vibebook convert libro.epub \
   --out out/libro-azure
 ```
 
+Para capturar word boundaries exactos con Azure, instalá el extra opcional:
+
+```bash
+uv sync --extra azure-sdk
+```
+
+Sin el SDK, Azure usa REST y el lector cae a resaltado por segmento. Con el SDK,
+el sidecar/CLI usa `speech_synthesis_word_boundary` y conserva REST como fallback.
+
 ### Opciones de `vibebook convert`
 
 | Opción | Default | Descripción |

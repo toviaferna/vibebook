@@ -88,6 +88,15 @@ uv run vibebook convert libro.epub \
 
 La cuota gratuita F0 de Azure Speech es 0,5 M de caracteres al mes.
 
+Para word boundaries exactos con Azure:
+
+```bash
+uv sync --extra azure-sdk
+```
+
+Sin el extra, Azure usa REST y el lector resalta por segmento. El SDK conserva
+REST como fallback si falla la síntesis.
+
 ## CI
 
 `.github/workflows/ci.yml` ejecuta:

@@ -27,6 +27,11 @@ vibebook = "audiol.cli:main"
 audiol = "audiol.cli:main"
 vibebook-sidecar = "audiol.studio.sidecar:main"
 
+[project.optional-dependencies]
+azure-sdk = [
+    "azure-cognitiveservices-speech>=1.40",
+]
+
 [dependency-groups]
 dev = [
   "httpx>=0.27",

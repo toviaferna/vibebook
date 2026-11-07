@@ -46,6 +46,14 @@ como recurso y lo lanza al abrir la ventana. En desarrollo, Vite corre en
 `http://127.0.0.1:5173` y el sidecar se inicia con `--dev` para permitir CORS de
 ese origen.
 
+Si querés incluir Azure con word boundaries en el binario, instalá el extra antes
+de empaquetar:
+
+```powershell
+uv sync --extra azure-sdk
+make sidecar
+```
+
 Comandos útiles:
 
 ```powershell
