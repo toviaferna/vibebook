@@ -35,6 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument("--max-chars", type=int, default=400)
     convert_parser.add_argument("--dry-run", action="store_true")
     convert_parser.add_argument("--force", action="store_true")
+    convert_parser.add_argument(
+        "--no-timings",
+        action="store_true",
+        help="Skip word timing sidecars and chapter timing files",
+    )
 
     return parser
 
@@ -110,7 +115,7 @@ def _convert(args: argparse.Namespace) -> int:
     provider = _make_provider(args.engine)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "book.md").write_text(render_markdown(book), encoding="utf-8")
-    m4b = convert(
+    result = convert(
         book,
         args.voice,
         args.engine,
@@ -119,8 +124,9 @@ def _convert(args: argparse.Namespace) -> int:
         style=args.style,
         rate=rate,
         force=args.force,
+        capture_timings=not args.no_timings,
     )
-    print(f"M4B: {m4b}")
+    print(f"M4B: {result.m4b_path}")
     return 0
 
 

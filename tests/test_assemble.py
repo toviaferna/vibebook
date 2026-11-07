@@ -56,6 +56,37 @@ def test_concat_to_mp3(tmp_path: Path):
     assert abs(probe_duration(output) - 1.0) < 0.2
 
 
+def test_concat_to_mp3_escapes_apostrophes_in_paths(tmp_path: Path):
+    audio = make_wav(tmp_path / "O'Brien.wav", 0.5)
+    output = tmp_path / "joined.mp3"
+
+    concat_to_mp3([audio], output, tmp_path)
+
+    assert output.exists()
+
+
+def test_build_m4b_keeps_previous_output_on_failure(tmp_path: Path, monkeypatch):
+    audio = make_wav(tmp_path / "c1.wav", 0.5)
+    output = tmp_path / "book.m4b"
+    output.write_bytes(b"previous good export")
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("ffmpeg failed")
+
+    monkeypatch.setattr("audiol.assemble.subprocess.run", fail)
+
+    with pytest.raises(RuntimeError):
+        build_m4b(
+            [audio],
+            ["Capítulo 1"],
+            {"title": "Libro", "author": "Autora"},
+            output,
+            tmp_path,
+        )
+
+    assert output.read_bytes() == b"previous good export"
+
+
 def test_build_m4b_with_chapters(tmp_path: Path):
     first = make_wav(tmp_path / "c1.wav", 0.5)
     second = make_wav(tmp_path / "c2.wav", 0.5)
@@ -72,7 +103,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
     assert output.exists()
     probe = subprocess.check_output(
         [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
-        text=True,
+        encoding="utf-8",
     )
     chapters = json.loads(probe)["chapters"]
     assert len(chapters) == 2
@@ -89,7 +120,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     assert streams["streams"][0]["codec_name"] == "aac"
@@ -105,7 +136,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     assert format_probe["format"]["tags"]["title"] == "Libro"
@@ -136,7 +167,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     tags = format_probe["format"]["tags"]
@@ -147,7 +178,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
     chapters = json.loads(
         subprocess.check_output(
             [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
-            text=True,
+            encoding="utf-8",
         )
     )["chapters"]
     assert chapters[0]["tags"]["title"] == "Capítulo 1"

@@ -44,6 +44,25 @@ def test_cli_convert_with_fake_provider(tiny_epub: Path, tmp_path: Path, capsys)
     assert "M4B:" in capsys.readouterr().out
 
 
+@requires_ffmpeg
+def test_cli_convert_can_skip_timings(tiny_epub: Path, tmp_path: Path):
+    out_dir = tmp_path / "out"
+    code = main(
+        [
+            "convert",
+            str(tiny_epub),
+            "--engine",
+            "fake",
+            "--no-timings",
+            "--out",
+            str(out_dir),
+        ]
+    )
+
+    assert code == 0
+    assert not (out_dir / "timings").exists()
+
+
 def test_cli_dry_run_does_not_write(tiny_epub: Path, tmp_path: Path, capsys):
     out_dir = tmp_path / "out"
     code = main(

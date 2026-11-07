@@ -46,6 +46,7 @@ def test_synthesize_writes_audio(monkeypatch, tmp_path: Path):
 
     assert result.path == output
     assert output.read_bytes() == b"ID3azure"
+    assert result.words == []
     assert '<prosody rate="-6%">' in captured["body"]
 
 

@@ -13,6 +13,7 @@ class FakeCommunicate:
         self.text = text
         self.voice = voice
         self.rate = kwargs.get("rate")
+        self.boundary = kwargs.get("boundary")
         FakeCommunicate.last = self
 
     async def stream(self):
@@ -28,6 +29,36 @@ def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
     assert result.path == output
     assert output.read_bytes() == b"ID3fake-audio"
     assert FakeCommunicate.last.rate == "-6%"
+    assert FakeCommunicate.last.boundary == "WordBoundary"
+    assert result.words == []
+
+
+def test_edge_provider_collects_word_boundaries(monkeypatch, tmp_path: Path):
+    class BoundariesCommunicate(FakeCommunicate):
+        async def stream(self):
+            yield {"type": "audio", "data": b"ID3fake-audio"}
+            yield {
+                "type": "WordBoundary",
+                "offset": 0,
+                "duration": 3_000_000,
+                "text": "Hola",
+            }
+            yield {
+                "type": "WordBoundary",
+                "offset": 3_000_000,
+                "duration": 2_000_000,
+                "text": "mundo",
+            }
+
+    monkeypatch.setattr("audiol.tts.edge.edge_tts.Communicate", BoundariesCommunicate)
+    output = tmp_path / "sample.mp3"
+
+    result = EdgeProvider().synthesize("Hola mundo", "es-MX-JorgeNeural", output)
+
+    assert [(word.text, word.start_ms, word.end_ms) for word in result.words] == [
+        ("Hola", 0, 300),
+        ("mundo", 300, 500),
+    ]
 
 
 def test_edge_provider_rejects_empty_text():

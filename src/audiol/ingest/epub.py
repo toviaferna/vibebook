@@ -6,7 +6,7 @@ import ebooklib
 from bs4 import BeautifulSoup, Tag
 from ebooklib import epub
 
-from audiol.models import Book, Chapter, Segment
+from audiol.models import Book, Chapter, Segment, make_segment_id
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,16 @@ def read_epub(path: Path) -> Book:
         if entries:
             prefix, split_chapters = _split_document(soup, entries)
             if prefix and chapters:
-                _add_paragraphs(chapters[-1], prefix)
-            for chapter_title, paragraphs in split_chapters:
-                chapter_index = _append_chapter(chapters, chapter_index, chapter_title, paragraphs)
+                _add_paragraphs(chapters[-1], prefix, source_href=item.get_name())
+            for chapter_title, paragraphs, fragment in split_chapters:
+                chapter_index = _append_chapter(
+                    chapters,
+                    chapter_index,
+                    chapter_title,
+                    paragraphs,
+                    source_href=item.get_name(),
+                    source_fragment=fragment,
+                )
             continue
 
         heading = soup.find(["h1", "h2", "h3"])
@@ -71,34 +78,59 @@ def read_epub(path: Path) -> Book:
         if not paragraphs:
             logger.warning("Skipping spine document %s: no readable text", item.get_name())
             continue
-        chapter_index = _append_chapter(chapters, chapter_index, chapter_title, paragraphs)
+        chapter_index = _append_chapter(
+            chapters,
+            chapter_index,
+            chapter_title,
+            paragraphs,
+            source_href=item.get_name(),
+        )
 
     return Book(title=title, author=author, language=language, chapters=chapters)
 
 
 def _append_chapter(
-    chapters: list[Chapter], chapter_index: int, title: str, paragraphs: list[str]
+    chapters: list[Chapter],
+    chapter_index: int,
+    title: str,
+    paragraphs: list[str],
+    source_href: str | None = None,
+    source_fragment: str | None = None,
 ) -> int:
     paragraphs = [paragraph for paragraph in paragraphs if paragraph]
     if not paragraphs:
         return chapter_index
     chapter_index += 1
-    chapter = Chapter(index=chapter_index, title=title)
+    chapter = Chapter(
+        index=chapter_index,
+        title=title,
+        source_href=source_href,
+        source_fragment=source_fragment,
+    )
     _add_paragraphs(chapter, paragraphs)
     chapters.append(chapter)
     return chapter_index
 
 
-def _add_paragraphs(chapter: Chapter, paragraphs: list[str]) -> None:
+def _add_paragraphs(
+    chapter: Chapter,
+    paragraphs: list[str],
+    source_href: str | None = None,
+    source_fragment: str | None = None,
+) -> None:
     start = len(chapter.segments) + 1
+    resolved_href = source_href if source_href is not None else chapter.source_href
+    resolved_fragment = source_fragment if source_fragment is not None else chapter.source_fragment
     for offset, text in enumerate(paragraphs):
         index = start + offset
         chapter.segments.append(
             Segment(
-                id=f"c{chapter.index:03d}p{index:04d}",
+                id=make_segment_id(chapter.index, index),
                 chapter_index=chapter.index,
                 paragraph_index=index,
                 text=text,
+                source_href=resolved_href,
+                source_fragment=resolved_fragment,
             )
         )
 
@@ -157,10 +189,10 @@ def _chapter_title(title: str) -> str:
 
 def _split_document(
     soup: BeautifulSoup, entries: list[tuple[str | None, str]]
-) -> tuple[list[str], list[tuple[str, list[str]]]]:
+) -> tuple[list[str], list[tuple[str, list[str], str | None]]]:
     blocks = _top_level_blocks(soup)
     if len(entries) == 1 and entries[0][0] is None:
-        return [], [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup))]
+        return [], [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup), None)]
 
     order = {id(tag): index for index, tag in enumerate(soup.find_all(True))}
     anchors: list[tuple[int, str | None, str]] = []
@@ -174,10 +206,10 @@ def _split_document(
             continue
         anchors.append((order[id(tag)], anchor, title))
     if not anchors:
-        return [], [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup))]
+        return [], [(entries[0][1], _block_texts(blocks) or _extract_bare_text(soup), None)]
 
     prefix: list[str] = []
-    chapters: list[tuple[str, list[str]]] = []
+    chapters: list[tuple[str, list[str], str | None]] = []
     for block in blocks:
         anchor_ids = {tag.get("id") for tag in block.find_all(id=True)}
         inside = [entry for entry in anchors if entry[1] in anchor_ids]
@@ -191,11 +223,11 @@ def _split_document(
             continue
         title = candidate[2]
         if not chapters or chapters[-1][0] != title:
-            chapters.append((title, []))
+            chapters.append((title, [], candidate[1]))
         if text and not _is_label(text, title):
             chapters[-1][1].append(text)
-    if not any(paragraphs for _, paragraphs in chapters):
-        return prefix, [(entries[0][1], _extract_bare_text(soup))]
+    if not any(paragraphs for _, paragraphs, _ in chapters):
+        return prefix, [(entries[0][1], _extract_bare_text(soup), None)]
     return prefix, chapters
 
 

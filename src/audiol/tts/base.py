@@ -1,7 +1,9 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
+
+from audiol.models import WordTiming
 
 RATE_PATTERN = re.compile(r"^[+-]?(100|\d{1,2})%$")
 
@@ -15,6 +17,7 @@ def validate_rate(rate: str) -> str:
 @dataclass
 class AudioResult:
     path: Path
+    words: list[WordTiming] = field(default_factory=list)
 
 
 class TTSProvider(Protocol):

@@ -14,7 +14,9 @@ def test_read_epub_chapters_and_segments(tiny_epub: Path):
     book = read_epub(tiny_epub)
     assert len(book.chapters) == 2
     assert book.chapters[0].title == "Capítulo 1"
-    assert book.chapters[0].segments[0].id == "c001p0001"
+    assert book.chapters[0].segments[0].id == "c001p0001s00"
+    assert book.chapters[0].segments[0].source_href == "chap_1.xhtml"
+    assert book.chapters[0].source_href == "chap_1.xhtml"
     assert book.chapters[0].segments[0].text.startswith("Pues sepa")
     assert book.chapters[1].segments[0].text.startswith("Mi viuda madre")
 
@@ -57,4 +59,5 @@ def test_read_epub_splits_by_toc_anchors(toc_epub: Path):
         "Tercer párrafo.",
         "Continuación del capítulo 2.",
     ]
+    assert book.chapters[1].segments[-1].source_href == "continuation.xhtml"
     assert [segment.text for segment in book.chapters[2].segments] == ["Cuarto párrafo."]

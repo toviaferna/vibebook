@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -13,10 +14,8 @@ def _ffmetadata_value(value: str) -> str:
 
 def _write_concat_list(path: Path, files: list[Path]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "\n".join(f"file '{file.resolve()}'" for file in files) + "\n",
-        encoding="utf-8",
-    )
+    entries = ["file '" + str(file.resolve()).replace("'", "'\\''") + "'" for file in files]
+    path.write_text("\n".join(entries) + "\n", encoding="utf-8")
 
 
 def probe_duration(path: Path) -> float:
@@ -32,7 +31,8 @@ def probe_duration(path: Path) -> float:
             "default=noprint_wrappers=1:nokey=1",
             str(path),
         ],
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     try:
         return float(output.strip())
@@ -49,31 +49,39 @@ def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
 
     list_path = work_dir / f"{out_path.stem}_concat.txt"
     _write_concat_list(list_path, files)
+    temporary = out_path.with_name(f"{out_path.name}.part")
 
-    subprocess.run(
-        [
-            ffmpeg,
-            "-nostdin",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(list_path),
-            "-af",
-            "loudnorm=I=-19:TP=-3:LRA=7",
-            "-c:a",
-            "libmp3lame",
-            "-b:a",
-            "64k",
-            str(out_path),
-        ],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                "-af",
+                "loudnorm=I=-19:TP=-3:LRA=7",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "64k",
+                "-f",
+                "mp3",
+                str(temporary),
+            ],
+            check=True,
+        )
+        os.replace(temporary, out_path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
     return out_path
 
 
@@ -117,35 +125,41 @@ def build_m4b(
 
     metadata_path = work_dir / f"{out_path.stem}_ffmetadata.txt"
     metadata_path.write_text("\n".join(metadata_lines) + "\n", encoding="utf-8")
+    temporary = out_path.with_name(f"{out_path.stem}.part{out_path.suffix}")
 
-    subprocess.run(
-        [
-            ffmpeg,
-            "-nostdin",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(list_path),
-            "-i",
-            str(metadata_path),
-            "-map_metadata",
-            "1",
-            "-map_chapters",
-            "1",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "64k",
-            "-movflags",
-            "+faststart",
-            str(out_path),
-        ],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                "-i",
+                str(metadata_path),
+                "-map_metadata",
+                "1",
+                "-map_chapters",
+                "1",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "64k",
+                "-movflags",
+                "+faststart",
+                str(temporary),
+            ],
+            check=True,
+        )
+        os.replace(temporary, out_path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
     return out_path
