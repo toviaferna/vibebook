@@ -1,4 +1,5 @@
 import re
+from collections.abc import Iterable
 
 PAGE_NUMBER = re.compile(r"^\s*\d{1,4}\s*$")
 GUTENBERG = re.compile(
@@ -16,9 +17,9 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-def clean_paragraphs(paragraphs: list[str]) -> list[str]:
-    cleaned: list[str] = []
-    for paragraph in paragraphs:
+def clean_paragraph_items[T](items: Iterable[tuple[str, T]]) -> list[tuple[str, T]]:
+    cleaned: list[tuple[str, T]] = []
+    for paragraph, payload in items:
         paragraph = clean_text(paragraph)
         if not paragraph:
             continue
@@ -26,7 +27,13 @@ def clean_paragraphs(paragraphs: list[str]) -> list[str]:
             continue
         if WATERMARK.match(paragraph):
             continue
-        if cleaned and paragraph == cleaned[-1]:
+        if cleaned and paragraph == cleaned[-1][0]:
             continue
-        cleaned.append(paragraph)
+        cleaned.append((paragraph, payload))
     return cleaned
+
+
+def clean_paragraphs(paragraphs: list[str]) -> list[str]:
+    return [
+        paragraph for paragraph, _ in clean_paragraph_items((text, None) for text in paragraphs)
+    ]

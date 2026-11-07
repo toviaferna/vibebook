@@ -10,6 +10,7 @@ from audiol.convert import (
     synthesize_with_retries,
 )
 from audiol.ingest.epub import read_epub
+from audiol.models import Book, Chapter, Segment, make_segment_id
 from audiol.tools import find_binary
 from audiol.tts.fake import FakeProvider
 
@@ -55,7 +56,7 @@ class CountingProvider(FakeProvider):
 def test_prepare_book_chunks_and_cleans(tiny_epub: Path):
     book = prepare_book(read_epub(tiny_epub))
     assert book.chapters[0].segments[0].text.startswith("Pues sepa")
-    assert book.chapters[0].segments[0].id == "c001p0001"
+    assert book.chapters[0].segments[0].id == "c001p0001s00"
 
 
 def test_prepare_book_preserves_text(tiny_epub: Path):
@@ -68,6 +69,33 @@ def test_prepare_book_preserves_text(tiny_epub: Path):
         segment.text for chapter in prepared.chapters for segment in chapter.segments
     )
     assert prepared_text == original_text
+
+
+def test_prepare_book_keeps_paragraph_index_for_chunks():
+    paragraph = " ".join(["palabra"] * 80)
+    source = Segment(
+        id=make_segment_id(1, 1),
+        chapter_index=1,
+        paragraph_index=1,
+        text=paragraph,
+        source_href="chapter.xhtml",
+        source_fragment="inicio",
+    )
+    book = Book(
+        title="Libro",
+        author="Autora",
+        chapters=[Chapter(index=1, title="Capítulo 1", segments=[source])],
+    )
+
+    prepared = prepare_book(book, max_chars=50)
+    segments = prepared.chapters[0].segments
+
+    assert len(segments) > 1
+    assert {segment.paragraph_index for segment in segments} == {1}
+    assert [segment.chunk_index for segment in segments] == list(range(len(segments)))
+    assert len({segment.id for segment in segments}) == len(segments)
+    assert all(segment.source_href == "chapter.xhtml" for segment in segments)
+    assert all(segment.source_fragment == "inicio" for segment in segments)
 
 
 def test_render_markdown_contains_chapters(tiny_epub: Path):

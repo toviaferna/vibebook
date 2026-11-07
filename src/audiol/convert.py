@@ -7,31 +7,40 @@ from pathlib import Path
 
 from audiol.assemble import build_m4b, concat_to_mp3, require_ffmpeg
 from audiol.chunk import chunk_text
-from audiol.clean import clean_paragraphs
+from audiol.clean import clean_paragraph_items
 from audiol.manifest import write_manifest
-from audiol.models import Book, Chapter, Segment
+from audiol.models import Book, Chapter, Segment, make_segment_id
 from audiol.tts.base import TTSProvider
 
 
 def prepare_book(book: Book, max_chars: int = 400) -> Book:
     chapters: list[Chapter] = []
     for chapter in book.chapters:
-        paragraphs = clean_paragraphs([segment.text for segment in chapter.segments])
+        paragraphs = clean_paragraph_items((segment.text, segment) for segment in chapter.segments)
         segments: list[Segment] = []
-        paragraph_index = 0
-        for paragraph in paragraphs:
-            for text in chunk_text(paragraph, max_chars=max_chars):
-                paragraph_index += 1
+        for paragraph_index, (paragraph, source) in enumerate(paragraphs, start=1):
+            for chunk_index, text in enumerate(chunk_text(paragraph, max_chars=max_chars)):
                 segments.append(
                     Segment(
-                        id=f"c{chapter.index:03d}p{paragraph_index:04d}",
+                        id=make_segment_id(chapter.index, paragraph_index, chunk_index),
                         chapter_index=chapter.index,
                         paragraph_index=paragraph_index,
                         text=text,
+                        chunk_index=chunk_index,
+                        source_href=source.source_href,
+                        source_fragment=source.source_fragment,
                     )
                 )
         if segments:
-            chapters.append(Chapter(index=chapter.index, title=chapter.title, segments=segments))
+            chapters.append(
+                Chapter(
+                    index=chapter.index,
+                    title=chapter.title,
+                    segments=segments,
+                    source_href=chapter.source_href,
+                    source_fragment=chapter.source_fragment,
+                )
+            )
     return Book(
         title=book.title,
         author=book.author,
