@@ -43,7 +43,7 @@ def _audio_path(request: Request, record: BookRecord, chapter: dict):
     except LibraryError as exc:
         raise ApiError(404, "asset_not_found", "El audio no existe.") from exc
     if not path.is_file():
-        raise ApiError(409, "audio_not_ready", "El capítulo todavía no tiene audio.")
+        raise ApiError(404, "asset_not_found", "El audio no existe.")
     return path
 
 
@@ -88,10 +88,14 @@ def get_audio(request: Request, book_id: str, chapter_index: int) -> FileRespons
 @router.get("/{book_id}/m4b")
 def get_m4b(request: Request, book_id: str) -> FileResponse:
     record = _record(request, book_id)
-    files = sorted(record.path.glob("*.m4b"))
-    if not files:
-        raise ApiError(404, "asset_not_found", "El libro todavía no tiene M4B.")
-    return FileResponse(files[0], media_type="audio/mp4", filename=files[0].name)
+    for candidate in sorted(record.path.glob("*.m4b")):
+        try:
+            path = request.app.state.library.asset_path(record.id, candidate.name)
+        except LibraryError:
+            continue
+        if path.is_file():
+            return FileResponse(path, media_type="audio/mp4", filename=path.name)
+    raise ApiError(404, "asset_not_found", "El libro todavía no tiene M4B.")
 
 
 @router.get("/{book_id}/state", response_model=BookStateResponse)

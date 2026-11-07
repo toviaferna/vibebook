@@ -86,12 +86,31 @@ def install_security_middleware(app, settings: Settings) -> None:
     @app.middleware("http")
     async def security_middleware(request: Request, call_next):
         if (
-            settings.token
+            request.method == "POST"
+            and request.url.path == "/api/books/import"
+            and (length := request.headers.get("content-length"))
+        ):
+            try:
+                too_large = int(length) > settings.max_upload_bytes + 1024 * 1024
+            except ValueError:
+                too_large = False
+            if too_large:
+                return _secure_response(
+                    error_response(
+                        413,
+                        "file_too_large",
+                        "El EPUB supera el tamaño máximo permitido.",
+                    )
+                )
+
+        if (
+            request.method != "OPTIONS"
+            and settings.token
             and request.url.path.startswith("/api")
             and request.url.path != "/api/health"
         ):
             provided = request.headers.get("X-Vibebook-Token", "")
-            if not hmac.compare_digest(provided, settings.token):
+            if not hmac.compare_digest(provided.encode("utf-8"), settings.token.encode("utf-8")):
                 return _secure_response(
                     error_response(
                         401,

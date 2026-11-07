@@ -105,6 +105,10 @@ def test_start_runs_conversion_and_updates_db(book, db: Database, library: Libra
     assert job["finished_at"]
     assert db.get_book(book.id)["status"] == "ready"
     assert (book.path / "manifest.json").exists()
+    deadline = time.monotonic() + 5
+    while manager.active_job_id() is not None and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert manager.active_job_id() is None
 
 
 @requires_ffmpeg

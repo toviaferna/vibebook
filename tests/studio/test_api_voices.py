@@ -50,6 +50,21 @@ def test_preview_rejects_long_text(client):
     assert response.json()["error"]["code"] == "validation_error"
 
 
+def test_preview_rejects_invalid_rate(client):
+    response = client.post(
+        "/api/voices/preview",
+        json={
+            "voice": "es-MX-JorgeNeural",
+            "engine": "fake",
+            "rate": "fast",
+            "text": "Hola",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"
+
+
 def test_preview_rejects_unknown_voice(client):
     response = client.post(
         "/api/voices/preview",

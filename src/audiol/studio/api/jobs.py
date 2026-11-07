@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from audiol.studio.errors import ApiError
 from audiol.studio.jobs import (
     TERMINAL_JOB_STATUSES,
+    BookNotReady,
     JobInProgress,
     JobNotActive,
     JobNotFound,
@@ -47,6 +48,8 @@ def start_conversion(request: Request, book_id: str, payload: ConvertRequest) ->
         job_id = request.app.state.jobs.start(book_id, options)
     except JobInProgress as exc:
         raise ApiError(409, "job_in_progress", "Ya hay una conversión en curso.") from exc
+    except BookNotReady as exc:
+        raise ApiError(409, "book_not_ready", str(exc)) from exc
     except ValueError as exc:
         raise ApiError(422, "invalid_options", str(exc)) from exc
     return {"job_id": job_id}
@@ -77,11 +80,20 @@ def resume_job(request: Request, job_id: str) -> dict:
             "job_not_resumable",
             "Solo se pueden reanudar trabajos cancelados, interrumpidos o fallidos.",
         )
-    options = JobOptions(**job["options"])
+    stored = job["options"]
+    options = JobOptions(
+        voice=stored["voice"],
+        engine=stored["engine"],
+        style=stored.get("style", "neutral"),
+        rate=stored.get("rate", "-10%"),
+        force=False,
+    )
     try:
         new_job_id = request.app.state.jobs.start(job["book_id"], options)
     except JobInProgress as exc:
         raise ApiError(409, "job_in_progress", "Ya hay una conversión en curso.") from exc
+    except BookNotReady as exc:
+        raise ApiError(409, "book_not_ready", str(exc)) from exc
     except BookNotFound as exc:
         raise ApiError(404, "book_not_found", "El libro no existe.") from exc
     except ValueError as exc:

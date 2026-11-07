@@ -31,9 +31,11 @@ def error_response(
     message: str,
     details: Any = None,
 ) -> JSONResponse:
-    payload: dict[str, Any] = {"code": code, "message": message}
-    if details is not None:
-        payload["details"] = details
+    payload: dict[str, Any] = {
+        "code": code,
+        "message": message,
+        "details": details if details is not None else {},
+    }
     return JSONResponse(status_code=status_code, content={"error": payload})
 
 

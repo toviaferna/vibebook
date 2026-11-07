@@ -129,6 +129,19 @@ def test_asset_path_rejects_traversal(library: Library, tiny_epub: Path):
         library.asset_path(record.id, str((library.root / "outside").resolve()))
 
 
+def test_cover_path_cannot_escape_book(library: Library, cover_epub: Path):
+    record = library.import_epub(cover_epub)
+    manifest_path = record.path / "manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["cover"] = "../../escape.jpg"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    scanned = library.get(record.id)
+
+    assert scanned.cover_path == record.path / "cover.jpg"
+    assert scanned.cover_path.resolve().is_relative_to(record.path.resolve())
+
+
 def test_asset_path_resolves_existing_file(library: Library, tiny_epub: Path):
     record = library.import_epub(tiny_epub)
 

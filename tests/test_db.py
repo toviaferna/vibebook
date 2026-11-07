@@ -185,6 +185,16 @@ def test_set_book_status_rejects_unknown_field(db: Database):
         db.set_book_status("a", "ready", password="x")
 
 
+def test_reconcile_preserves_interrupted_and_error_status(db: Database):
+    db.upsert_book(make_record("a", "A", status="interrupted"))
+    db.upsert_book(make_record("b", "B", status="error"))
+
+    db.reconcile([make_record("a", "A"), make_record("b", "B")])
+
+    assert db.get_book("a")["status"] == "interrupted"
+    assert db.get_book("b")["status"] == "error"
+
+
 def test_mark_interrupted(db: Database):
     db.upsert_book(make_record("a", "A", status="converting"))
     db.create_job(

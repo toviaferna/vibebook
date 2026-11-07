@@ -2,6 +2,7 @@ import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -150,6 +151,17 @@ class Database:
 
     def reconcile(self, records: list[BookRecord]) -> None:
         for record in records:
+            existing = self.get_book(record.id)
+            if (
+                existing is not None
+                and existing["status"] in {"interrupted", "error"}
+                and record.status in {"imported", "ready", "converting"}
+            ):
+                record = replace(
+                    record,
+                    status=existing["status"],
+                    updated_at=existing["updated_at"],
+                )
             self.upsert_book(record)
         self._mark_missing_books({record.id for record in records})
 

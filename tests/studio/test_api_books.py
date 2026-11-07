@@ -2,6 +2,7 @@ import io
 import zipfile
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from audiol.studio.app import create_app
@@ -131,10 +132,43 @@ def test_delete_book(client, imported):
 
 
 def test_rescan_picks_up_external_book(client, tmp_path: Path, tiny_epub: Path):
+    record = client.app.state.library.import_epub(tiny_epub)
+
     response = client.post("/api/books/rescan")
 
     assert response.status_code == 200
-    assert "count" in response.json()
+    assert response.json()["count"] == 1
+    assert client.get(f"/api/books/{record.id}").status_code == 200
+
+
+def test_non_ascii_token_is_rejected(tmp_path: Path):
+    with pytest.raises(ValueError):
+        Settings(
+            library_dir=tmp_path / "library",
+            token="contraseña",
+            allow_fake=True,
+        )
+
+
+def test_cors_preflight_is_not_blocked_by_token(tmp_path: Path):
+    settings = Settings(
+        library_dir=tmp_path / "library",
+        token="smoke",
+        allow_fake=True,
+        dev=True,
+    )
+    app = create_app(settings, provider_factory=lambda engine: FakeProvider())
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        response = client.options(
+            "/api/books",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
 def test_error_shape_for_unknown_book(client):

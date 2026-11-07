@@ -1,6 +1,8 @@
 import json
 import logging
+import sqlite3
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -27,6 +29,10 @@ class JobNotActive(Exception):
 
 
 class JobNotFound(Exception):
+    pass
+
+
+class BookNotReady(Exception):
     pass
 
 
@@ -64,7 +70,7 @@ class JobManager:
             manifest = load_manifest(record.path / "manifest.json")
             book = book_from_manifest(manifest)
             if not book.chapters:
-                raise ValueError("Book has no readable chapters")
+                raise BookNotReady("Book has no readable chapters")
             self._validate_options(options)
             provider = self.provider_factory(options.engine)
 
@@ -120,6 +126,13 @@ class JobManager:
         with self._lock:
             return self._active_job_id
 
+    def is_book_active(self, book_id: str) -> bool:
+        active_id = self.active_job_id()
+        if active_id is None:
+            return False
+        job = self.db.get_job(active_id)
+        return job is not None and job["book_id"] == book_id
+
     def mark_interrupted(self) -> None:
         self.db.mark_interrupted()
         with self._lock:
@@ -160,16 +173,20 @@ class JobManager:
             self.db.set_book_status(record.id, "converting")
 
             def on_progress(event) -> None:
-                self.db.update_job(
-                    job_id,
-                    stage=event.stage,
-                    completed_segments=event.completed_segments,
-                    total_segments=event.total_segments,
-                    chapter_index=event.chapter_index or None,
-                    chapter_title=event.chapter_title or None,
-                    current_text=event.text,
-                    message=event.message,
-                )
+                try:
+                    self.db.update_job(
+                        job_id,
+                        stage=event.stage,
+                        completed_segments=event.completed_segments,
+                        total_segments=event.total_segments,
+                        chapter_index=event.chapter_index or None,
+                        chapter_title=event.chapter_title or None,
+                        current_text=event.text,
+                        message=event.message,
+                    )
+                except (KeyError, sqlite3.Error):
+                    logger.exception("Could not persist progress for job %s", job_id)
+                    cancel_event.set()
 
             result = convert(
                 book,
@@ -185,8 +202,8 @@ class JobManager:
                 book_id=record.id,
             )
         except ConversionCancelled:
-            self.db.set_book_status(record.id, "interrupted")
-            self.db.update_job(
+            self._safe_set_book_status(record.id, "interrupted")
+            self._safe_update_job(
                 job_id,
                 status="cancelled",
                 stage="cancelled",
@@ -195,8 +212,8 @@ class JobManager:
             )
         except Exception as exc:
             logger.exception("Job %s failed", job_id)
-            self.db.set_book_status(record.id, "error")
-            self.db.update_job(
+            self._safe_set_book_status(record.id, "error")
+            self._safe_update_job(
                 job_id,
                 status="failed",
                 stage="error",
@@ -204,7 +221,7 @@ class JobManager:
                 finished_at=_now(),
             )
         else:
-            self.db.set_book_status(
+            self._safe_set_book_status(
                 record.id,
                 "ready",
                 duration_ms=result.duration_ms,
@@ -214,7 +231,7 @@ class JobManager:
                 style=options.style,
                 rate=options.rate,
             )
-            self.db.update_job(
+            self._safe_update_job(
                 job_id,
                 status="completed",
                 stage="done",
@@ -228,6 +245,34 @@ class JobManager:
                 if self._active_job_id == job_id:
                     self._active_job_id = None
                     self._cancel_event = None
+
+    def _safe_set_book_status(self, book_id: str, status: str, **fields: object) -> None:
+        for attempt in range(3):
+            try:
+                self.db.set_book_status(book_id, status, **fields)
+                return
+            except KeyError:
+                logger.warning("Book %s disappeared during conversion", book_id)
+                return
+            except sqlite3.Error:
+                if attempt == 2:
+                    logger.exception("Could not update book %s status", book_id)
+                    return
+                time.sleep(0.1)
+
+    def _safe_update_job(self, job_id: str, **fields: object) -> None:
+        for attempt in range(3):
+            try:
+                self.db.update_job(job_id, **fields)
+                return
+            except KeyError:
+                logger.warning("Job %s disappeared during terminal update", job_id)
+                return
+            except sqlite3.Error:
+                if attempt == 2:
+                    logger.exception("Could not update job %s terminal state", job_id)
+                    return
+                time.sleep(0.1)
 
 
 def _now() -> str:

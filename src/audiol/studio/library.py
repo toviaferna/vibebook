@@ -83,7 +83,11 @@ class Library:
         try:
             shutil.copyfile(source, temporary / "source.epub")
             (temporary / "book.md").write_text(render_markdown(book), encoding="utf-8")
-            cover = extract_cover(source, temporary)
+            try:
+                cover = extract_cover(source, temporary)
+            except Exception:
+                logger.warning("Could not extract cover from %s", source, exc_info=True)
+                cover = None
             write_manifest(
                 book,
                 temporary,
@@ -110,19 +114,45 @@ class Library:
 
     def scan(self) -> list[BookRecord]:
         records: list[BookRecord] = []
+        root = self.root.resolve()
         for child in sorted(self.root.iterdir()):
-            if not child.is_dir() or child.name.startswith("."):
+            if not child.is_dir() or child.name.startswith(".") or child.is_symlink():
                 continue
-            manifest_path = child / "manifest.json"
+            try:
+                resolved = child.resolve()
+            except OSError:
+                continue
+            if not resolved.is_relative_to(root):
+                logger.warning("Skipping library entry outside root: %s", child)
+                continue
+            manifest_path = resolved / "manifest.json"
             if not manifest_path.is_file():
                 continue
             try:
-                records.append(self._record_from_dir(child))
-            except (OSError, ValueError, KeyError, TypeError) as exc:
+                records.append(self._record_from_dir(resolved))
+            except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
                 logger.warning("Skipping invalid library entry %s: %s", child, exc)
         return records
 
     def get(self, book_id: str) -> BookRecord:
+        root = self.root.resolve()
+        candidate = self.root / book_id
+        if candidate.is_dir() and not candidate.is_symlink():
+            try:
+                resolved = candidate.resolve()
+            except OSError:
+                resolved = None
+            if (
+                resolved is not None
+                and resolved.is_relative_to(root)
+                and (resolved / "manifest.json").is_file()
+            ):
+                try:
+                    record = self._record_from_dir(resolved)
+                except (OSError, ValueError, KeyError, TypeError, OverflowError):
+                    record = None
+                if record is not None and record.id == book_id:
+                    return record
         for record in self.scan():
             if record.id == book_id:
                 return record
@@ -144,8 +174,11 @@ class Library:
         relative_path = Path(relative)
         if relative_path.is_absolute():
             raise LibraryError(f"Asset path must be relative: {relative}")
+        library_root = self.root.resolve()
         book_root = record.path.resolve()
-        resolved = (record.path / relative_path).resolve()
+        if not book_root.is_relative_to(library_root):
+            raise LibraryError(f"Book path escapes the library: {book_root}")
+        resolved = (book_root / relative_path).resolve()
         if resolved == book_root or not resolved.is_relative_to(book_root):
             raise LibraryError(f"Asset path escapes the book: {relative}")
         return resolved
@@ -222,13 +255,24 @@ def _mtime(path: Path) -> str:
 
 
 def _cover_path(book_dir: Path, value: object) -> Path | None:
+    root = book_dir.resolve()
+
+    def allowed(candidate: Path) -> Path | None:
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            return None
+        if resolved.is_relative_to(root) and resolved.is_file():
+            return resolved
+        return None
+
     if isinstance(value, str):
-        candidate = book_dir / value
-        if candidate.is_file():
+        candidate = allowed(book_dir / value)
+        if candidate is not None:
             return candidate
     for suffix in sorted(COVER_SUFFIXES):
-        candidate = book_dir / f"cover{suffix}"
-        if candidate.is_file():
+        candidate = allowed(book_dir / f"cover{suffix}")
+        if candidate is not None:
             return candidate
     return None
 
@@ -248,4 +292,9 @@ def _optional_str(value: object) -> str | None:
 
 
 def _optional_int(value: object) -> int | None:
-    return int(value) if isinstance(value, (int, float)) else None
+    if not isinstance(value, (int, float)):
+        return None
+    try:
+        return int(value)
+    except (OverflowError, ValueError):
+        return None

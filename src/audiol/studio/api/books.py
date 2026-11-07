@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, File, Request, Response, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 from audiol.studio.errors import ApiError
 from audiol.studio.library import (
@@ -110,7 +111,7 @@ async def import_book(request: Request, file: Annotated[UploadFile, File()]) -> 
     try:
         await save_epub_upload(file, temporary, settings)
         try:
-            record = request.app.state.library.import_epub(temporary)
+            record = await run_in_threadpool(request.app.state.library.import_epub, temporary)
         except InvalidEpubError as exc:
             raise ApiError(422, "invalid_epub", str(exc)) from exc
         except LibraryError as exc:
@@ -141,6 +142,12 @@ def get_book(request: Request, book_id: str) -> BookDetailResponse:
 @router.delete("/{book_id}", status_code=204)
 def delete_book(request: Request, book_id: str) -> Response:
     record = _record(request, book_id)
+    if request.app.state.jobs.is_book_active(record.id):
+        raise ApiError(
+            409,
+            "job_in_progress",
+            "No se puede borrar un libro mientras se está convirtiendo.",
+        )
     try:
         request.app.state.library.delete(record.id)
     except LibraryError as exc:

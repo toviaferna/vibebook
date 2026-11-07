@@ -88,6 +88,17 @@ def test_missing_audio_returns_409(client, imported):
     assert client.get(f"/api/books/{imported['id']}/chapters/1").status_code == 409
 
 
+def test_audio_key_with_missing_file_returns_404(client, imported):
+    import json
+
+    path = client.app.state.library.root / imported["id"] / "manifest.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["chapters"][0]["audio"] = "audio/chapters/missing.mp3"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    assert client.get(f"/api/books/{imported['id']}/audio/1").status_code == 404
+
+
 @requires_ffmpeg
 def test_state_defaults_and_roundtrip(client, converted):
     initial = client.get(f"/api/books/{converted['id']}/state")

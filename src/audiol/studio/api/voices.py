@@ -3,6 +3,7 @@ import logging
 import mimetypes
 import os
 import re
+from uuid import uuid4
 
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
@@ -57,7 +58,10 @@ def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse
                 "invalid_options",
                 f"{voice.id} no soporta el estilo {payload.style}.",
             )
-    rate = validate_rate(payload.rate)
+    try:
+        rate = validate_rate(payload.rate)
+    except ValueError as exc:
+        raise ApiError(422, "invalid_options", str(exc)) from exc
     try:
         provider = request.app.state.provider_factory(payload.engine)
     except ValueError as exc:
@@ -70,7 +74,7 @@ def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse
     path = settings.library_dir / ".previews" / filename
     if not path.is_file():
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_name(f"{path.name}.part")
+        temporary = path.with_name(f"{path.name}.{uuid4().hex}.part")
         try:
             provider.synthesize(
                 payload.text,

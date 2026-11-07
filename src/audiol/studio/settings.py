@@ -17,6 +17,13 @@ class Settings:
     max_archive_entries: int = 5000
     max_uncompressed_bytes: int = 500 * 1024 * 1024
 
+    def __post_init__(self) -> None:
+        if self.token is not None:
+            try:
+                self.token.encode("ascii")
+            except UnicodeEncodeError as exc:
+                raise ValueError("The local token must contain only ASCII characters") from exc
+
 
 def default_library_dir() -> Path:
     return user_data_path("vibebook") / "library"

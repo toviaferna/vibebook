@@ -105,6 +105,24 @@ def test_second_convert_returns_409_while_active(client, imported):
 
 
 @requires_ffmpeg
+def test_delete_while_converting_returns_409(client, imported):
+    started = threading.Event()
+    release = threading.Event()
+    client.app.state.jobs.provider_factory = lambda engine: BlockingProvider(started, release)
+    job_id = convert(client, imported["id"]).json()["job_id"]
+    assert started.wait(timeout=5)
+
+    response = client.delete(f"/api/books/{imported['id']}")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "job_in_progress"
+
+    client.post(f"/api/jobs/{job_id}/cancel")
+    release.set()
+    wait_for_job(client, job_id, {"cancelled"})
+    assert client.get(f"/api/books/{imported['id']}").status_code == 200
+
+
+@requires_ffmpeg
 def test_cancel_job_and_resume(client, imported):
     started = threading.Event()
     release = threading.Event()
