@@ -3,6 +3,13 @@
 v0 convierte EPUB en M4B con Edge TTS o Azure. Lo pendiente se ordena por
 impacto en la escucha, no por dificultad.
 
+## Estado actual
+
+- Core, Studio, lector sincronizado y app Tauri están implementados.
+- Quedan el release público, la revisión de licencias, la firma de binarios y
+  las mejoras opcionales de v0.4 (EPUB original, búsqueda, marcadores, Azure con
+  word boundaries).
+
 ## Decisión de voz
 
 - [ ] Comparar `es-MX-JorgeNeural`, `es-MX-DaliaNeural`, `es-PY-MarioNeural` y
@@ -29,8 +36,7 @@ impacto en la escucha, no por dificultad.
 
 ## Producto
 
-- [ ] Añadir marcas de tiempo por segmento si se necesita sincronización entre
-  texto y audio. v0 no las genera.
+- [x] Marcas de tiempo por segmento y por palabra para el lector sincronizado.
 - [ ] Evaluar PDF como entrada. Queda fuera de v0.
 - [ ] Evaluar SFX y música. Queda fuera de v0.
 - [ ] Decidir la licencia del repositorio.

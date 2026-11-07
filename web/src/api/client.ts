@@ -16,6 +16,22 @@ import type {
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "/api";
 const API_TOKEN = import.meta.env.VITE_API_TOKEN as string | undefined;
 
+let apiBase = normalizeBase(API_BASE);
+let apiToken = API_TOKEN ?? "";
+
+function normalizeBase(value: string): string {
+  const trimmed = value.replace(/\/+$/, "");
+  if (!trimmed) {
+    return "/api";
+  }
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
+export function configureApi(config: { baseUrl: string; token: string }): void {
+  apiBase = normalizeBase(config.baseUrl);
+  apiToken = config.token;
+}
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -31,13 +47,13 @@ export class ApiError extends Error {
 }
 
 export function authHeaders(): Record<string, string> {
-  return API_TOKEN ? { "X-Vibebook-Token": API_TOKEN } : {};
+  return apiToken ? { "X-Vibebook-Token": apiToken } : {};
 }
 
 function headersFor(init?: RequestInit): Headers {
   const headers = new Headers(init?.headers);
-  if (API_TOKEN) {
-    headers.set("X-Vibebook-Token", API_TOKEN);
+  if (apiToken) {
+    headers.set("X-Vibebook-Token", apiToken);
   }
   return headers;
 }
@@ -48,7 +64,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   if (body && typeof body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${apiBase}${path}`, {
     ...init,
     headers,
   });
@@ -76,10 +92,13 @@ export function apiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) {
     return path;
   }
-  if (path.startsWith("/api/")) {
-    return path;
+  const normalized = path.startsWith("/api/") ? path.slice(4) : path;
+  const url = `${apiBase}${normalized}`;
+  if (!apiToken) {
+    return url;
   }
-  return `${API_BASE}${path}`;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}token=${encodeURIComponent(apiToken)}`;
 }
 
 export const api = {

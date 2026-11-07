@@ -3,8 +3,9 @@
 ## Objetivo
 
 Convertir un EPUB en un audiolibro en español latinoamericano con voz natural,
-capítulos y un M4B AAC. El diseño prioriza bajo consumo de recursos: sin GPU,
-sin servidor y sin base de datos.
+capítulos y un M4B AAC. El diseño prioriza bajo consumo de recursos. El Studio
+usa un servidor local y SQLite solo para la biblioteca; la app de escritorio
+empaqueta ese backend como sidecar.
 
 El paquete Python se llama `audiol`; el comando instalado es `vibebook`, con
 alias `audiol`.
@@ -15,8 +16,7 @@ alias `audiol`.
 - Salida: Markdown limpio, audio por capítulo y M4B con capítulos.
 - Voces: Edge TTS para MX/PY; Azure TTS para estilos en `es-MX`.
 - CLI local, reanudable y con caché por segmento.
-- Fuera de v0: PDF, SFX, UI web, sincronización multidispositivo y clonación
-  de voz.
+- Fuera de v0: PDF, SFX, sincronización multidispositivo y clonación de voz.
 
 ## Voces
 
@@ -82,8 +82,28 @@ exponencial desde 2 segundos.
 - Los segmentos se concatenan por capítulo con ffmpeg y `loudnorm`.
 - El M4B usa AAC a 64 kbps, metadata y capítulos.
 - Las rutas del concat son absolutas.
-- `find_binary()` resuelve ffmpeg/ffprobe desde variable de entorno, PATH,
-  `.tools/bin` o `static-ffmpeg`.
+- `find_binary()` resuelve ffmpeg/ffprobe desde `FFMPEG_BINARY` /
+  `FFPROBE_BINARY`, `VIBEBOOK_FFMPEG_DIR`, recursos del ejecutable congelado,
+  PATH, `.tools/bin` o `static-ffmpeg`.
+
+## Escritorio
+
+La app Tauri es un shell nativo que carga la misma SPA y arranca el backend
+Python como sidecar:
+
+```text
+Vibebook.exe
+  -> genera token y puerto libre
+  -> vibebook-sidecar serve --json-ready
+  -> lee {"event":"ready","port":...,"token":...}
+  -> api_config(baseUrl, token) a la SPA
+  -> mata el árbol del sidecar al cerrar
+```
+
+El sidecar escucha solo en `127.0.0.1`, valida `X-Vibebook-Token` o `?token=`
+para recursos que no pueden enviar headers (audio, portadas, M4B) y sirve la SPA
+empaquetada. El ZIP portable usa `portable.flag` para guardar la biblioteca en
+`data/library` junto al ejecutable. Ver [desktop.md](desktop.md).
 
 ## CLI y entorno
 

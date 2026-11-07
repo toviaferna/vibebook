@@ -171,6 +171,34 @@ def test_cors_preflight_is_not_blocked_by_token(tmp_path: Path):
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
 
 
+def test_token_can_be_passed_in_query_for_media(unauth_client):
+    assert unauth_client.get("/api/books").status_code == 401
+
+    response = unauth_client.get("/api/books?token=test-token")
+
+    assert response.status_code == 200
+
+
+def test_tauri_origin_is_allowed_without_dev(tmp_path: Path):
+    settings = Settings(
+        library_dir=tmp_path / "library",
+        token="smoke",
+        allow_fake=True,
+    )
+    app = create_app(settings, provider_factory=lambda engine: FakeProvider())
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        response = client.options(
+            "/api/books",
+            headers={
+                "Origin": "http://tauri.localhost",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://tauri.localhost"
+
+
 def test_error_shape_for_unknown_book(client):
     response = client.get("/api/books/nope")
 

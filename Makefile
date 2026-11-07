@@ -1,4 +1,4 @@
-.PHONY: sync test lint format typecheck check build run web-install web-dev web-build web-test web-lint web-check check-all
+.PHONY: sync test lint format typecheck check build run web-install web-dev web-build web-test web-lint web-check check-all sidecar
 
 sync:
 	uv sync
@@ -41,3 +41,7 @@ web-lint:
 web-check: web-lint web-test web-build
 
 check-all: check web-check
+
+sidecar:
+	cd web && npm run build
+	uv run pyinstaller packaging/pyinstaller/vibebook-sidecar.spec --noconfirm

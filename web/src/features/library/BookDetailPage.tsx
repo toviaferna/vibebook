@@ -82,7 +82,7 @@ export function BookDetailPage() {
               </div>
               <p className="page-subtitle" style={{ marginTop: 0 }}>
                 {book.status === "ready"
-                  ? "El audio está listo. En la próxima fase vas a poder leer y escuchar sincronizados."
+                  ? "El audio está listo. Abrí el lector para seguir el texto mientras escuchás."
                   : "El libro está en tu biblioteca local. Prepará la voz para generar el audiolibro."}
               </p>
 

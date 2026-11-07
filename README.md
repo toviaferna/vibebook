@@ -147,6 +147,38 @@ Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
 cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`
 pantalla completa y `?` muestra la ayuda.
 
+## App de escritorio
+
+La app de escritorio usa Tauri y empaqueta el backend Python y ffmpeg en un
+sidecar. No necesita Python ni Node instalados para ejecutarse.
+
+Requisitos: Windows 10/11 x64, WebView2 (incluido en Windows 11) e internet para
+Edge TTS.
+
+Para desarrollo:
+
+```powershell
+npm ci
+npm ci --prefix web
+uv sync
+make sidecar
+npm run desktop:dev
+```
+
+Para generar instaladores y una carpeta portable:
+
+```powershell
+make sidecar
+npm run desktop:build
+```
+
+El modo portable se activa creando un archivo `portable.flag` junto a
+`Vibebook.exe`; la biblioteca se guarda en `data/library` al lado del ejecutable.
+Los logs del sidecar quedan en
+`%LOCALAPPDATA%\com.vibebook.desktop\logs\vibebook-sidecar.log`.
+
+Más detalle en [docs/desktop.md](docs/desktop.md).
+
 ## Voces
 
 | Voz | Locale | Género | Motores | Estilos |

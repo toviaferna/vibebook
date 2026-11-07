@@ -14,7 +14,9 @@ cd ..
 uv run vibebook studio --library out
 ```
 
-Abre `http://127.0.0.1:8765`. La documentación de la API está en `/docs`.
+Abre `http://127.0.0.1:8765`. La documentación de la API está en `/docs`. La
+misma interfaz corre dentro de la app Tauri con un sidecar Python; ver
+[desktop.md](desktop.md) y [reader.md](reader.md).
 
 ## Desarrollo
 
@@ -92,3 +94,7 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET/PUT /api/settings`
 
 Más detalle en `/docs` (OpenAPI) mientras el servidor está corriendo.
+
+En la app de escritorio, los recursos que no pueden enviar headers (audio,
+portadas y M4B) aceptan el token como `?token=...`. Las llamadas JSON siguen
+usando `X-Vibebook-Token`.
