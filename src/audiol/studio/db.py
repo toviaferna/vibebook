@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS book_state (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_index INTEGER NOT NULL,
+  position_ms INTEGER NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -63,6 +72,8 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_jobs_book_created ON jobs(book_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_book_position
+  ON bookmarks(book_id, position_ms, created_at);
 """
 
 SORT_SQL = {
@@ -337,6 +348,51 @@ class Database:
                 """,
                 (book_id, position_ms, chapter_index, playback_rate, _now()),
             )
+
+    def list_bookmarks(self, book_id: str) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM bookmarks
+                WHERE book_id = ?
+                ORDER BY position_ms ASC, created_at ASC
+                """,
+                (book_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_bookmark(
+        self,
+        book_id: str,
+        chapter_index: int,
+        position_ms: int,
+        note: str | None,
+    ) -> dict:
+        now = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO bookmarks (
+                    book_id, chapter_index, position_ms, note, created_at
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (book_id, chapter_index, position_ms, note, now),
+            )
+            bookmark_id = int(cursor.lastrowid or 0)
+            row = connection.execute(
+                "SELECT * FROM bookmarks WHERE id = ?", (bookmark_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(bookmark_id)
+        return dict(row)
+
+    def delete_bookmark(self, book_id: str, bookmark_id: int) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM bookmarks WHERE book_id = ? AND id = ?",
+                (book_id, bookmark_id),
+            )
+        return cursor.rowcount > 0
 
     def get_settings(self) -> dict[str, object]:
         with self._connect() as connection:

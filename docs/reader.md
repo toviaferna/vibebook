@@ -42,6 +42,16 @@ Se guardan `position_ms`, `chapter_index` y `playback_rate` en
 cambiar de posición y cada 5 s mientras reproduce. Al volver a abrir el libro se
 restaura la posición sin autoplay.
 
+## Búsqueda y marcadores
+
+- La búsqueda recorre todos los capítulos y segmentos del manifest. Ignora
+  mayúsculas y acentos (`lazaro` encuentra `Lázaro`) y devuelve capítulo,
+  segmento, posición y extracto.
+- Al elegir un resultado, el lector salta al capítulo y a la posición del audio.
+- Los marcadores guardan capítulo, posición y una nota opcional. Se pueden
+  abrir o eliminar desde el panel de marcadores.
+- Ambos paneles están en la barra superior del lector.
+
 ## Ajustes
 
 Tema claro/sepia/noche, tipografía editorial/sans/Atkinson Hyperlegible, tamaño
@@ -50,6 +60,5 @@ settings del Studio.
 
 ## Limitaciones
 
-- No hay búsqueda ni marcadores todavía (T32).
 - La vista del EPUB original queda para T30.
 - El resaltado por palabra depende de los timings generados por el motor TTS.

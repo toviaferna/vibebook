@@ -3,12 +3,16 @@ import type {
   Book,
   BookDetail,
   BookList,
+  Bookmark,
+  BookmarkInput,
+  BookmarkList,
   ChapterPayload,
   ConversionInput,
   Job,
   Manifest,
   Preview,
   ReaderState,
+  SearchResponse,
   Settings,
   Voice,
 } from "./types";
@@ -165,6 +169,16 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(state),
     }),
+  searchBook: (bookId: string, query: string) =>
+    apiFetch<SearchResponse>(`/books/${bookId}/search?q=${encodeURIComponent(query)}`),
+  listBookmarks: (bookId: string) => apiFetch<BookmarkList>(`/books/${bookId}/bookmarks`),
+  createBookmark: (bookId: string, input: BookmarkInput) =>
+    apiFetch<Bookmark>(`/books/${bookId}/bookmarks`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  deleteBookmark: (bookId: string, bookmarkId: number) =>
+    apiFetch<void>(`/books/${bookId}/bookmarks/${bookmarkId}`, { method: "DELETE" }),
 };
 
 export function errorMessage(error: unknown): string {

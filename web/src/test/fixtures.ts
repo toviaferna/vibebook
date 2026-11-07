@@ -1,9 +1,11 @@
 import type {
   Book,
   BookDetail,
+  BookmarkList,
   ChapterPayload,
   Job,
   Manifest,
+  SearchResponse,
   Settings,
   Voice,
 } from "../api/types";
@@ -130,6 +132,32 @@ export const sampleChapter: ChapterPayload = {
       },
     ],
   },
+};
+
+export const sampleSearch: SearchResponse = {
+  items: [
+    {
+      chapter_index: 1,
+      chapter_title: "Capítulo 1",
+      segment_id: "c001p0001s00",
+      position_ms: 0,
+      excerpt: "Hola, mundo. Esta es una prueba.",
+      offset: 0,
+    },
+  ],
+};
+
+export const sampleBookmarks: BookmarkList = {
+  items: [
+    {
+      id: 1,
+      book_id: sampleBook.id,
+      chapter_index: 1,
+      position_ms: 500,
+      note: "Marcador de prueba",
+      created_at: "2026-11-07T10:00:00+00:00",
+    },
+  ],
 };
 
 export const sampleJob: Job = {
