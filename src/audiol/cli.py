@@ -6,10 +6,8 @@ from pathlib import Path
 
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
-from audiol.tts.azure import AzureProvider
 from audiol.tts.base import validate_rate
-from audiol.tts.edge import EdgeProvider
-from audiol.tts.fake import FakeProvider
+from audiol.tts.factory import make_provider
 from audiol.voices import get_voice, list_voices
 
 
@@ -112,7 +110,7 @@ def _convert(args: argparse.Namespace) -> int:
         print(json.dumps(stats, ensure_ascii=False, indent=2))
         return 0
 
-    provider = _make_provider(args.engine)
+    provider = make_provider(args.engine, allow_fake=True)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "book.md").write_text(render_markdown(book), encoding="utf-8")
     result = convert(
@@ -128,13 +126,3 @@ def _convert(args: argparse.Namespace) -> int:
     )
     print(f"M4B: {result.m4b_path}")
     return 0
-
-
-def _make_provider(engine: str):
-    if engine == "edge":
-        return EdgeProvider()
-    if engine == "azure":
-        return AzureProvider()
-    if engine == "fake":
-        return FakeProvider()
-    raise ValueError(f"Unknown engine: {engine}")
