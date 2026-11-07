@@ -1,16 +1,43 @@
-# Studio backend
+# Studio
 
-La Fase 2 agrega un backend local para preparar la interfaz web y el lector.
-Todavía no incluye la UI React; se puede probar con la documentación interactiva.
+La app local incluye una interfaz web para biblioteca, importación, conversión y
+ajustes, más una API para el lector de la próxima fase.
 
 ## Arranque
 
-```bash
+```powershell
 uv sync
+cd web
+npm ci
+npm run build
+cd ..
 uv run vibebook studio --library out
 ```
 
-Abre `http://127.0.0.1:8765/docs`.
+Abre `http://127.0.0.1:8765`. La documentación de la API está en `/docs`.
+
+## Desarrollo
+
+```powershell
+# terminal 1
+uv run vibebook studio --library out --allow-fake --no-browser
+
+# terminal 2
+cd web
+npm run dev
+```
+
+Vite abre `http://localhost:5173` y hace proxy de `/api` al backend. En
+desarrollo se habilita el motor `Fake` para probar sin red.
+
+## Interfaz
+
+- Biblioteca con búsqueda, orden, progreso y estado.
+- Importación por arrastre o selector de archivo.
+- Estudio por pasos: libro, voz, salida y conversión.
+- Progreso en vivo, cancelación y reanudación.
+- Ajustes de voz, tema, tipografía y reproducción.
+- Lector y karaoke: Fase 4.
 
 Opciones:
 

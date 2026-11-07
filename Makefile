@@ -1,4 +1,4 @@
-.PHONY: sync test lint format typecheck check build run
+.PHONY: sync test lint format typecheck check build run web-install web-dev web-build web-test web-lint web-check check-all
 
 sync:
 	uv sync
@@ -22,3 +22,22 @@ build:
 
 run:
 	uv run vibebook --help
+
+web-install:
+	cd web && npm ci
+
+web-dev:
+	cd web && npm run dev
+
+web-build:
+	cd web && npm run build
+
+web-test:
+	cd web && npm run test
+
+web-lint:
+	cd web && npm run lint
+
+web-check: web-lint web-test web-build
+
+check-all: check web-check

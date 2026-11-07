@@ -96,17 +96,44 @@ tiempos de palabra. Los capítulos y el M4B se reconstruyen. Usa
 `--no-timings` si solo necesitas el M4B y quieres evitar los archivos de
 sincronización.
 
-## Studio backend
+## Interfaz web
 
-La Fase 2 agrega una API local para biblioteca, conversión y lector. Todavía no
-incluye la interfaz web.
+La app web incluye biblioteca, importación, estudio de conversión y ajustes.
 
-```bash
+```powershell
+cd web
+npm ci
+npm run build
+cd ..
 uv run vibebook studio --library out
 ```
 
-Abre `http://127.0.0.1:8765/docs`. La documentación de la API y las opciones
-está en [docs/studio.md](docs/studio.md).
+Abre `http://127.0.0.1:8765`. La API interactiva queda en `/docs` y las opciones
+en [docs/studio.md](docs/studio.md).
+
+Para desarrollo, levantá el backend y Vite en dos terminales:
+
+```powershell
+# terminal 1
+uv run vibebook studio --library out --allow-fake --no-browser
+
+# terminal 2
+cd web
+npm run dev
+```
+
+Vite abre `http://localhost:5173` y hace proxy de `/api` al backend. En
+desarrollo aparece el motor `Fake` para probar el flujo sin red.
+
+Comandos de la UI:
+
+```bash
+cd web
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
 
 ## Voces
 
