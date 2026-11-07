@@ -91,6 +91,7 @@ class Library:
                 DEFAULT_ENGINE,
                 status="imported",
                 book_id=book_id,
+                rate=DEFAULT_RATE,
                 cover=cover.name if cover is not None else None,
                 source_epub="source.epub",
             )

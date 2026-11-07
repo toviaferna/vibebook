@@ -1,0 +1,57 @@
+# Studio backend
+
+La Fase 2 agrega un backend local para preparar la interfaz web y el lector.
+Todavía no incluye la UI React; se puede probar con la documentación interactiva.
+
+## Arranque
+
+```bash
+uv sync
+uv run vibebook studio --library out
+```
+
+Abre `http://127.0.0.1:8765/docs`.
+
+Opciones:
+
+| Opción | Descripción |
+|---|---|
+| `--library PATH` | Biblioteca a usar. Por defecto, la carpeta de datos de la app |
+| `--host` | Interfaz; por defecto `127.0.0.1` |
+| `--port` | Puerto; `0` elige uno libre |
+| `--no-browser` | No abre el navegador |
+| `--allow-fake` | Habilita el motor fake para desarrollo/tests |
+| `--token` | Exige `X-Vibebook-Token` en las rutas `/api` |
+| `--dev` | CORS para Vite en `localhost:5173` |
+
+Sin `web/dist`, `GET /` muestra una página de estado; con `web/dist` sirve la SPA.
+
+## Flujo mínimo por API
+
+```bash
+curl -H "X-Vibebook-Token: smoke" \
+  -F "file=@libro.epub;type=application/epub+zip" \
+  http://127.0.0.1:8765/api/books/import
+
+curl -X POST http://127.0.0.1:8765/api/books/<id>/convert \
+  -H "Content-Type: application/json" \
+  -H "X-Vibebook-Token: smoke" \
+  -d '{"voice":"es-MX-JorgeNeural","engine":"fake","rate":"-10%"}'
+
+curl http://127.0.0.1:8765/api/jobs/<job_id> \
+  -H "X-Vibebook-Token: smoke"
+```
+
+## Endpoints
+
+- `GET /api/health`
+- `GET /api/books`, `POST /api/books/import`, `POST /api/books/rescan`
+- `GET/DELETE /api/books/{id}`, `GET /api/books/{id}/cover`
+- `POST /api/books/{id}/convert`
+- `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
+- `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`
+- `GET/PUT /api/books/{id}/state`
+- `GET /api/voices`, `POST /api/voices/preview`, `GET /api/previews/{key}`
+- `GET/PUT /api/settings`
+
+Más detalle en `/docs` (OpenAPI) mientras el servidor está corriendo.

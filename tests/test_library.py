@@ -31,6 +31,7 @@ def test_import_creates_book_folder_and_imported_manifest(library: Library, tiny
     manifest = load_manifest(record.path / "manifest.json")
     assert manifest["id"] == record.id
     assert manifest["status"] == "imported"
+    assert manifest["rate"] == "-10%"
     assert manifest["epub"] == "source.epub"
     assert len(manifest["chapters"]) == 2
 

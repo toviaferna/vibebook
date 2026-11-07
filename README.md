@@ -96,6 +96,18 @@ tiempos de palabra. Los capítulos y el M4B se reconstruyen. Usa
 `--no-timings` si solo necesitas el M4B y quieres evitar los archivos de
 sincronización.
 
+## Studio backend
+
+La Fase 2 agrega una API local para biblioteca, conversión y lector. Todavía no
+incluye la interfaz web.
+
+```bash
+uv run vibebook studio --library out
+```
+
+Abre `http://127.0.0.1:8765/docs`. La documentación de la API y las opciones
+está en [docs/studio.md](docs/studio.md).
+
 ## Voces
 
 | Voz | Locale | Género | Motores | Estilos |
