@@ -72,7 +72,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
     assert output.exists()
     probe = subprocess.check_output(
         [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
-        text=True,
+        encoding="utf-8",
     )
     chapters = json.loads(probe)["chapters"]
     assert len(chapters) == 2
@@ -89,7 +89,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     assert streams["streams"][0]["codec_name"] == "aac"
@@ -105,7 +105,7 @@ def test_build_m4b_with_chapters(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     assert format_probe["format"]["tags"]["title"] == "Libro"
@@ -136,7 +136,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
                 "json",
                 str(output),
             ],
-            text=True,
+            encoding="utf-8",
         )
     )
     tags = format_probe["format"]["tags"]
@@ -147,7 +147,7 @@ def test_build_m4b_escapes_ffmetadata_values(tmp_path: Path):
     chapters = json.loads(
         subprocess.check_output(
             [find_binary("ffprobe"), "-v", "error", "-show_chapters", "-of", "json", str(output)],
-            text=True,
+            encoding="utf-8",
         )
     )["chapters"]
     assert chapters[0]["tags"]["title"] == "Capítulo 1"
