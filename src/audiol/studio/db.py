@@ -277,6 +277,19 @@ class Database:
             row = connection.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
         return _job_dict(row) if row is not None else None
 
+    def get_latest_job(self, book_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM jobs
+                WHERE book_id = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (book_id,),
+            ).fetchone()
+        return _job_dict(row) if row is not None else None
+
     def list_active_jobs(self) -> list[dict]:
         with self._connect() as connection:
             rows = connection.execute(

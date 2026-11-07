@@ -1,0 +1,110 @@
+import hmac
+import zipfile
+from pathlib import Path
+
+from fastapi import Request, UploadFile
+
+from audiol.studio.errors import ApiError, error_response
+from audiol.studio.settings import Settings
+
+EPUB_CONTAINER = "META-INF/container.xml"
+
+
+async def save_epub_upload(upload: UploadFile, destination: Path, settings: Settings) -> None:
+    filename = upload.filename or ""
+    if not filename.lower().endswith(".epub"):
+        raise ApiError(422, "invalid_epub", "El archivo debe tener extensión .epub.")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    total = 0
+    try:
+        with destination.open("wb") as handle:
+            while chunk := await upload.read(1024 * 1024):
+                total += len(chunk)
+                if total > settings.max_upload_bytes:
+                    raise ApiError(
+                        413,
+                        "file_too_large",
+                        "El EPUB supera el tamaño máximo permitido.",
+                    )
+                handle.write(chunk)
+        _validate_epub_archive(destination, settings)
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+
+
+def _validate_epub_archive(path: Path, settings: Settings) -> None:
+    with path.open("rb") as handle:
+        magic = handle.read(4)
+    if magic != b"PK\x03\x04":
+        raise ApiError(422, "invalid_epub", "El archivo no es un EPUB/ZIP válido.")
+    try:
+        with zipfile.ZipFile(path) as archive:
+            infos = archive.infolist()
+            names = {info.filename for info in infos}
+            if EPUB_CONTAINER not in names:
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB no contiene META-INF/container.xml.",
+                )
+            if len(infos) > settings.max_archive_entries:
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB contiene demasiadas entradas.",
+                )
+            if sum(info.file_size for info in infos) > settings.max_uncompressed_bytes:
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB descomprimido supera el tamaño permitido.",
+                )
+            if any(info.flag_bits & 0x1 for info in infos):
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB está cifrado y no se puede procesar.",
+                )
+            if any(_is_symlink(info) for info in infos):
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB contiene enlaces simbólicos.",
+                )
+    except zipfile.BadZipFile as exc:
+        raise ApiError(422, "invalid_epub", "El archivo no es un EPUB/ZIP válido.") from exc
+
+
+def _is_symlink(info: zipfile.ZipInfo) -> bool:
+    mode = (info.external_attr >> 16) & 0o170000
+    return mode == 0o120000
+
+
+def install_security_middleware(app, settings: Settings) -> None:
+    @app.middleware("http")
+    async def security_middleware(request: Request, call_next):
+        if (
+            settings.token
+            and request.url.path.startswith("/api")
+            and request.url.path != "/api/health"
+        ):
+            provided = request.headers.get("X-Vibebook-Token", "")
+            if not hmac.compare_digest(provided, settings.token):
+                return _secure_response(
+                    error_response(
+                        401,
+                        "invalid_token",
+                        "Token local inválido o ausente.",
+                    )
+                )
+        response = await call_next(request)
+        return _secure_response(response)
+
+
+def _secure_response(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
