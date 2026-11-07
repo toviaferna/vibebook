@@ -39,10 +39,30 @@ make check
 make build
 make web-install
 make web-check
+make sidecar
 ```
 
 La UI vive en `web/`: React, TypeScript y Vite. `npm run dev` usa el proxy
 `/api` hacia `127.0.0.1:8765`; `vibebook studio` sirve `web/dist` cuando existe.
+
+### Escritorio
+
+La app Tauri vive en `src-tauri/`. Requiere Rust estable, Visual Studio Build
+Tools con el workload C++ y WebView2.
+
+```powershell
+npm ci
+npm ci --prefix web
+uv sync
+make sidecar
+npm run desktop:dev
+npm run desktop:check
+npm run desktop:build
+```
+
+`make sidecar` construye `web/dist` y `dist/vibebook-sidecar.exe`. Tauri lo copia
+como recurso y lo lanza al abrir la ventana. El detalle está en
+[desktop.md](desktop.md).
 
 ## ffmpeg
 
@@ -78,6 +98,8 @@ La cuota gratuita F0 de Azure Speech es 0,5 M de caracteres al mes.
 - `mypy src`
 - `pytest`
 - `uv build`
+- `npm run lint`, `typecheck`, `test`, `build`
+- En Windows: PyInstaller del sidecar, `cargo fmt --check` y `cargo check`.
 
 ## Estructura
 
@@ -92,7 +114,9 @@ src/audiol/
   cli.py            comandos vibebook/audiol
   tools.py          descubrimiento de binarios
   studio/           biblioteca, API, jobs y servidor local
-web/                UI React/Vite (biblioteca, estudio, ajustes)
+web/                UI React/Vite (biblioteca, estudio, lector, ajustes)
+src-tauri/          shell Tauri y lifecycle del sidecar
+packaging/          PyInstaller, iconos y avisos de terceros
 tests/              tests unitarios e integración con ffmpeg
 tests/studio/       tests de API, jobs, lector y CLI
 docs/               arquitectura, desarrollo, roadmap y archivo histórico
