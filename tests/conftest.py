@@ -127,6 +127,28 @@ def toc_epub(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def cover_epub(tmp_path: Path) -> Path:
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-cover-123")
+    book.set_title("Libro con portada")
+    book.set_language("es")
+    book.add_author("Autora")
+    book.set_cover("cover.jpg", b"\xff\xd8\xff\xe0" + b"0" * 64)
+
+    chapter = epub.EpubHtml(title="Capítulo 1", file_name="cover_chapter.xhtml", lang="es")
+    chapter.content = "<h1>Capítulo 1</h1><p>Texto con portada.</p>"
+    book.add_item(chapter)
+    book.toc = (chapter,)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", chapter.id]
+
+    path = tmp_path / "cover.epub"
+    epub.write_epub(str(path), book)
+    return path
+
+
+@pytest.fixture
 def mixed_block_epub(tmp_path: Path) -> Path:
     book = epub.EpubBook()
     book.set_identifier("audiol-test-mixed-123")

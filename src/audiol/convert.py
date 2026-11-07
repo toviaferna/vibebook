@@ -1,9 +1,7 @@
 import hashlib
 import logging
 import os
-import re
 import time
-import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +12,7 @@ from audiol.chunk import chunk_text
 from audiol.clean import clean_paragraph_items
 from audiol.manifest import write_manifest
 from audiol.models import Book, Chapter, Segment, WordTiming, make_segment_id
+from audiol.naming import slugify
 from audiol.timing import (
     audio_duration_ms,
     build_chapter_timing,
@@ -490,9 +489,3 @@ def _manifest_assets(out_dir: Path) -> tuple[str | None, str | None]:
     cover = next((path.name for path in out_dir.glob("cover.*") if path.is_file()), None)
     source_epub = "source.epub" if (out_dir / "source.epub").is_file() else None
     return cover, source_epub
-
-
-def slugify(text: str) -> str:
-    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_text).strip("-").lower()
-    return slug or "audiolibro"
