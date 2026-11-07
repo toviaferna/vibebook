@@ -14,6 +14,15 @@ describe("StudioPage", () => {
     expect(screen.getByRole("button", { name: /Reconvertir/ })).toBeInTheDocument();
   });
 
+  it("inicia una conversión y muestra el resultado", async () => {
+    const user = userEvent.setup();
+    renderRoute("/books/lazarillo-1234/studio", "/books/:id/studio", <StudioPage />);
+
+    await user.click(await screen.findByRole("button", { name: /Reconvertir/ }));
+
+    expect(await screen.findByText("Conversión completa.")).toBeInTheDocument();
+  });
+
   it("permite elegir otra voz", async () => {
     const user = userEvent.setup();
     renderRoute("/books/lazarillo-1234/studio", "/books/:id/studio", <StudioPage />);
