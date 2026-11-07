@@ -52,7 +52,7 @@ def read_epub(path: Path) -> Book:
         if entries:
             prefix, split_chapters = _split_document(soup, entries)
             if prefix and chapters:
-                _add_paragraphs(chapters[-1], prefix)
+                _add_paragraphs(chapters[-1], prefix, source_href=item.get_name())
             for chapter_title, paragraphs, fragment in split_chapters:
                 chapter_index = _append_chapter(
                     chapters,
@@ -112,8 +112,15 @@ def _append_chapter(
     return chapter_index
 
 
-def _add_paragraphs(chapter: Chapter, paragraphs: list[str]) -> None:
+def _add_paragraphs(
+    chapter: Chapter,
+    paragraphs: list[str],
+    source_href: str | None = None,
+    source_fragment: str | None = None,
+) -> None:
     start = len(chapter.segments) + 1
+    resolved_href = source_href if source_href is not None else chapter.source_href
+    resolved_fragment = source_fragment if source_fragment is not None else chapter.source_fragment
     for offset, text in enumerate(paragraphs):
         index = start + offset
         chapter.segments.append(
@@ -122,8 +129,8 @@ def _add_paragraphs(chapter: Chapter, paragraphs: list[str]) -> None:
                 chapter_index=chapter.index,
                 paragraph_index=index,
                 text=text,
-                source_href=chapter.source_href,
-                source_fragment=chapter.source_fragment,
+                source_href=resolved_href,
+                source_fragment=resolved_fragment,
             )
         )
 

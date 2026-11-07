@@ -66,7 +66,7 @@ class EdgeProvider:
                 attempt += 1
 
     async def _stream(self, text: str, voice: str, out_path: Path, rate: str) -> list[WordTiming]:
-        communicate = edge_tts.Communicate(text, voice, rate=rate)
+        communicate = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
         words: list[WordTiming] = []
         with out_path.open("wb") as audio_file:
             async for chunk in communicate.stream():

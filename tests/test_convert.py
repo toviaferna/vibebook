@@ -5,6 +5,7 @@ import pytest
 
 from audiol.convert import (
     ConversionCancelled,
+    cache_key,
     convert,
     prepare_book,
     render_markdown,
@@ -171,7 +172,8 @@ def test_convert_writes_word_sidecars_and_exact_timings(tiny_epub: Path, tmp_pat
 
     convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
 
-    segment_path = next((out_dir / "audio" / "segments").glob("*.wav"))
+    segment_id = book.chapters[0].segments[0].id
+    segment_path = next((out_dir / "audio" / "segments").glob(f"{segment_id}_*.wav"))
     words = read_word_timings(segment_path.with_suffix(".timing.json"))
     assert words
     assert words[0].start_ms == 0
@@ -202,6 +204,29 @@ def test_convert_no_timings_skips_sidecars(tiny_epub: Path, tmp_path: Path):
     assert result.m4b_path.exists()
     assert not (out_dir / "timings").exists()
     assert not list((out_dir / "audio" / "segments").glob("*.timing.json"))
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["chapters"][0]["timing"] is None
+
+
+@requires_ffmpeg
+def test_convert_no_timings_removes_stale_files(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
+    assert (out_dir / "timings" / "chapter_001.json").exists()
+
+    convert(
+        book,
+        "es-MX-JorgeNeural",
+        "fake",
+        CountingProvider(),
+        out_dir,
+        capture_timings=False,
+    )
+
+    assert not list((out_dir / "timings").glob("chapter_*.json"))
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["chapters"][0]["timing"] is None
 
 
 @requires_ffmpeg
@@ -270,6 +295,9 @@ def test_convert_cancels_between_segments_without_losing_cache(tmp_path: Path):
     assert events[-1].completed_segments == 1
     assert len(list((out_dir / "audio" / "segments").glob("*.wav"))) == 1
     assert not (out_dir / "audio" / "chapters" / "chapter_001.mp3").exists()
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "interrupted"
+    assert manifest["duration_ms"] is None
 
     second = CountingProvider()
     result = convert(book, "es-MX-JorgeNeural", "fake", second, out_dir)
@@ -277,6 +305,96 @@ def test_convert_cancels_between_segments_without_losing_cache(tmp_path: Path):
     assert second.calls == 1
     assert result.total_segments == 2
     assert result.cached_segments == 1
+    assert result.m4b_path.exists()
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "ready"
+
+
+@requires_ffmpeg
+def test_convert_cancel_after_assembly_does_not_build_m4b(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    cancelled = False
+
+    def on_progress(event):
+        nonlocal cancelled
+        if event.stage == "assembling":
+            cancelled = True
+
+    with pytest.raises(ConversionCancelled):
+        convert(
+            book,
+            "es-MX-JorgeNeural",
+            "fake",
+            CountingProvider(),
+            out_dir,
+            on_progress=on_progress,
+            should_cancel=lambda: cancelled,
+        )
+
+    assert not list(out_dir.glob("*.m4b"))
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["status"] == "interrupted"
+
+
+@requires_ffmpeg
+def test_convert_failure_preserves_previous_ready_manifest(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
+    before = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+
+    with pytest.raises(ValueError):
+        convert(
+            book,
+            "es-MX-JorgeNeural",
+            "fake",
+            InvalidProvider(),
+            out_dir,
+            rate="-20%",
+        )
+
+    after = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert after["status"] == "ready"
+    assert after["rate"] == before["rate"]
+
+
+@requires_ffmpeg
+def test_convert_recovers_from_corrupt_cached_segment(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    segments_dir = out_dir / "audio" / "segments"
+    segments_dir.mkdir(parents=True)
+    segment = book.chapters[0].segments[0]
+    key = cache_key(segment, "es-MX-JorgeNeural", "fake", "neutral", "+0%")
+    corrupt = segments_dir / f"{segment.id}_{key}.wav"
+    corrupt.write_bytes(b"not audio")
+
+    result = convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
+
+    assert result.m4b_path.exists()
+    assert corrupt.stat().st_size > len(b"not audio")
+
+
+@requires_ffmpeg
+def test_convert_manifest_chapter_durations_match_audio(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+    convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
+    manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+
+    for chapter in manifest["chapters"]:
+        audio = out_dir / chapter["audio"]
+        assert abs(chapter["duration_ms"] - audio_duration_ms(audio)) <= 500
+
+
+@requires_ffmpeg
+def test_convert_supports_apostrophe_in_output_path(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "O'Brien" / "book"
+
+    result = convert(book, "es-MX-JorgeNeural", "fake", CountingProvider(), out_dir)
+
     assert result.m4b_path.exists()
 
 

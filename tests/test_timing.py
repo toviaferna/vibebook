@@ -6,10 +6,13 @@ import pytest
 from audiol.models import Chapter, Segment, WordTiming, make_segment_id
 from audiol.timing import (
     build_chapter_timing,
+    ensure_chapter_timing,
     estimate_word_timings,
     read_chapter_timing,
+    read_word_timings,
     scale_words,
     write_chapter_timing,
+    write_word_timings,
 )
 
 
@@ -49,11 +52,16 @@ def test_estimate_word_timings_rejects_non_positive_duration():
 
 
 def test_estimate_word_timings_adds_punctuation_pause():
-    words = estimate_word_timings("Hola, mundo.", 1000)
+    words = estimate_word_timings("Hola, mundo", 1000)
 
     first_duration = words[0].end_ms - words[0].start_ms
     second_duration = words[1].end_ms - words[1].start_ms
-    assert second_duration > first_duration
+    assert first_duration > second_duration
+
+
+def test_estimate_word_timings_rejects_too_many_words_for_duration():
+    with pytest.raises(ValueError):
+        estimate_word_timings("una dos tres", 2)
 
 
 def test_scale_words_to_duration():
@@ -66,6 +74,21 @@ def test_scale_words_to_duration():
 
     assert [(word.start_ms, word.end_ms) for word in scaled] == [(0, 500), (500, 1000)]
     assert [word.text for word in scaled] == ["Hola", "mundo"]
+
+
+def test_scale_words_never_exceeds_duration_and_stays_monotonic():
+    words = [
+        WordTiming(text="uno", start_ms=0, end_ms=995),
+        WordTiming(text="dos", start_ms=995, end_ms=1000),
+    ]
+
+    scaled = scale_words(words, 100)
+
+    assert all(0 <= word.start_ms <= word.end_ms <= 100 for word in scaled)
+    assert all(
+        left.end_ms <= right.start_ms for left, right in zip(scaled, scaled[1:], strict=False)
+    )
+    assert scaled[-1].end_ms == 100
 
 
 def test_scale_words_clamps_single_word():
@@ -145,6 +168,35 @@ def test_build_chapter_timing_requires_positive_duration():
 
     with pytest.raises(ValueError):
         build_chapter_timing(chapter, [0], [[]])
+
+
+def test_short_chapter_still_distributes_one_ms_per_segment(tmp_path: Path):
+    chapter = _chapter("Uno", "Dos", "Tres")
+
+    timing = ensure_chapter_timing(tmp_path, chapter, 3)
+
+    assert timing.duration_ms == 3
+    assert [(segment.start_ms, segment.end_ms) for segment in timing.segments] == [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+    ]
+
+
+def test_read_word_timings_handles_non_dict_payload(tmp_path: Path):
+    path = tmp_path / "broken.timing.json"
+    path.write_text("[]", encoding="utf-8")
+
+    assert read_word_timings(path) == []
+
+
+def test_word_timing_roundtrip(tmp_path: Path):
+    path = tmp_path / "sample.timing.json"
+    words = [WordTiming(text="Hola", start_ms=0, end_ms=250)]
+
+    write_word_timings(path, words)
+
+    assert read_word_timings(path) == words
 
 
 def test_timing_roundtrip_json(tmp_path: Path):

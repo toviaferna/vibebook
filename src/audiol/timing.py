@@ -40,6 +40,8 @@ def estimate_word_timings(text: str, duration_ms: int) -> list[WordTiming]:
     words = [match.group(0) for match in _WORD.finditer(text)]
     if not words:
         return []
+    if duration_ms < len(words):
+        raise ValueError("duration_ms is too short for the number of words")
 
     weights = [_word_weight(word) for word in words]
     total_weight = sum(weights)
@@ -63,17 +65,21 @@ def scale_words(words: list[WordTiming], duration_ms: int) -> list[WordTiming]:
         raise ValueError("duration_ms must be positive")
     if len(words) == 1:
         return [WordTiming(text=words[0].text, start_ms=0, end_ms=duration_ms)]
+    if duration_ms < len(words):
+        raise ValueError("duration_ms is too short for the number of words")
 
     old_duration = max(1, words[-1].end_ms)
     factor = duration_ms / old_duration
     scaled: list[WordTiming] = []
     cursor = 0
     for index, word in enumerate(words):
-        start = min(duration_ms - 1, max(cursor, round(word.start_ms * factor)))
+        remaining = len(words) - index - 1
+        max_end = duration_ms - remaining
+        start = min(max(cursor, round(word.start_ms * factor)), max_end)
         if index == len(words) - 1:
             end = duration_ms
         else:
-            end = min(duration_ms, max(start + 1, round(word.end_ms * factor)))
+            end = min(max_end, max(start, round(word.end_ms * factor)))
         scaled.append(WordTiming(text=word.text, start_ms=start, end_ms=end))
         cursor = end
     return scaled
@@ -149,7 +155,12 @@ def ensure_chapter_timing(
         raise ValueError("chapter has no segments")
     path = book_dir / "timings" / f"chapter_{chapter.index:03d}.json"
     if path.exists():
-        return read_chapter_timing(path)
+        try:
+            existing = read_chapter_timing(path)
+        except (OSError, ValueError, KeyError, TypeError):
+            existing = None
+        if existing is not None and _timing_matches(existing, chapter, chapter_duration_ms):
+            return existing
 
     durations = _distribute_duration(chapter, chapter_duration_ms)
     timing = build_chapter_timing(
@@ -198,15 +209,20 @@ def read_word_timings(path: Path) -> list[WordTiming]:
         return []
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return []
+        words = payload.get("words", [])
+        if not isinstance(words, list):
+            return []
         return [
             WordTiming(
                 text=word["text"],
                 start_ms=int(word["start_ms"]),
                 end_ms=int(word["end_ms"]),
             )
-            for word in payload.get("words", [])
+            for word in words
         ]
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return []
 
 
@@ -222,6 +238,8 @@ def audio_duration_ms(path: Path) -> int:
 
 def read_chapter_timing(path: Path) -> ChapterTiming:
     payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("segments", []), list):
+        raise ValueError(f"Invalid chapter timing at {path}")
     segments = [
         SegmentTiming(
             id=segment["id"],
@@ -289,19 +307,31 @@ def _scale_segments(segments: list[SegmentTiming], duration_ms: int) -> list[Seg
     return scaled
 
 
+def _timing_matches(timing: ChapterTiming, chapter: Chapter, chapter_duration_ms: int) -> bool:
+    if len(timing.segments) != len(chapter.segments):
+        return False
+    if [segment.id for segment in timing.segments] != [segment.id for segment in chapter.segments]:
+        return False
+    tolerance = max(250, chapter_duration_ms // 100)
+    return abs(timing.duration_ms - chapter_duration_ms) <= tolerance
+
+
 def _distribute_duration(chapter: Chapter, duration_ms: int) -> list[int]:
-    if duration_ms < len(chapter.segments):
+    count = len(chapter.segments)
+    if duration_ms < count:
         raise ValueError("chapter duration is too short for its segments")
     total_chars = sum(max(1, len(segment.text)) for segment in chapter.segments)
     durations: list[int] = []
     previous = 0
     elapsed_chars = 0
-    for segment in chapter.segments:
+    for index, segment in enumerate(chapter.segments):
+        remaining = count - index - 1
         elapsed_chars += max(1, len(segment.text))
-        end = max(
-            previous + 1,
-            round(duration_ms * elapsed_chars / total_chars),
-        )
+        if remaining == 0:
+            end = duration_ms
+        else:
+            proportional = round(duration_ms * elapsed_chars / total_chars)
+            end = min(duration_ms - remaining, max(previous + 1, proportional))
         durations.append(end - previous)
         previous = end
     return durations

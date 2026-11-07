@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ SCHEMA_VERSION = 2
 def load_manifest(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError) as exc:
         raise ValueError(f"Invalid manifest at {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"Invalid manifest at {path}: expected a JSON object")
@@ -24,9 +25,13 @@ def load_manifest(path: Path) -> dict:
 def book_from_manifest(data: dict) -> Book:
     chapters: list[Chapter] = []
     for chapter_data in data.get("chapters", []):
+        if not isinstance(chapter_data, dict):
+            raise ValueError("Invalid manifest: chapter must be an object")
         chapter_index = int(chapter_data.get("index", len(chapters) + 1))
         segments: list[Segment] = []
         for position, segment_data in enumerate(chapter_data.get("segments", []), start=1):
+            if not isinstance(segment_data, dict) or "text" not in segment_data:
+                raise ValueError("Invalid manifest: segment must have text")
             paragraph_index = int(segment_data.get("paragraph_index", position))
             chunk_index = int(segment_data.get("chunk_index", 0))
             segments.append(
@@ -72,10 +77,13 @@ def write_manifest(
     chapter_durations_ms: list[int] | None = None,
     cover: str | None = None,
     source_epub: str | None = None,
+    timings_available: bool = True,
 ) -> Path:
     if chapter_durations_ms is not None and len(chapter_durations_ms) != len(book.chapters):
         raise ValueError("chapter_durations_ms must have one duration per chapter")
 
+    path = out_dir / "manifest.json"
+    now = datetime.now(UTC).isoformat()
     total_duration_ms = sum(chapter_durations_ms) if chapter_durations_ms is not None else None
     data = {
         "schema_version": SCHEMA_VERSION,
@@ -83,7 +91,8 @@ def write_manifest(
         "title": book.title,
         "author": book.author,
         "language": book.language,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": _existing_created_at(path) or now,
+        "updated_at": now,
         "status": status,
         "voice": voice,
         "engine": engine,
@@ -106,7 +115,7 @@ def write_manifest(
                 ),
                 "timing": (
                     f"timings/chapter_{chapter.index:03d}.json"
-                    if chapter_durations_ms is not None
+                    if chapter_durations_ms is not None and timings_available
                     else None
                 ),
                 "segments": [asdict(segment) for segment in chapter.segments],
@@ -114,6 +123,17 @@ def write_manifest(
             for position, chapter in enumerate(book.chapters)
         ],
     }
-    path = out_dir / "manifest.json"
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary = path.with_name(f"{path.name}.tmp")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
     return path
+
+
+def _existing_created_at(path: Path) -> str | None:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(data, dict) and isinstance(data.get("created_at"), str):
+        return data["created_at"]
+    return None

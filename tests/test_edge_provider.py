@@ -13,6 +13,7 @@ class FakeCommunicate:
         self.text = text
         self.voice = voice
         self.rate = kwargs.get("rate")
+        self.boundary = kwargs.get("boundary")
         FakeCommunicate.last = self
 
     async def stream(self):
@@ -28,6 +29,7 @@ def test_edge_provider_writes_audio(monkeypatch, tmp_path: Path):
     assert result.path == output
     assert output.read_bytes() == b"ID3fake-audio"
     assert FakeCommunicate.last.rate == "-6%"
+    assert FakeCommunicate.last.boundary == "WordBoundary"
     assert result.words == []
 
 

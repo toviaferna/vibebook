@@ -80,17 +80,21 @@ uv run vibebook convert libro.epub \
 | `--max-chars` | `400` | Tamaño máximo de cada segmento |
 | `--dry-run` | No | No escribe archivos; imprime estadísticas |
 | `--force` | No | Re-sintetiza aunque exista el caché |
+| `--no-timings` | No | No escribe `timings/` ni sidecars de palabras |
 
 ### Salidas
 
 - `book.md`: texto limpio y segmentado.
-- `manifest.json`: metadata, voz, motor, estilo, velocidad y segmentos.
+- `manifest.json`: metadata, voz, motor, estilo, velocidad, segmentos y estado.
+- `timings/chapter_XXX.json`: tiempos por segmento y palabra para el lector.
 - `audio/segments/`: audio por segmento con caché reanudable.
 - `audio/chapters/`: MP3 por capítulo.
 - `<titulo>.m4b`: AAC con capítulos.
 
-Reejecutar sin `--force` reutiliza los segmentos ya sintetizados. Los capítulos
-y el M4B se reconstruyen.
+Reejecutar sin `--force` reutiliza los segmentos ya sintetizados, incluidos sus
+tiempos de palabra. Los capítulos y el M4B se reconstruyen. Usa
+`--no-timings` si solo necesitas el M4B y quieres evitar los archivos de
+sincronización.
 
 ## Voces
 
@@ -111,8 +115,9 @@ incluye 0,5 M de caracteres al mes en la capa gratuita.
 1. Leer el EPUB.
 2. Limpiar y segmentar el texto.
 3. Sintetizar con Edge o Azure, con caché por voz, motor, estilo y velocidad.
-4. Concatenar por capítulo y normalizar el volumen.
-5. Ensamblar el M4B con ffmpeg.
+4. Capturar tiempos por palabra y construir el timing de cada capítulo.
+5. Concatenar por capítulo y normalizar el volumen.
+6. Ensamblar el M4B con ffmpeg.
 
 ## Tests y calidad
 

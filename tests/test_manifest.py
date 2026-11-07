@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from audiol.manifest import book_from_manifest, load_manifest
+from audiol.manifest import book_from_manifest, load_manifest, write_manifest
 from audiol.models import Chapter, Segment, make_segment_id
 from audiol.timing import ensure_chapter_timing, read_chapter_timing, write_chapter_timing
 
@@ -126,7 +126,7 @@ def test_ensure_chapter_timing_writes_estimated_file(tmp_path: Path):
     assert timing.segments[0].words
 
 
-def test_ensure_chapter_timing_reuses_existing_file(tmp_path: Path):
+def test_ensure_chapter_timing_reuses_existing_file_within_tolerance(tmp_path: Path):
     chapter = Chapter(
         index=1,
         title="Capítulo 1",
@@ -146,6 +146,73 @@ def test_ensure_chapter_timing_reuses_existing_file(tmp_path: Path):
     )
     existing = read_chapter_timing(path)
 
-    timing = ensure_chapter_timing(tmp_path, chapter, 9999)
+    timing = ensure_chapter_timing(tmp_path, chapter, 1005)
 
     assert timing == existing
+
+
+def test_ensure_chapter_timing_regenerates_on_duration_mismatch(tmp_path: Path):
+    chapter = Chapter(
+        index=1,
+        title="Capítulo 1",
+        segments=[
+            Segment(
+                id=make_segment_id(1, 1),
+                chapter_index=1,
+                paragraph_index=1,
+                text="Hola mundo.",
+            )
+        ],
+    )
+    path = tmp_path / "timings" / "chapter_001.json"
+    write_chapter_timing(path, ensure_chapter_timing(tmp_path, chapter, 1000))
+
+    timing = ensure_chapter_timing(tmp_path, chapter, 9999)
+
+    assert timing.duration_ms == 9999
+    assert read_chapter_timing(path).duration_ms == 9999
+
+
+def test_ensure_chapter_timing_regenerates_invalid_file(tmp_path: Path):
+    chapter = Chapter(
+        index=1,
+        title="Capítulo 1",
+        segments=[
+            Segment(
+                id=make_segment_id(1, 1),
+                chapter_index=1,
+                paragraph_index=1,
+                text="Hola mundo.",
+            )
+        ],
+    )
+    path = tmp_path / "timings" / "chapter_001.json"
+    path.parent.mkdir(parents=True)
+    path.write_text("{broken", encoding="utf-8")
+
+    timing = ensure_chapter_timing(tmp_path, chapter, 1000)
+
+    assert timing.duration_ms == 1000
+    assert read_chapter_timing(path).duration_ms == 1000
+
+
+def test_write_manifest_preserves_created_at_and_can_hide_timings(tmp_path: Path):
+    book = book_from_manifest(_v1_manifest())
+
+    write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+    first = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+
+    write_manifest(
+        book,
+        tmp_path,
+        "es-MX-JorgeNeural",
+        "edge",
+        book_id="libro",
+        chapter_durations_ms=[1000],
+        timings_available=False,
+    )
+    second = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+
+    assert second["created_at"] == first["created_at"]
+    assert second["chapters"][0]["timing"] is None
+    assert second["chapters"][0]["audio"] == "audio/chapters/chapter_001.mp3"

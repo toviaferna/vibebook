@@ -161,6 +161,95 @@ def convert(
         raise ConversionCancelled()
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    resolved_book_id = book_id or slugify(book.title)
+    cover, source_epub = _manifest_assets(out_dir)
+    had_manifest = (out_dir / "manifest.json").exists()
+
+    try:
+        return _convert_core(
+            book=book,
+            voice=voice,
+            engine=engine,
+            provider=provider,
+            out_dir=out_dir,
+            style=style,
+            rate=rate,
+            force=force,
+            max_attempts=max_attempts,
+            retry_delay=retry_delay,
+            capture_timings=capture_timings,
+            on_progress=on_progress,
+            should_cancel=should_cancel,
+            book_id=resolved_book_id,
+            cover=cover,
+            source_epub=source_epub,
+        )
+    except ConversionCancelled:
+        _write_terminal_manifest(
+            book,
+            out_dir,
+            voice,
+            engine,
+            style,
+            rate,
+            resolved_book_id,
+            cover,
+            source_epub,
+            "interrupted",
+            had_manifest,
+        )
+        raise
+    except KeyboardInterrupt:
+        _write_terminal_manifest(
+            book,
+            out_dir,
+            voice,
+            engine,
+            style,
+            rate,
+            resolved_book_id,
+            cover,
+            source_epub,
+            "interrupted",
+            had_manifest,
+        )
+        raise
+    except BaseException:
+        _write_terminal_manifest(
+            book,
+            out_dir,
+            voice,
+            engine,
+            style,
+            rate,
+            resolved_book_id,
+            cover,
+            source_epub,
+            "error",
+            had_manifest,
+        )
+        raise
+
+
+def _convert_core(
+    *,
+    book: Book,
+    voice: str,
+    engine: str,
+    provider: TTSProvider,
+    out_dir: Path,
+    style: str,
+    rate: str,
+    force: bool,
+    max_attempts: int,
+    retry_delay: float,
+    capture_timings: bool,
+    on_progress: Callable[[ProgressEvent], None] | None,
+    should_cancel: Callable[[], bool] | None,
+    book_id: str,
+    cover: str | None,
+    source_epub: str | None,
+) -> ConversionResult:
     audio_dir = out_dir / "audio"
     segments_dir = audio_dir / "segments"
     chapters_dir = audio_dir / "chapters"
@@ -168,8 +257,6 @@ def convert(
     segments_dir.mkdir(parents=True, exist_ok=True)
     chapters_dir.mkdir(parents=True, exist_ok=True)
 
-    resolved_book_id = book_id or slugify(book.title)
-    cover, source_epub = _manifest_assets(out_dir)
     total_segments = sum(len(chapter.segments) for chapter in book.chapters)
     completed_segments = 0
     cached_segments = 0
@@ -180,18 +267,6 @@ def convert(
         if on_progress is not None:
             on_progress(event)
 
-    write_manifest(
-        book,
-        out_dir,
-        voice,
-        engine,
-        style=style,
-        rate=rate,
-        status="converting",
-        book_id=resolved_book_id,
-        cover=cover,
-        source_epub=source_epub,
-    )
     emit(
         ProgressEvent(
             stage="preparing",
@@ -215,15 +290,29 @@ def convert(
             key = cache_key(segment, voice, engine, style, rate)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
             cached = False
-            if not force and path.exists() and path.stat().st_size > 0:
-                cached = True
-            elif not force:
-                fallback = next(segments_dir.glob(f"*_{key}{provider.audio_suffix}"), None)
-                if fallback is not None and fallback.stat().st_size > 0:
-                    path = fallback
+            if not force:
+                if path.exists() and path.stat().st_size > 0:
                     cached = True
+                else:
+                    fallback = next(segments_dir.glob(f"*_{key}{provider.audio_suffix}"), None)
+                    if fallback is not None and fallback.stat().st_size > 0:
+                        path = fallback
+                        cached = True
 
-            if force or not path.exists() or path.stat().st_size == 0:
+            duration_ms: int | None = None
+            if cached:
+                try:
+                    duration_ms = measure_duration_ms(path)
+                except Exception:
+                    logger.warning(
+                        "Cached segment %s is invalid; re-synthesizing",
+                        path,
+                        exc_info=True,
+                    )
+                    path.unlink(missing_ok=True)
+                    cached = False
+
+            if not cached:
                 temp_path = path.with_name(f"{path.name}.part")
                 try:
                     audio = synthesize_with_retries(
@@ -236,16 +325,24 @@ def convert(
                         max_attempts=max_attempts,
                         retry_delay=retry_delay,
                     )
+                    try:
+                        duration_ms = measure_duration_ms(temp_path)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            f"Provider returned invalid audio for segment {segment.id}"
+                        ) from exc
                     os.replace(temp_path, path)
                 except BaseException:
                     temp_path.unlink(missing_ok=True)
                     raise
                 if capture_timings:
                     write_word_timings(segment_timing_path(path), audio.words)
-                cached = False
+
+            if duration_ms is None:
+                raise RuntimeError(f"Could not determine duration for segment {segment.id}")
 
             segment_files.append(path)
-            segment_durations.append(measure_duration_ms(path))
+            segment_durations.append(duration_ms)
             segment_words.append(
                 read_word_timings(segment_timing_path(path)) if capture_timings else []
             )
@@ -293,6 +390,11 @@ def convert(
                 message=f"Ensamblando {chapter.title}",
             )
         )
+        if should_cancel is not None and should_cancel():
+            raise ConversionCancelled()
+
+    if should_cancel is not None and should_cancel():
+        raise ConversionCancelled()
 
     emit(
         ProgressEvent(
@@ -313,6 +415,10 @@ def convert(
         m4b_path,
         audio_dir,
     )
+    if not capture_timings:
+        for stale in timings_dir.glob("chapter_*.json"):
+            stale.unlink(missing_ok=True)
+
     duration_ms = sum(chapter_durations)
     write_manifest(
         book,
@@ -322,10 +428,11 @@ def convert(
         style=style,
         rate=rate,
         status="ready",
-        book_id=resolved_book_id,
+        book_id=book_id,
         chapter_durations_ms=chapter_durations,
         cover=cover,
         source_epub=source_epub,
+        timings_available=capture_timings,
     )
     emit(
         ProgressEvent(
@@ -344,6 +451,39 @@ def convert(
         cached_segments=cached_segments,
         duration_ms=duration_ms,
     )
+
+
+def _write_terminal_manifest(
+    book: Book,
+    out_dir: Path,
+    voice: str,
+    engine: str,
+    style: str,
+    rate: str,
+    book_id: str,
+    cover: str | None,
+    source_epub: str | None,
+    status: str,
+    had_manifest: bool,
+) -> None:
+    if had_manifest:
+        return
+    try:
+        write_manifest(
+            book,
+            out_dir,
+            voice,
+            engine,
+            style=style,
+            rate=rate,
+            status=status,
+            book_id=book_id,
+            cover=cover,
+            source_epub=source_epub,
+            timings_available=False,
+        )
+    except Exception:
+        logger.exception("Could not write terminal manifest with status %s", status)
 
 
 def _manifest_assets(out_dir: Path) -> tuple[str | None, str | None]:

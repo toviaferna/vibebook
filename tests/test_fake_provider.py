@@ -23,3 +23,4 @@ def test_fake_provider_writes_wav(tmp_path: Path):
         for left, right in zip(result.words, result.words[1:], strict=False)
     )
     assert result.words[-1].end_ms > 0
+    assert result.words[-1].end_ms <= int(max(0.2, len("Hola mundo") / 20.0) * 1000)

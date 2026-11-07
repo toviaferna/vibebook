@@ -59,4 +59,5 @@ def test_read_epub_splits_by_toc_anchors(toc_epub: Path):
         "Tercer párrafo.",
         "Continuación del capítulo 2.",
     ]
+    assert book.chapters[1].segments[-1].source_href == "continuation.xhtml"
     assert [segment.text for segment in book.chapters[2].segments] == ["Cuarto párrafo."]
