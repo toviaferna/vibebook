@@ -1,7 +1,15 @@
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 
-import { sampleBook, sampleBookDetail, sampleJob, sampleSettings, sampleVoices } from "./fixtures";
+import {
+  sampleBook,
+  sampleBookDetail,
+  sampleChapter,
+  sampleJob,
+  sampleManifest,
+  sampleSettings,
+  sampleVoices,
+} from "./fixtures";
 
 export const server = setupServer(
   http.get("*/api/books", () =>
@@ -13,6 +21,13 @@ export const server = setupServer(
     }),
   ),
   http.get("*/api/books/:id", () => HttpResponse.json(sampleBookDetail)),
+  http.get("*/api/books/:id/manifest", () => HttpResponse.json(sampleManifest)),
+  http.get("*/api/books/:id/chapters/:index", () => HttpResponse.json(sampleChapter)),
+  http.get("*/api/books/:id/state", () => HttpResponse.json(sampleBookDetail.state)),
+  http.put("*/api/books/:id/state", async ({ request }) => {
+    const patch = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...sampleBookDetail.state, ...patch });
+  }),
   http.get("*/api/settings", () => HttpResponse.json(sampleSettings)),
   http.put("*/api/settings", async ({ request }) => {
     const patch = (await request.json()) as Record<string, unknown>;

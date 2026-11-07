@@ -121,3 +121,66 @@ export interface ApiErrorPayload {
     details?: unknown;
   };
 }
+
+export interface ManifestSegment {
+  id: string;
+  chapter_index: number;
+  paragraph_index: number;
+  chunk_index: number;
+  text: string;
+  source_href?: string | null;
+  source_fragment?: string | null;
+}
+
+export interface ManifestChapter {
+  index: number;
+  title: string;
+  duration_ms: number | null;
+  audio: string | null;
+  timing: string | null;
+  segments: ManifestSegment[];
+}
+
+export interface Manifest {
+  schema_version: number;
+  id: string;
+  title: string;
+  author: string;
+  language: string;
+  status: BookStatus;
+  duration_ms: number | null;
+  voice: string | null;
+  engine: string | null;
+  style: string | null;
+  rate: string | null;
+  chapters: ManifestChapter[];
+}
+
+export interface WordTiming {
+  text: string;
+  start_ms: number;
+  end_ms: number;
+}
+
+export interface TimingSegment {
+  id: string;
+  start_ms: number;
+  end_ms: number;
+  precision: "exact" | "estimated";
+  words: WordTiming[];
+}
+
+export interface ChapterTiming {
+  schema_version: number;
+  chapter_index: number;
+  duration_ms: number;
+  precision: "exact" | "estimated";
+  segments: TimingSegment[];
+}
+
+export interface ChapterPayload {
+  chapter: ManifestChapter;
+  timing: ChapterTiming;
+}
+
+export type ReaderState = BookState;

@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertTriangle, ArrowLeft, Download, Headphones, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, Download, Headphones, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -113,12 +113,27 @@ export function BookDetailPage() {
               </div>
 
               <div className="continue-actions" style={{ marginTop: "var(--space-5)" }}>
-                <Link className="button button--primary" to={`/books/${book.id}/studio`}>
+                {book.status === "ready" ? (
+                  <Link className="button button--primary" to={`/books/${book.id}/read`}>
+                    <BookOpen size={17} />
+                    Leer ahora
+                  </Link>
+                ) : (
+                  <Link className="button button--primary" to={`/books/${book.id}/studio`}>
+                    <Headphones size={17} />
+                    Preparar audiolibro
+                  </Link>
+                )}
+                <Link className="button" to={`/books/${book.id}/studio`}>
                   <Headphones size={17} />
-                  {book.status === "ready" ? "Abrir estudio" : "Preparar audiolibro"}
+                  Abrir estudio
                 </Link>
                 {book.status === "ready" ? (
-                  <a className="button" href={apiUrl(`/books/${book.id}/m4b`)} download>
+                  <a
+                    className="button button--ghost"
+                    href={apiUrl(`/books/${book.id}/m4b`)}
+                    download
+                  >
                     <Download size={17} />
                     Descargar M4B
                   </a>

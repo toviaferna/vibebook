@@ -1,4 +1,12 @@
-import type { Book, BookDetail, Job, Settings, Voice } from "../api/types";
+import type {
+  Book,
+  BookDetail,
+  ChapterPayload,
+  Job,
+  Manifest,
+  Settings,
+  Voice,
+} from "../api/types";
 
 export const sampleBook: Book = {
   id: "lazarillo-1234",
@@ -65,6 +73,64 @@ export const sampleVoices: Voice[] = [
     styles: [],
   },
 ];
+
+export const sampleManifest: Manifest = {
+  schema_version: 2,
+  id: sampleBook.id,
+  title: sampleBook.title,
+  author: sampleBook.author,
+  language: sampleBook.language,
+  status: "ready",
+  duration_ms: 2_000,
+  voice: "es-MX-JorgeNeural",
+  engine: "edge",
+  style: "neutral",
+  rate: "-10%",
+  chapters: [
+    {
+      index: 1,
+      title: "Capítulo 1",
+      duration_ms: 2_000,
+      audio: "audio/chapters/chapter_001.mp3",
+      timing: "timings/chapter_001.json",
+      segments: [
+        {
+          id: "c001p0001s00",
+          chapter_index: 1,
+          paragraph_index: 1,
+          chunk_index: 0,
+          text: "Hola, mundo. Esta es una prueba.",
+        },
+      ],
+    },
+  ],
+};
+
+export const sampleChapter: ChapterPayload = {
+  chapter: sampleManifest.chapters[0],
+  timing: {
+    schema_version: 1,
+    chapter_index: 1,
+    duration_ms: 2_000,
+    precision: "exact",
+    segments: [
+      {
+        id: "c001p0001s00",
+        start_ms: 0,
+        end_ms: 2_000,
+        precision: "exact",
+        words: [
+          { text: "Hola,", start_ms: 0, end_ms: 300 },
+          { text: "mundo.", start_ms: 300, end_ms: 700 },
+          { text: "Esta", start_ms: 800, end_ms: 1_100 },
+          { text: "es", start_ms: 1_100, end_ms: 1_300 },
+          { text: "una", start_ms: 1_300, end_ms: 1_500 },
+          { text: "prueba.", start_ms: 1_500, end_ms: 2_000 },
+        ],
+      },
+    ],
+  },
+};
 
 export const sampleJob: Job = {
   id: "job_1",

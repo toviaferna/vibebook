@@ -4,10 +4,12 @@ import { AppShell } from "./components/AppShell";
 import { ImportPage } from "./features/import/ImportPage";
 import { BookDetailPage } from "./features/library/BookDetailPage";
 import { LibraryPage } from "./features/library/LibraryPage";
+import { ReaderPage } from "./features/reader/ReaderPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import { StudioPage } from "./features/studio/StudioPage";
 
 export const router = createHashRouter([
+  { path: "/books/:id/read", element: <ReaderPage /> },
   {
     path: "/",
     element: <AppShell />,

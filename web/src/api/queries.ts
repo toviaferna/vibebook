@@ -11,6 +11,10 @@ export const queryKeys = {
   job: (id: string) => ["job", id] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
+  readerManifest: (bookId: string) => ["reader-manifest", bookId] as const,
+  readerChapter: (bookId: string, chapterIndex: number) =>
+    ["reader-chapter", bookId, chapterIndex] as const,
+  readerState: (bookId: string) => ["reader-state", bookId] as const,
 };
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
@@ -175,5 +179,41 @@ export function useJob(jobId: string | null | undefined) {
     queryKey: queryKeys.job(jobId ?? ""),
     queryFn: () => api.getJob(jobId as string),
     enabled: Boolean(jobId),
+  });
+}
+
+export function useReaderManifest(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.readerManifest(bookId ?? ""),
+    queryFn: () => api.getManifest(bookId as string),
+    enabled: Boolean(bookId),
+    staleTime: 30_000,
+  });
+}
+
+export function useReaderChapter(bookId: string | undefined, chapterIndex: number) {
+  return useQuery({
+    queryKey: queryKeys.readerChapter(bookId ?? "", chapterIndex),
+    queryFn: () => api.getChapter(bookId as string, chapterIndex),
+    enabled: Boolean(bookId) && chapterIndex > 0,
+  });
+}
+
+export function useReaderState(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.readerState(bookId ?? ""),
+    queryFn: () => api.getReaderState(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useSaveReaderState(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (state: { position_ms: number; chapter_index: number; playback_rate: number }) =>
+      api.saveReaderState(bookId, state),
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.readerState(bookId), state);
+    },
   });
 }
