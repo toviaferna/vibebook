@@ -6,6 +6,8 @@ from pathlib import Path
 
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
+from audiol.studio.server import run_studio
+from audiol.studio.settings import Settings, default_library_dir
 from audiol.tts.base import validate_rate
 from audiol.tts.factory import make_provider
 from audiol.voices import get_voice, list_voices
@@ -39,6 +41,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip word timing sidecars and chapter timing files",
     )
 
+    studio_parser = subparsers.add_parser("studio", help="Run the local studio backend")
+    studio_parser.add_argument("--host", default="127.0.0.1")
+    studio_parser.add_argument("--port", type=int, default=8765)
+    studio_parser.add_argument("--library", default=None)
+    studio_parser.add_argument("--no-browser", action="store_true")
+    studio_parser.add_argument("--allow-fake", action="store_true")
+    studio_parser.add_argument("--token", default=None)
+    studio_parser.add_argument("--dev", action="store_true")
+
     return parser
 
 
@@ -70,6 +81,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "convert":
         try:
             return _convert(args)
+        except (ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "studio":
+        try:
+            return _studio(args)
         except (ValueError, RuntimeError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
@@ -125,4 +143,20 @@ def _convert(args: argparse.Namespace) -> int:
         capture_timings=not args.no_timings,
     )
     print(f"M4B: {result.m4b_path}")
+    return 0
+
+
+def _studio(args: argparse.Namespace) -> int:
+    library_dir = Path(args.library).expanduser() if args.library else default_library_dir()
+    web_dist = Path("web/dist") if (Path("web/dist") / "index.html").is_file() else None
+    settings = Settings(
+        library_dir=library_dir,
+        host=args.host,
+        port=args.port,
+        token=args.token,
+        allow_fake=args.allow_fake,
+        dev=args.dev,
+        web_dist=web_dist,
+    )
+    run_studio(settings, open_browser=not args.no_browser)
     return 0
