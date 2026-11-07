@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--library", default=None)
     serve.add_argument("--token", default=None)
     serve.add_argument("--allow-fake", action="store_true")
+    serve.add_argument("--dev", action="store_true")
     serve.add_argument("--log-level", default="info")
     serve.add_argument(
         "--json-ready",
@@ -80,6 +81,7 @@ def _serve(args: argparse.Namespace) -> int:
         port=port,
         token=token,
         allow_fake=args.allow_fake,
+        dev=args.dev,
         web_dist=find_web_dist(),
     )
     app = create_app(settings)

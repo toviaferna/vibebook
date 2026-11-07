@@ -24,6 +24,7 @@ def test_sidecar_prints_ready_json(tmp_path: Path, monkeypatch, capsys):
             "test-token",
             "--library",
             str(tmp_path / "library"),
+            "--dev",
         ]
     )
 
@@ -34,6 +35,7 @@ def test_sidecar_prints_ready_json(tmp_path: Path, monkeypatch, capsys):
     assert ready["event"] == "ready"
     assert ready["token"] == "test-token"
     assert 0 < ready["port"] < 65536
+    assert captured["app"].state.settings.dev is True
     assert captured["kwargs"]["host"] == "127.0.0.1"
     assert captured["kwargs"]["access_log"] is False
     assert captured["kwargs"]["log_config"] is None
