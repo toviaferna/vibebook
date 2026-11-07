@@ -1,3 +1,4 @@
+import os
 import subprocess
 from pathlib import Path
 
@@ -49,31 +50,39 @@ def concat_to_mp3(files: list[Path], out_path: Path, work_dir: Path) -> Path:
 
     list_path = work_dir / f"{out_path.stem}_concat.txt"
     _write_concat_list(list_path, files)
+    temporary = out_path.with_name(f"{out_path.name}.part")
 
-    subprocess.run(
-        [
-            ffmpeg,
-            "-nostdin",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(list_path),
-            "-af",
-            "loudnorm=I=-19:TP=-3:LRA=7",
-            "-c:a",
-            "libmp3lame",
-            "-b:a",
-            "64k",
-            str(out_path),
-        ],
-        check=True,
-    )
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                "-af",
+                "loudnorm=I=-19:TP=-3:LRA=7",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "64k",
+                "-f",
+                "mp3",
+                str(temporary),
+            ],
+            check=True,
+        )
+        os.replace(temporary, out_path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
     return out_path
 
 

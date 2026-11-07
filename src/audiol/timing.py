@@ -5,6 +5,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal, cast
 
+from mutagen import File as MutagenFile
+from mutagen import MutagenError
+
 from audiol.models import Chapter, WordTiming
 
 Precision = Literal["exact", "estimated"]
@@ -152,10 +155,45 @@ def write_chapter_timing(path: Path, timing: ChapterTiming) -> None:
             for segment in timing.segments
         ],
     }
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(temporary, path)
+    _write_json_atomic(path, payload)
+
+
+def segment_timing_path(audio_path: Path) -> Path:
+    return audio_path.with_suffix(".timing.json")
+
+
+def write_word_timings(path: Path, words: list[WordTiming]) -> None:
+    _write_json_atomic(
+        path,
+        {"schema_version": 1, "words": [asdict(word) for word in words]},
+    )
+
+
+def read_word_timings(path: Path) -> list[WordTiming]:
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return [
+            WordTiming(
+                text=word["text"],
+                start_ms=int(word["start_ms"]),
+                end_ms=int(word["end_ms"]),
+            )
+            for word in payload.get("words", [])
+        ]
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
+def audio_duration_ms(path: Path) -> int:
+    try:
+        audio = MutagenFile(path)
+    except MutagenError as exc:
+        raise ValueError(f"Could not read duration from {path}") from exc
+    if audio is None or audio.info is None or audio.info.length <= 0:
+        raise ValueError(f"Could not read duration from {path}")
+    return int(round(audio.info.length * 1000))
 
 
 def read_chapter_timing(path: Path) -> ChapterTiming:
@@ -225,6 +263,13 @@ def _scale_segments(segments: list[SegmentTiming], duration_ms: int) -> list[Seg
         )
         cursor = end
     return scaled
+
+
+def _write_json_atomic(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"{path.name}.tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
 
 
 def _word_weight(word: str) -> float:
