@@ -61,14 +61,20 @@ def create_app(
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "testserver"],
     )
+    allowed_origins = [
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ]
     if settings.dev:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-            allow_credentials=False,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
+        allowed_origins.extend(["http://localhost:5173", "http://127.0.0.1:5173"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     install_security_middleware(app, settings)
 
     app.include_router(books.router, prefix="/api")

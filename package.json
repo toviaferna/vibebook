@@ -1,0 +1,16 @@
+{
+  "name": "vibebook-desktop",
+  "private": true,
+  "version": "0.3.0",
+  "scripts": {
+    "tauri": "tauri",
+    "dev:web": "npm --prefix web run dev",
+    "build:web": "npm --prefix web run build",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build",
+    "desktop:check": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  }
+}
