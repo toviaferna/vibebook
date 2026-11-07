@@ -1,0 +1,123 @@
+export type BookStatus = "imported" | "converting" | "ready" | "error" | "interrupted" | "missing";
+
+export type JobStatus =
+  | "queued"
+  | "running"
+  | "cancelling"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "interrupted";
+
+export type JobStage =
+  | "preparing"
+  | "synthesizing"
+  | "assembling"
+  | "finalizing"
+  | "done"
+  | "cancelled"
+  | "error";
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  language: string;
+  status: BookStatus;
+  chapter_count: number;
+  duration_ms: number | null;
+  voice: string | null;
+  engine: string | null;
+  rate: string | null;
+  cover_url: string | null;
+  progress: number;
+  last_position_ms: number;
+  last_chapter_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookState {
+  position_ms: number;
+  chapter_index: number;
+  playback_rate: number;
+  updated_at: string | null;
+}
+
+export interface Job {
+  id: string;
+  book_id: string;
+  status: JobStatus;
+  stage: JobStage;
+  completed_segments: number;
+  total_segments: number;
+  chapter_index: number | null;
+  chapter_title: string | null;
+  current_text: string | null;
+  message: string | null;
+  error: string | null;
+  options: {
+    voice?: string;
+    engine?: string;
+    style?: string;
+    rate?: string;
+    force?: boolean;
+  };
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface BookDetail extends Book {
+  state: BookState;
+  last_job: Job | null;
+}
+
+export interface BookList {
+  items: Book[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface Voice {
+  id: string;
+  locale: string;
+  gender: string;
+  engines: string[];
+  styles: string[];
+}
+
+export interface Settings {
+  library_dir: string;
+  default_voice: string;
+  default_rate: string;
+  reader_theme: "light" | "sepia" | "night";
+  reader_font: "serif" | "sans" | "hyperlegible";
+  reader_size: number;
+  auto_scroll: boolean;
+  skip_seconds: number;
+  azure_configured: boolean;
+}
+
+export interface Preview {
+  url: string;
+  key: string;
+}
+
+export interface ConversionInput {
+  voice: string;
+  engine: string;
+  style: string;
+  rate: string;
+  force: boolean;
+}
+
+export interface ApiErrorPayload {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+}

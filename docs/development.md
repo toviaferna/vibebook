@@ -37,7 +37,12 @@ make format
 make typecheck
 make check
 make build
+make web-install
+make web-check
 ```
+
+La UI vive en `web/`: React, TypeScript y Vite. `npm run dev` usa el proxy
+`/api` hacia `127.0.0.1:8765`; `vibebook studio` sirve `web/dist` cuando existe.
 
 ## ffmpeg
 
@@ -86,7 +91,10 @@ src/audiol/
   assemble.py       ffmpeg y M4B
   cli.py            comandos vibebook/audiol
   tools.py          descubrimiento de binarios
+  studio/           biblioteca, API, jobs y servidor local
+web/                UI React/Vite (biblioteca, estudio, ajustes)
 tests/              tests unitarios e integración con ffmpeg
+tests/studio/       tests de API, jobs, lector y CLI
 docs/               arquitectura, desarrollo, roadmap y archivo histórico
 scripts/            herramientas de muestras y bake-off
 ```
