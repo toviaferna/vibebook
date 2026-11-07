@@ -1,7 +1,7 @@
 # Studio
 
-La app local incluye una interfaz web para biblioteca, importación, conversión y
-ajustes, más una API para el lector de la próxima fase.
+La app local incluye una interfaz web para biblioteca, importación, conversión,
+lector sincronizado y ajustes, más una API para el lector.
 
 ## Arranque
 
@@ -37,7 +37,17 @@ desarrollo se habilita el motor `Fake` para probar sin red.
 - Estudio por pasos: libro, voz, salida y conversión.
 - Progreso en vivo, cancelación y reanudación.
 - Ajustes de voz, tema, tipografía y reproducción.
-- Lector y karaoke: Fase 4.
+- Lector sincronizado con resaltado por palabra, índice, temas, tipografía,
+  temporizador y atajos de teclado.
+
+### Lector
+
+La ruta `#/books/{id}/read` carga el manifest, el capítulo y su timing. El
+resaltado por palabra se usa cuando el timing es `exact` y la alineación supera
+el 80 % de cobertura; si no, se resalta el segmento completo. La posición,
+el capítulo y la velocidad se guardan con debounce en
+`PUT /api/books/{id}/state`, y se restauran sin autoplay al volver a abrir el
+libro.
 
 Opciones:
 

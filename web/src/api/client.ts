@@ -3,9 +3,12 @@ import type {
   Book,
   BookDetail,
   BookList,
+  ChapterPayload,
   ConversionInput,
   Job,
+  Manifest,
   Preview,
+  ReaderState,
   Settings,
   Voice,
 } from "./types";
@@ -130,6 +133,18 @@ export const api = {
     apiFetch<Settings>("/settings", {
       method: "PUT",
       body: JSON.stringify(input),
+    }),
+  getManifest: (bookId: string) => apiFetch<Manifest>(`/books/${bookId}/manifest`),
+  getChapter: (bookId: string, chapterIndex: number) =>
+    apiFetch<ChapterPayload>(`/books/${bookId}/chapters/${chapterIndex}`),
+  getReaderState: (bookId: string) => apiFetch<ReaderState>(`/books/${bookId}/state`),
+  saveReaderState: (
+    bookId: string,
+    state: Pick<ReaderState, "position_ms" | "chapter_index" | "playback_rate">,
+  ) =>
+    apiFetch<ReaderState>(`/books/${bookId}/state`, {
+      method: "PUT",
+      body: JSON.stringify(state),
     }),
 };
 

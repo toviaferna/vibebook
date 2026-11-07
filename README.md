@@ -98,7 +98,8 @@ sincronización.
 
 ## Interfaz web
 
-La app web incluye biblioteca, importación, estudio de conversión y ajustes.
+La app web incluye biblioteca, importación, estudio de conversión, lector
+sincronizado y ajustes.
 
 ```powershell
 cd web
@@ -134,6 +135,17 @@ npm run typecheck
 npm run test
 npm run build
 ```
+
+### Lector
+
+Cuando un libro está listo, abrí su detalle y elegí **Leer ahora**. El lector
+resalta el segmento y la palabra actuales, permite tocar el texto para saltar,
+guarda posición y velocidad, y ofrece índice, temas, tipografía, temporizador y
+controles del sistema vía Media Session.
+
+Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
+cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`
+pantalla completa y `?` muestra la ayuda.
 
 ## Voces
 

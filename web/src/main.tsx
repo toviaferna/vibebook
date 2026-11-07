@@ -1,6 +1,8 @@
 import "@fontsource-variable/fraunces";
 import "@fontsource-variable/public-sans";
 import "@fontsource-variable/source-serif-4";
+import "@fontsource/atkinson-hyperlegible/400.css";
+import "@fontsource/atkinson-hyperlegible/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 
@@ -13,6 +15,7 @@ import { router } from "./router";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/app.css";
+import "./styles/reader.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

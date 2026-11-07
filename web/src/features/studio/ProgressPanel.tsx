@@ -1,4 +1,12 @@
-import { AlertTriangle, CheckCircle2, Download, RotateCcw, Square, XCircle } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  CheckCircle2,
+  Download,
+  RotateCcw,
+  Square,
+  XCircle,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { apiUrl } from "../../api/client";
@@ -113,6 +121,10 @@ export function ProgressPanel({
               <Download size={16} />
               Descargar M4B
             </a>
+            <Link className="button button--primary" to={`/books/${bookId}/read`}>
+              <BookOpen size={16} />
+              Leer ahora
+            </Link>
             <Link className="button button--ghost" to={`/books/${bookId}`}>
               <CheckCircle2 size={16} />
               Volver al libro

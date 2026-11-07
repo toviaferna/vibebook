@@ -146,8 +146,8 @@ function ContinueListening({ book }: { book: Book }) {
         </p>
       </div>
       <div className="continue-actions">
-        <Link className="button button--primary" to={`/books/${book.id}`}>
-          Abrir libro
+        <Link className="button button--primary" to={`/books/${book.id}/read`}>
+          Continuar leyendo
         </Link>
         <Link className="button button--ghost" to={`/books/${book.id}/studio`}>
           Ver estudio

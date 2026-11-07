@@ -9,8 +9,15 @@ describe("format", () => {
   });
 
   it("formatea tiempos de audio", () => {
+    expect(formatTime(0)).toBe("0:00");
+    expect(formatTime(59_000)).toBe("0:59");
     expect(formatTime(65_000)).toBe("1:05");
+    expect(formatTime(3_600_000)).toBe("1:00:00");
     expect(formatTime(3_665_000)).toBe("1:01:05");
+  });
+
+  it("recorta tiempos negativos a cero", () => {
+    expect(formatTime(-1_000)).toBe("0:00");
   });
 
   it("formatea porcentajes y velocidades", () => {
