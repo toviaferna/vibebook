@@ -1,0 +1,402 @@
+import json
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from audiol.studio.library import BookRecord
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS books (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT NOT NULL,
+  language TEXT NOT NULL,
+  path TEXT NOT NULL UNIQUE,
+  cover_path TEXT,
+  status TEXT NOT NULL,
+  voice TEXT,
+  engine TEXT,
+  style TEXT,
+  rate TEXT,
+  duration_ms INTEGER,
+  chapter_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+  id TEXT PRIMARY KEY,
+  book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  status TEXT NOT NULL,
+  stage TEXT NOT NULL,
+  completed_segments INTEGER NOT NULL DEFAULT 0,
+  total_segments INTEGER NOT NULL DEFAULT 0,
+  chapter_index INTEGER,
+  chapter_title TEXT,
+  current_text TEXT,
+  message TEXT,
+  error TEXT,
+  options_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  started_at TEXT,
+  finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS book_state (
+  book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+  position_ms INTEGER NOT NULL DEFAULT 0,
+  chapter_index INTEGER NOT NULL DEFAULT 1,
+  playback_rate REAL NOT NULL DEFAULT 1.0,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_book_created ON jobs(book_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
+"""
+
+SORT_SQL = {
+    "recent": "b.created_at DESC",
+    "title": "b.title COLLATE NOCASE ASC",
+    "duration": "b.duration_ms DESC",
+    "progress": ("(CAST(COALESCE(s.position_ms, 0) AS REAL) / NULLIF(b.duration_ms, 0)) DESC"),
+}
+BOOK_FIELDS = {
+    "duration_ms",
+    "chapter_count",
+    "voice",
+    "engine",
+    "style",
+    "rate",
+    "cover_path",
+}
+JOB_FIELDS = {
+    "status",
+    "stage",
+    "completed_segments",
+    "total_segments",
+    "chapter_index",
+    "chapter_title",
+    "current_text",
+    "message",
+    "error",
+    "started_at",
+    "finished_at",
+}
+
+
+class Database:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def migrate(self) -> None:
+        with self._connect() as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.executescript(SCHEMA)
+            connection.execute("PRAGMA user_version = 1")
+
+    def upsert_book(self, record: BookRecord) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO books (
+                    id, title, author, language, path, cover_path, status,
+                    voice, engine, style, rate, duration_ms, chapter_count,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title=excluded.title,
+                    author=excluded.author,
+                    language=excluded.language,
+                    path=excluded.path,
+                    cover_path=excluded.cover_path,
+                    status=excluded.status,
+                    voice=excluded.voice,
+                    engine=excluded.engine,
+                    style=excluded.style,
+                    rate=excluded.rate,
+                    duration_ms=excluded.duration_ms,
+                    chapter_count=excluded.chapter_count,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    record.id,
+                    record.title,
+                    record.author,
+                    record.language,
+                    str(record.path),
+                    str(record.cover_path) if record.cover_path is not None else None,
+                    record.status,
+                    record.voice,
+                    record.engine,
+                    record.style,
+                    record.rate,
+                    record.duration_ms,
+                    record.chapter_count,
+                    record.created_at,
+                    record.updated_at,
+                ),
+            )
+
+    def reconcile(self, records: list[BookRecord]) -> None:
+        for record in records:
+            self.upsert_book(record)
+        self._mark_missing_books({record.id for record in records})
+
+    def list_books(self, query: str, sort: str, limit: int, offset: int) -> tuple[list[dict], int]:
+        if sort not in SORT_SQL:
+            raise ValueError(f"Unknown sort: {sort}")
+        if limit < 1 or limit > 200:
+            raise ValueError("limit must be between 1 and 200")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+
+        where = ""
+        params: list[Any] = []
+        if query:
+            where = (
+                "WHERE instr(lower(b.title), lower(?)) > 0 OR instr(lower(b.author), lower(?)) > 0"
+            )
+            params = [query, query]
+
+        with self._connect() as connection:
+            total = connection.execute(f"SELECT COUNT(*) FROM books b {where}", params).fetchone()[
+                0
+            ]
+            rows = connection.execute(
+                f"""
+                SELECT b.*,
+                       COALESCE(s.position_ms, 0) AS position_ms,
+                       COALESCE(s.chapter_index, 1) AS chapter_index,
+                       COALESCE(s.playback_rate, 1.0) AS playback_rate
+                FROM books b
+                LEFT JOIN book_state s ON s.book_id = b.id
+                {where}
+                ORDER BY {SORT_SQL[sort]}
+                LIMIT ? OFFSET ?
+                """,
+                [*params, limit, offset],
+            ).fetchall()
+        return [dict(row) for row in rows], int(total)
+
+    def get_book(self, book_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT b.*,
+                       COALESCE(s.position_ms, 0) AS position_ms,
+                       COALESCE(s.chapter_index, 1) AS chapter_index,
+                       COALESCE(s.playback_rate, 1.0) AS playback_rate
+                FROM books b
+                LEFT JOIN book_state s ON s.book_id = b.id
+                WHERE b.id = ?
+                """,
+                (book_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def set_book_status(self, book_id: str, status: str, **fields: object) -> None:
+        unknown = set(fields) - BOOK_FIELDS
+        if unknown:
+            raise ValueError(f"Unknown book fields: {sorted(unknown)}")
+        assignments = ["status = ?"] + [f"{field} = ?" for field in fields]
+        values = [status, *fields.values()]
+        with self._connect() as connection:
+            cursor = connection.execute(
+                f"UPDATE books SET {', '.join(assignments)}, updated_at = ? WHERE id = ?",
+                [*values, _now(), book_id],
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(book_id)
+
+    def delete_book(self, book_id: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM books WHERE id = ?", (book_id,))
+            if cursor.rowcount == 0:
+                raise KeyError(book_id)
+
+    def create_job(self, job: dict) -> None:
+        now = _now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO jobs (
+                    id, book_id, status, stage, completed_segments,
+                    total_segments, chapter_index, chapter_title, current_text,
+                    message, error, options_json, created_at, updated_at,
+                    started_at, finished_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job["id"],
+                    job["book_id"],
+                    job["status"],
+                    job["stage"],
+                    int(job.get("completed_segments", 0)),
+                    int(job.get("total_segments", 0)),
+                    job.get("chapter_index"),
+                    job.get("chapter_title"),
+                    job.get("current_text"),
+                    job.get("message"),
+                    job.get("error"),
+                    job.get("options_json", "{}"),
+                    job.get("created_at", now),
+                    now,
+                    job.get("started_at"),
+                    job.get("finished_at"),
+                ),
+            )
+
+    def update_job(self, job_id: str, **fields: object) -> None:
+        unknown = set(fields) - JOB_FIELDS
+        if unknown:
+            raise ValueError(f"Unknown job fields: {sorted(unknown)}")
+        if not fields:
+            return
+        assignments = [f"{field} = ?" for field in fields]
+        with self._connect() as connection:
+            cursor = connection.execute(
+                f"UPDATE jobs SET {', '.join(assignments)}, updated_at = ? WHERE id = ?",
+                [*fields.values(), _now(), job_id],
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(job_id)
+
+    def get_job(self, job_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        return _job_dict(row) if row is not None else None
+
+    def list_active_jobs(self) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM jobs
+                WHERE status IN ('queued', 'running', 'cancelling')
+                ORDER BY created_at ASC
+                """
+            ).fetchall()
+        return [_job_dict(row) for row in rows]
+
+    def get_book_state(self, book_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM book_state WHERE book_id = ?", (book_id,)
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def set_book_state(
+        self, book_id: str, position_ms: int, chapter_index: int, playback_rate: float
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO book_state (
+                    book_id, position_ms, chapter_index, playback_rate, updated_at
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    position_ms=excluded.position_ms,
+                    chapter_index=excluded.chapter_index,
+                    playback_rate=excluded.playback_rate,
+                    updated_at=excluded.updated_at
+                """,
+                (book_id, position_ms, chapter_index, playback_rate, _now()),
+            )
+
+    def get_settings(self) -> dict[str, object]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT key, value FROM settings").fetchall()
+        settings: dict[str, object] = {}
+        for row in rows:
+            try:
+                settings[row["key"]] = json.loads(row["value"])
+            except ValueError:
+                settings[row["key"]] = row["value"]
+        return settings
+
+    def set_setting(self, key: str, value: object) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO settings (key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value
+                """,
+                (key, json.dumps(value)),
+            )
+
+    def mark_interrupted(self) -> None:
+        now = _now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE jobs
+                SET status = 'interrupted', updated_at = ?, finished_at = ?
+                WHERE status IN ('queued', 'running', 'cancelling')
+                """,
+                (now, now),
+            )
+            connection.execute(
+                """
+                UPDATE books
+                SET status = 'interrupted', updated_at = ?
+                WHERE status = 'converting'
+                """,
+                (now,),
+            )
+
+    def _mark_missing_books(self, existing_ids: set[str]) -> None:
+        with self._connect() as connection:
+            if existing_ids:
+                placeholders = ", ".join("?" for _ in existing_ids)
+                connection.execute(
+                    f"""
+                    UPDATE books
+                    SET status = 'missing', updated_at = ?
+                    WHERE id NOT IN ({placeholders})
+                    """,
+                    [_now(), *existing_ids],
+                )
+            else:
+                connection.execute(
+                    "UPDATE books SET status = 'missing', updated_at = ?",
+                    (_now(),),
+                )
+
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        connection = sqlite3.connect(self.path, timeout=5)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.execute("PRAGMA busy_timeout = 5000")
+        try:
+            yield connection
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _job_dict(row: sqlite3.Row) -> dict:
+    job = dict(row)
+    options_json = job.pop("options_json", "{}")
+    try:
+        job["options"] = json.loads(options_json)
+    except ValueError:
+        job["options"] = {}
+    return job
