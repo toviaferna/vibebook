@@ -36,7 +36,9 @@ desarrollo se habilita el motor `Fake` para probar sin red.
 
 - Biblioteca con búsqueda, orden, filtros, progreso de lectura y estado.
 - Importación por arrastre o selector de archivo.
-- Estudio por pasos: libro, voz, salida y conversión.
+- Estudio por pasos: libro, voz, salida y conversión. El selector de motor se
+  alimenta de `GET /api/engines`: muestra Edge, Azure y Piper con su estado de
+  configuración; Fake solo aparece cuando está habilitado.
 - Progreso en vivo, cancelación y reanudación.
 - Ajustes de voz, tema, tipografía y reproducción.
 - Lector sincronizado con resaltado por palabra, índice, temas, tipografía,
@@ -101,6 +103,18 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET /api/engines`
 - `GET /api/voices?engine=`, `POST /api/voices/preview`, `GET /api/previews/{key}`
 - `GET/PUT /api/settings`
+
+### Piper local
+
+El Studio puede convertir con Piper si el binario y la voz están instalados:
+
+```bash
+uv run vibebook piper download
+uv run vibebook engines
+```
+
+Si Piper no aparece como disponible, revisá [engines.md](engines.md). La
+conversión con Piper no usa red ni cuentas y produce timing por segmento.
 
 Más detalle en `/docs` (OpenAPI) mientras el servidor está corriendo.
 

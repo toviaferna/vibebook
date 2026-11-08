@@ -92,6 +92,31 @@ export interface Voice {
   styles: string[];
 }
 
+export interface Engine {
+  id: string;
+  label: string;
+  kind: "builtin" | "plugin";
+  transport: "local" | "http" | "command";
+  requires_network: boolean;
+  requires_key: boolean;
+  supports_styles: boolean;
+  timing: "native_word" | "estimated_word" | "segment";
+  max_chars: number;
+  audio_suffix: string;
+  license: string;
+  source_url: string;
+  description: string;
+  config_schema: Record<string, string>;
+  legacy: boolean;
+  implemented: boolean;
+  test_only: boolean;
+  available: boolean;
+}
+
+export interface EngineList {
+  items: Engine[];
+}
+
 export interface Settings {
   library_dir: string;
   default_voice: string;

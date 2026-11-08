@@ -1,8 +1,11 @@
+from pathlib import Path
+
 import pytest
 
 from audiol.tts.azure import AzureProvider
 from audiol.tts.edge import EdgeProvider
 from audiol.tts.fake import FakeProvider
+from audiol.tts.piper import PiperProvider
 from audiol.tts.registry import (
     ENGINES,
     engine_available,
@@ -62,11 +65,28 @@ def test_azure_availability_requires_credentials(monkeypatch):
     assert engine_available("azure") is True
 
 
-def test_piper_is_not_available_until_implemented(monkeypatch):
-    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", "piper")
-    monkeypatch.setenv("VIBEBOOK_PIPER_MODEL", "es_MX.onnx")
+def _install_fake_piper(tmp_path: Path, monkeypatch) -> None:
+    binary = tmp_path / "piper.exe"
+    binary.write_bytes(b"fake")
+    voices = tmp_path / "voices"
+    voices.mkdir()
+    (voices / "es_MX-ald-medium.onnx").write_bytes(b"model")
+    (voices / "es_MX-ald-medium.onnx.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(binary))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(voices))
+
+
+def test_piper_is_unavailable_without_binary_and_voice(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
 
     assert engine_available("piper") is False
+
+
+def test_piper_is_available_with_binary_and_voice(tmp_path: Path, monkeypatch):
+    _install_fake_piper(tmp_path, monkeypatch)
+
+    assert engine_available("piper") is True
 
 
 def test_edge_is_available():
@@ -93,9 +113,15 @@ def test_make_provider_rejects_fake_unless_allowed():
         make_provider("fake")
 
 
+def test_make_provider_returns_piper(tmp_path: Path, monkeypatch):
+    _install_fake_piper(tmp_path, monkeypatch)
+
+    assert isinstance(make_provider("piper"), PiperProvider)
+
+
 def test_make_provider_rejects_unimplemented_engine():
     with pytest.raises(ValueError, match="not implemented yet"):
-        make_provider("piper")
+        make_provider("espeak")
 
 
 def test_make_provider_rejects_unknown_engine():

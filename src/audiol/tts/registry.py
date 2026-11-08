@@ -5,6 +5,7 @@ from audiol.tts.azure import AzureProvider
 from audiol.tts.base import TTSProvider
 from audiol.tts.edge import EdgeProvider
 from audiol.tts.fake import FakeProvider
+from audiol.tts.piper import PiperProvider, piper_ready
 from audiol.tts.spec import AZURE, EDGE, ESPEAK, FAKE, PIPER, EngineSpec
 
 _ENGINE_ORDER = ("piper", "espeak", "edge", "azure", "fake")
@@ -32,7 +33,7 @@ def engine_available(engine_id: str, allow_fake: bool = False) -> bool:
     if spec.test_only:
         return allow_fake
     if spec.id == "piper":
-        return bool(os.environ.get("VIBEBOOK_PIPER_BIN") and os.environ.get("VIBEBOOK_PIPER_MODEL"))
+        return piper_ready()
     if spec.id == "espeak":
         return bool(shutil.which("espeak-ng") or shutil.which("espeak"))
     if spec.id == "azure":
@@ -52,4 +53,6 @@ def make_provider(engine: str, allow_fake: bool = False) -> TTSProvider:
         return AzureProvider()
     if spec.id == "fake":
         return FakeProvider()
+    if spec.id == "piper":
+        return PiperProvider()
     raise ValueError(f"TTS engine is not available: {engine}")

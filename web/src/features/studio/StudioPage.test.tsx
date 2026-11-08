@@ -32,4 +32,16 @@ describe("StudioPage", () => {
 
     expect(dalia).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("permite elegir Piper y su voz local", async () => {
+    const user = userEvent.setup();
+    renderRoute("/books/lazarillo-1234/studio", "/books/:id/studio", <StudioPage />);
+
+    const engine = await screen.findByLabelText("Motor");
+    await user.selectOptions(engine, "piper");
+
+    const aldo = await screen.findByRole("button", { name: /^Aldo/ });
+    expect(aldo).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("option", { name: /Piper/ })).toBeInTheDocument();
+  });
 });

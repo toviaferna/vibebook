@@ -29,6 +29,22 @@ def _find_bundled(name: str) -> str | None:
     return None
 
 
+def find_optional_binary(name: str, env_names: tuple[str, ...] = ()) -> str | None:
+    """Resolve a native binary without raising or falling back to static-ffmpeg."""
+    for env_name in (*env_names, f"{name.upper()}_BINARY"):
+        if configured := os.environ.get(env_name):
+            return configured
+
+    if found := _find_bundled(name):
+        return found
+
+    if found := shutil.which(name):
+        return found
+
+    project_root = Path(__file__).resolve().parents[2]
+    return _find_in_dir(project_root / ".tools" / "bin", name)
+
+
 def find_binary(name: str) -> str:
     """Resolve a native binary from env, bundled resources, PATH, or static-ffmpeg."""
     env_name = f"{name.upper()}_BINARY"

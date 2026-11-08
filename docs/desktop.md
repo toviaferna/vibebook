@@ -10,6 +10,7 @@ en el ejecutable, y la ventana carga la SPA empaquetada.
 - WebView2. Windows 11 lo incluye; en Windows 10 el instalador de Tauri puede
   descargarlo o usar el bootstrapper incluido.
 - Internet para Edge TTS. Azure es opcional.
+- Piper es opcional y funciona offline; ver [engines.md](engines.md).
 - Para compilar: Rust, Visual Studio Build Tools con el workload C++, Node 22,
   `uv` y `npm`.
 
@@ -54,6 +55,17 @@ uv sync --extra azure-sdk
 make sidecar
 ```
 
+Para incluir Piper en el sidecar, dejá el binario y la voz en
+`packaging/piper/bin` y `packaging/piper/voices` antes de `make sidecar`:
+
+```powershell
+uv run vibebook piper download --dest packaging/piper/voices
+make sidecar
+```
+
+El spec de PyInstaller copia esas carpetas si existen. Sin ellas, la app sigue
+funcionando y Piper aparece como no instalado.
+
 Comandos útiles:
 
 ```powershell
@@ -91,6 +103,7 @@ ruta del log.
 
 - Solo Windows x64 por ahora.
 - Edge TTS es un servicio no oficial y puede limitar peticiones.
+- Piper requiere binario y voz; el release actual no los incluye todavía.
 - Azure no entrega word boundaries por REST; esos capítulos usan resaltado por
   segmento.
 - No hay auto-update ni firma de código todavía. Windows SmartScreen puede

@@ -20,11 +20,24 @@ for name in ("ffmpeg", "ffprobe"):
     except RuntimeError as exc:
         raise SystemExit(str(exc)) from exc
 
+datas = [(str(WEB_DIST), "web/dist")]
+PIPER_ROOT = ROOT / "packaging" / "piper"
+PIPER_BIN = PIPER_ROOT / "bin"
+if PIPER_BIN.is_dir():
+    for item in sorted(PIPER_BIN.iterdir()):
+        if item.is_dir():
+            datas.append((str(item), f"bin/{item.name}"))
+        else:
+            binaries.append((str(item), "bin"))
+PIPER_VOICES = PIPER_ROOT / "voices"
+if PIPER_VOICES.is_dir():
+    datas.append((str(PIPER_VOICES), "piper-voices"))
+
 analysis = Analysis(
     [str(ROOT / "packaging" / "pyinstaller" / "sidecar_entry.py")],
     pathex=[str(SRC)],
     binaries=binaries,
-    datas=[(str(WEB_DIST), "web/dist")],
+    datas=datas,
     hiddenimports=collect_submodules("audiol") + collect_submodules("uvicorn"),
     hookspath=[],
     hooksconfig={},

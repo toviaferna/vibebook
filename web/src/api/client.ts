@@ -9,6 +9,7 @@ import type {
   BookPreferences,
   ChapterPayload,
   ConversionInput,
+  EngineList,
   Job,
   Manifest,
   Preview,
@@ -135,6 +136,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  getEngines: () => apiFetch<EngineList>("/engines"),
   getJob: (jobId: string) => apiFetch<Job>(`/jobs/${jobId}`),
   cancelJob: (jobId: string) => apiFetch<Job>(`/jobs/${jobId}/cancel`, { method: "POST" }),
   resumeJob: (jobId: string) =>

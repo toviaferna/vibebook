@@ -5,6 +5,7 @@ const LABELS: Record<string, { name: string; detail: string }> = {
   "es-MX-DaliaNeural": { name: "Dalia", detail: "Femenino · México" },
   "es-PY-MarioNeural": { name: "Mario", detail: "Masculino · Paraguay" },
   "es-PY-TaniaNeural": { name: "Tania", detail: "Femenino · Paraguay" },
+  "es_MX-ald-medium": { name: "Aldo", detail: "Masculino · México · Piper local" },
 };
 
 export function voiceLabel(voice: Voice): { name: string; detail: string } {
