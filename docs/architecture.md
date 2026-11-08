@@ -79,6 +79,21 @@ Sans (UI), IBM Plex Mono (metadatos) y Atkinson Hyperlegible (opción de
 accesibilidad), servidas con Fontsource. El ruido de pantalla completa y los
 blur decorativos se eliminaron para cuidar el rendimiento.
 
+## Ambientación
+
+`ambience/` separa biblioteca, plan, análisis y (más adelante) mezcla:
+
+- `library.py`: importa audio, calcula SHA-256, exige licencia, guarda JSON y
+  actualiza el índice SQLite `sound_assets`;
+- `procedural.py`: genera camas loopables de 30 s con ffmpeg (`rain`, `wind`,
+  `sea`, `room`, `fire`, `night`);
+- `plan.py`: valida y persiste `ambience/plan.json`, actualiza el manifiesto y
+  respeta 1 cama + 3 efectos por capítulo, separación de 8 s y guardas de 2 s;
+- `analyzer.py`: heurístico español offline; no inventa segment IDs.
+
+Los assets importados quedan sin aprobar hasta que el usuario los escucha. El
+flujo base no requiere red, cuenta ni API paga.
+
 ## Pipeline
 
 ```text
