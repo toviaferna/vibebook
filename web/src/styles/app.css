@@ -213,13 +213,13 @@
 .button--primary {
   border-color: var(--accent-strong);
   background: var(--accent-strong);
-  color: #fff8f2;
+  color: var(--on-accent);
 }
 
 .button--primary:hover {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff8f2;
+  color: var(--on-accent);
 }
 
 .button--ghost {
@@ -307,16 +307,22 @@ input[type="radio"] {
   vertical-align: -2px;
 }
 
-.theme-swatch[data-theme-swatch="light"] {
-  background: #f4efe5;
+.theme-swatch[data-theme-swatch="system"] {
+  background: linear-gradient(90deg, #f1f2ec 0 50%, #101613 50% 100%);
+}
+
+.theme-swatch[data-theme-swatch="light"],
+.theme-swatch[data-theme-swatch="paper"] {
+  background: #fbfbf6;
 }
 
 .theme-swatch[data-theme-swatch="sepia"] {
-  background: #f1e6cf;
+  background: #f3ead8;
 }
 
+.theme-swatch[data-theme-swatch="dark"],
 .theme-swatch[data-theme-swatch="night"] {
-  background: #1d1b18;
+  background: #101613;
 }
 
 /* Fields */

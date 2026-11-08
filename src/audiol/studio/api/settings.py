@@ -16,11 +16,23 @@ router = APIRouter(tags=["settings"])
 
 DEFAULTS = {
     "default_rate": "-10%",
-    "reader_theme": "light",
+    "theme_mode": "system",
+    "reader_palette": "paper",
     "reader_font": "serif",
     "reader_size": 19,
     "auto_scroll": True,
     "skip_seconds": 15,
+}
+
+LEGACY_THEME_TO_PALETTE = {
+    "light": "paper",
+    "sepia": "sepia",
+    "night": "night",
+}
+PALETTE_TO_LEGACY_THEME = {
+    "paper": "light",
+    "sepia": "sepia",
+    "night": "night",
 }
 
 
@@ -32,6 +44,9 @@ def get_settings(request: Request) -> SettingsResponse:
 @router.put("/settings", response_model=SettingsResponse)
 def update_settings(request: Request, payload: SettingsUpdate) -> SettingsResponse:
     updates = payload.model_dump(exclude_none=True)
+    legacy_theme = updates.pop("reader_theme", None)
+    if legacy_theme is not None and "reader_palette" not in updates:
+        updates["reader_palette"] = LEGACY_THEME_TO_PALETTE[legacy_theme]
     try:
         stored = request.app.state.db.get_settings()
         engine = _current_engine(request, stored)
@@ -64,6 +79,12 @@ def _settings_response(request: Request) -> SettingsResponse:
     if not voice_id or not _voice_supports(request, voice_id, engine):
         voice_id = _default_voice(request, engine)
     values = {**DEFAULTS, **{key: value for key, value in stored.items() if key in DEFAULTS}}
+    if "reader_palette" not in stored:
+        legacy = stored.get("reader_theme")
+        if legacy in LEGACY_THEME_TO_PALETTE:
+            values["reader_palette"] = LEGACY_THEME_TO_PALETTE[legacy]
+    palette = str(values["reader_palette"])
+    legacy_theme = PALETTE_TO_LEGACY_THEME.get(palette, "light")
     azure_configured = bool(
         os.environ.get("AZURE_SPEECH_KEY") and os.environ.get("AZURE_SPEECH_REGION")
     )
@@ -71,8 +92,15 @@ def _settings_response(request: Request) -> SettingsResponse:
         library_dir=str(request.app.state.settings.library_dir),
         default_engine=engine,
         default_voice=voice_id,
+        theme_mode=str(values["theme_mode"]),
+        reader_palette=palette,
+        reader_theme=legacy_theme,
+        reader_font=str(values["reader_font"]),
+        reader_size=int(values["reader_size"]),
+        auto_scroll=bool(values["auto_scroll"]),
+        skip_seconds=int(values["skip_seconds"]),
+        default_rate=str(values["default_rate"]),
         azure_configured=azure_configured,
-        **values,
     )
 
 

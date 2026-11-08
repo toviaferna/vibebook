@@ -155,6 +155,9 @@ export interface Settings {
   default_engine: string | null;
   default_voice: string;
   default_rate: string;
+  theme_mode: "system" | "light" | "dark";
+  reader_palette: "paper" | "sepia" | "night";
+  /** @deprecated Use reader_palette. Kept for old API clients. */
   reader_theme: "light" | "sepia" | "night";
   reader_font: "serif" | "sans" | "hyperlegible";
   reader_size: number;

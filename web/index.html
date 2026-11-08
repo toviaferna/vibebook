@@ -3,9 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f4efe5" />
+    <meta name="theme-color" content="#f1f2ec" />
     <meta name="description" content="Vibebook Studio: convierte EPUB en audiolibros y escúchalos mientras lees." />
     <title>Vibebook Studio</title>
+    <script>
+      (() => {
+        try {
+          const stored = localStorage.getItem("vibebook.theme-mode") || "system";
+          const dark =
+            stored === "dark" ||
+            (stored === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.dataset.theme = dark ? "dark" : "light";
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+          document
+            .querySelector('meta[name="theme-color"]')
+            ?.setAttribute("content", dark ? "#101613" : "#f1f2ec");
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

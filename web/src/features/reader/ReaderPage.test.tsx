@@ -73,7 +73,7 @@ describe("ReaderPage", () => {
     expect(screen.getByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
   });
 
-  it("permite cambiar el tema de lectura", async () => {
+  it("permite cambiar la paleta del lector sin cambiar el tema de la app", async () => {
     const user = userEvent.setup();
     renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
 
@@ -81,7 +81,8 @@ describe("ReaderPage", () => {
     await user.click(screen.getByRole("button", { name: "Ajustes de lectura" }));
     await user.click(screen.getByRole("radio", { name: "Noche" }));
 
-    expect(document.body.dataset.theme).toBe("night");
+    expect(document.querySelector(".reader-shell")).toHaveAttribute("data-reader-palette", "night");
+    expect(document.documentElement.dataset.theme).not.toBe("night");
   });
 
   it("permite alternar entre texto y EPUB original", async () => {

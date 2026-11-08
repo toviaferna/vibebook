@@ -52,6 +52,8 @@ export const sampleSettings: Settings = {
   default_engine: "edge",
   default_voice: "es-MX-JorgeNeural",
   default_rate: "-10%",
+  theme_mode: "system",
+  reader_palette: "paper",
   reader_theme: "light",
   reader_font: "serif",
   reader_size: 19,

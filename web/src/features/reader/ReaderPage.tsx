@@ -25,6 +25,7 @@ import {
 } from "../../api/queries";
 import type { ChapterTiming, ReadingBookmark } from "../../api/types";
 import { Button } from "../../components/Button";
+import { type ReaderPalette, readStoredReaderPalette, storeReaderPalette } from "../../lib/theme";
 import { alignSegment, findActive, findActiveWord } from "./alignment";
 import { type BookPageState, BookReader } from "./book/BookReader";
 import { chapterDisplayTitle } from "./chapterTitle";
@@ -41,7 +42,6 @@ import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useMediaSession } from "./useMediaSession";
 
-type ReaderTheme = "light" | "sepia" | "night";
 type ReaderFont = "serif" | "sans" | "hyperlegible";
 
 export function ReaderPage() {
@@ -76,7 +76,7 @@ export function ReaderPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
   const [followSuspended, setFollowSuspended] = useState(false);
-  const [theme, setTheme] = useState<ReaderTheme>("light");
+  const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
   const [font, setFont] = useState<ReaderFont>("serif");
   const [size, setSize] = useState(19);
   const [skipSeconds, setSkipSeconds] = useState(15);
@@ -177,7 +177,7 @@ export function ReaderPage() {
     if (prefsSeeded.current || !settings) {
       return;
     }
-    setTheme(settings.reader_theme);
+    setPalette(settings.reader_palette);
     setFont(settings.reader_font);
     setSize(settings.reader_size);
     setFollow(settings.auto_scroll);
@@ -186,8 +186,8 @@ export function ReaderPage() {
   }, [settings]);
 
   useEffect(() => {
-    document.body.dataset.theme = theme;
-  }, [theme]);
+    storeReaderPalette(palette);
+  }, [palette]);
 
   useEffect(() => {
     if (!prefsSeeded.current) {
@@ -195,14 +195,14 @@ export function ReaderPage() {
     }
     const timer = window.setTimeout(() => {
       updateSettings.mutate({
-        reader_theme: theme,
+        reader_palette: palette,
         reader_font: font,
         reader_size: size,
         auto_scroll: follow,
       });
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [follow, font, size, theme, updateSettings.mutate]);
+  }, [follow, font, palette, size, updateSettings.mutate]);
 
   useEffect(() => {
     if (initialized.current || !manifest || !stateQuery.data) {
@@ -532,6 +532,7 @@ export function ReaderPage() {
   return (
     <div
       className={`reader-shell${audioReady ? "" : " reader-shell--no-audio"}`}
+      data-reader-palette={palette}
       style={
         {
           "--reader-size": `${size}px`,
@@ -842,11 +843,11 @@ export function ReaderPage() {
       <ReaderSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        theme={theme}
+        palette={palette}
         font={font}
         size={size}
         follow={follow}
-        onTheme={setTheme}
+        onPalette={setPalette}
         onFont={setFont}
         onSize={setSize}
         onFollow={setFollow}
