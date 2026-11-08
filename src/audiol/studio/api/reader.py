@@ -1,6 +1,7 @@
 import re
 import unicodedata
 from dataclasses import asdict
+from pathlib import Path
 
 from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import FileResponse
@@ -13,9 +14,16 @@ from audiol.studio.models import (
     BookmarkCreate,
     BookmarkListResponse,
     BookmarkResponse,
+    BookPreferencesResponse,
+    BookPreferencesUpdate,
     BookStateResponse,
     BookStateUpdate,
     ChapterResponse,
+    ReadingBookmarkCreate,
+    ReadingBookmarkListResponse,
+    ReadingBookmarkResponse,
+    ReadingStateResponse,
+    ReadingStateUpdate,
     SearchResponse,
     SearchResult,
 )
@@ -45,6 +53,14 @@ def _chapter_data(manifest: dict, chapter_index: int) -> dict:
     raise ApiError(404, "chapter_not_found", "El capítulo no existe.")
 
 
+def _chapter_text_length(chapter: dict) -> int:
+    return sum(
+        len(str(segment.get("text", "")))
+        for segment in chapter.get("segments", [])
+        if isinstance(segment, dict)
+    )
+
+
 def _audio_path(request: Request, record: BookRecord, chapter: dict):
     audio = chapter.get("audio")
     if not isinstance(audio, str):
@@ -56,6 +72,27 @@ def _audio_path(request: Request, record: BookRecord, chapter: dict):
     if not path.is_file():
         raise ApiError(404, "asset_not_found", "El audio no existe.")
     return path
+
+
+def _optional_audio_path(
+    request: Request, record: BookRecord, chapter: dict
+) -> tuple[Path | None, int | None]:
+    audio = chapter.get("audio")
+    if not isinstance(audio, str):
+        return None, None
+    try:
+        path = request.app.state.library.asset_path(record.id, audio)
+    except LibraryError:
+        return None, None
+    if not path.is_file():
+        return None, None
+    duration = chapter.get("duration_ms")
+    if not isinstance(duration, int) or duration <= 0:
+        try:
+            duration = measure_duration_ms(path)
+        except Exception:
+            return None, None
+    return path, duration
 
 
 def _fold(text: str) -> tuple[str, list[int]]:
@@ -152,7 +189,6 @@ def get_chapter(request: Request, book_id: str, chapter_index: int) -> ChapterRe
     record = _record(request, book_id)
     manifest = _manifest(request, record)
     chapter = _chapter_data(manifest, chapter_index)
-    audio_path = _audio_path(request, record, chapter)
     try:
         book = book_from_manifest(manifest)
     except ValueError as exc:
@@ -160,14 +196,27 @@ def get_chapter(request: Request, book_id: str, chapter_index: int) -> ChapterRe
     chapter_model = next((item for item in book.chapters if item.index == chapter_index), None)
     if chapter_model is None:
         raise ApiError(404, "chapter_not_found", "El capítulo no existe.")
-    duration = chapter.get("duration_ms")
-    if not isinstance(duration, int) or duration <= 0:
-        duration = measure_duration_ms(audio_path)
+
+    audio_path, duration = _optional_audio_path(request, record, chapter)
+    if audio_path is None or duration is None:
+        return ChapterResponse(
+            chapter=chapter,
+            timing=None,
+            audio_ready=False,
+            duration_ms=chapter.get("duration_ms")
+            if isinstance(chapter.get("duration_ms"), int)
+            else None,
+        )
     try:
         timing = ensure_chapter_timing(record.path, chapter_model, duration)
     except ValueError as exc:
         raise ApiError(422, "invalid_timing", str(exc)) from exc
-    return ChapterResponse(chapter=chapter, timing=asdict(timing))
+    return ChapterResponse(
+        chapter=chapter,
+        timing=asdict(timing),
+        audio_ready=True,
+        duration_ms=duration,
+    )
 
 
 @router.get("/{book_id}/search", response_model=SearchResponse)
@@ -306,4 +355,156 @@ def set_state(request: Request, book_id: str, payload: BookStateUpdate) -> BookS
         chapter_index=int(state["chapter_index"]),
         playback_rate=float(state["playback_rate"]),
         updated_at=state.get("updated_at"),
+    )
+
+
+@router.get("/{book_id}/reading-state", response_model=ReadingStateResponse)
+def get_reading_state(request: Request, book_id: str) -> ReadingStateResponse:
+    record = _record(request, book_id)
+    state = request.app.state.db.get_reading_state(record.id)
+    if state is None:
+        return ReadingStateResponse(
+            book_id=record.id,
+            chapter_index=1,
+            char_offset=0,
+            page_index=0,
+            page_count=None,
+            percent=0.0,
+            cfi=None,
+            updated_at=None,
+        )
+    return ReadingStateResponse(
+        book_id=record.id,
+        chapter_index=int(state["chapter_index"]),
+        char_offset=int(state["char_offset"]),
+        page_index=int(state["page_index"]),
+        page_count=int(state["page_count"]) if state.get("page_count") is not None else None,
+        percent=float(state["percent"]),
+        cfi=state.get("cfi"),
+        updated_at=state.get("updated_at"),
+    )
+
+
+@router.put("/{book_id}/reading-state", response_model=ReadingStateResponse)
+def set_reading_state(
+    request: Request, book_id: str, payload: ReadingStateUpdate
+) -> ReadingStateResponse:
+    record = _record(request, book_id)
+    manifest = _manifest(request, record)
+    chapter = _chapter_data(manifest, payload.chapter_index)
+    if payload.char_offset > _chapter_text_length(chapter):
+        raise ApiError(422, "invalid_state", "La posición supera el texto del capítulo.")
+    if (
+        payload.page_count is not None
+        and payload.page_count > 0
+        and payload.page_index >= payload.page_count
+    ):
+        raise ApiError(422, "invalid_state", "La página supera el total de páginas.")
+    state = request.app.state.db.set_reading_state(
+        record.id,
+        payload.chapter_index,
+        payload.char_offset,
+        payload.page_index,
+        payload.page_count,
+        payload.percent,
+        payload.cfi,
+    )
+    return ReadingStateResponse(
+        book_id=record.id,
+        chapter_index=int(state["chapter_index"]),
+        char_offset=int(state["char_offset"]),
+        page_index=int(state["page_index"]),
+        page_count=int(state["page_count"]) if state.get("page_count") is not None else None,
+        percent=float(state["percent"]),
+        cfi=state.get("cfi"),
+        updated_at=state.get("updated_at"),
+    )
+
+
+@router.get("/{book_id}/reading-bookmarks", response_model=ReadingBookmarkListResponse)
+def list_reading_bookmarks(request: Request, book_id: str) -> ReadingBookmarkListResponse:
+    record = _record(request, book_id)
+    items = [
+        ReadingBookmarkResponse(**bookmark)
+        for bookmark in request.app.state.db.list_reading_bookmarks(record.id)
+    ]
+    return ReadingBookmarkListResponse(items=items)
+
+
+@router.post(
+    "/{book_id}/reading-bookmarks",
+    response_model=ReadingBookmarkResponse,
+    status_code=201,
+)
+def create_reading_bookmark(
+    request: Request,
+    book_id: str,
+    payload: ReadingBookmarkCreate,
+) -> ReadingBookmarkResponse:
+    record = _record(request, book_id)
+    manifest = _manifest(request, record)
+    chapter = _chapter_data(manifest, payload.chapter_index)
+    if payload.char_offset > _chapter_text_length(chapter):
+        raise ApiError(422, "invalid_bookmark", "La posición supera el texto del capítulo.")
+    note = payload.note.strip() if payload.note else None
+    bookmark = request.app.state.db.create_reading_bookmark(
+        record.id,
+        payload.chapter_index,
+        payload.char_offset,
+        payload.page_index,
+        note or None,
+    )
+    return ReadingBookmarkResponse(**bookmark)
+
+
+@router.delete(
+    "/{book_id}/reading-bookmarks/{bookmark_id}",
+    status_code=204,
+    response_model=None,
+)
+def delete_reading_bookmark(request: Request, book_id: str, bookmark_id: int) -> Response:
+    record = _record(request, book_id)
+    if not request.app.state.db.delete_reading_bookmark(record.id, bookmark_id):
+        raise ApiError(404, "bookmark_not_found", "El marcador no existe.")
+    return Response(status_code=204)
+
+
+@router.get("/{book_id}/preferences", response_model=BookPreferencesResponse)
+def get_book_preferences(request: Request, book_id: str) -> BookPreferencesResponse:
+    record = _record(request, book_id)
+    preferences = request.app.state.db.get_book_preferences(record.id)
+    if preferences is None:
+        return BookPreferencesResponse(book_id=record.id)
+    return BookPreferencesResponse(
+        book_id=record.id,
+        reader_mode=preferences.get("reader_mode"),
+        reader_palette=preferences.get("reader_palette"),
+        reader_font=preferences.get("reader_font"),
+        reader_size=preferences.get("reader_size"),
+        page_turn=preferences.get("page_turn"),
+        ambience_enabled=preferences.get("ambience_enabled"),
+        updated_at=preferences.get("updated_at"),
+    )
+
+
+@router.put("/{book_id}/preferences", response_model=BookPreferencesResponse)
+def set_book_preferences(
+    request: Request,
+    book_id: str,
+    payload: BookPreferencesUpdate,
+) -> BookPreferencesResponse:
+    record = _record(request, book_id)
+    preferences = request.app.state.db.set_book_preferences(
+        record.id,
+        payload.model_dump(),
+    )
+    return BookPreferencesResponse(
+        book_id=record.id,
+        reader_mode=preferences.get("reader_mode"),
+        reader_palette=preferences.get("reader_palette"),
+        reader_font=preferences.get("reader_font"),
+        reader_size=preferences.get("reader_size"),
+        page_turn=preferences.get("page_turn"),
+        ambience_enabled=preferences.get("ambience_enabled"),
+        updated_at=preferences.get("updated_at"),
     )

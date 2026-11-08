@@ -69,11 +69,45 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS reading_state (
+  book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+  chapter_index INTEGER NOT NULL DEFAULT 1,
+  char_offset INTEGER NOT NULL DEFAULT 0,
+  page_index INTEGER NOT NULL DEFAULT 0,
+  page_count INTEGER,
+  percent REAL NOT NULL DEFAULT 0,
+  cfi TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reading_bookmarks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  chapter_index INTEGER NOT NULL,
+  char_offset INTEGER NOT NULL DEFAULT 0,
+  page_index INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS book_preferences (
+  book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+  reader_mode TEXT,
+  reader_palette TEXT,
+  reader_font TEXT,
+  reader_size INTEGER,
+  page_turn INTEGER,
+  ambience_enabled INTEGER,
+  updated_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_jobs_book_created ON jobs(book_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_book_position
   ON bookmarks(book_id, position_ms, created_at);
+CREATE INDEX IF NOT EXISTS idx_reading_bookmarks_book_position
+  ON reading_bookmarks(book_id, chapter_index, char_offset, created_at);
 """
 
 SORT_SQL = {
@@ -393,6 +427,174 @@ class Database:
                 (book_id, bookmark_id),
             )
         return cursor.rowcount > 0
+
+    def get_reading_state(self, book_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM reading_state WHERE book_id = ?", (book_id,)
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    def set_reading_state(
+        self,
+        book_id: str,
+        chapter_index: int,
+        char_offset: int,
+        page_index: int,
+        page_count: int | None,
+        percent: float,
+        cfi: str | None,
+    ) -> dict:
+        now = _now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO reading_state (
+                    book_id, chapter_index, char_offset, page_index,
+                    page_count, percent, cfi, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    chapter_index=excluded.chapter_index,
+                    char_offset=excluded.char_offset,
+                    page_index=excluded.page_index,
+                    page_count=excluded.page_count,
+                    percent=excluded.percent,
+                    cfi=excluded.cfi,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    book_id,
+                    chapter_index,
+                    char_offset,
+                    page_index,
+                    page_count,
+                    percent,
+                    cfi,
+                    now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM reading_state WHERE book_id = ?", (book_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(book_id)
+        return dict(row)
+
+    def list_reading_bookmarks(self, book_id: str) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM reading_bookmarks
+                WHERE book_id = ?
+                ORDER BY chapter_index ASC, char_offset ASC, created_at ASC
+                """,
+                (book_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_reading_bookmark(
+        self,
+        book_id: str,
+        chapter_index: int,
+        char_offset: int,
+        page_index: int,
+        note: str | None,
+    ) -> dict:
+        now = _now()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO reading_bookmarks (
+                    book_id, chapter_index, char_offset, page_index, note, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (book_id, chapter_index, char_offset, page_index, note, now),
+            )
+            bookmark_id = int(cursor.lastrowid or 0)
+            row = connection.execute(
+                "SELECT * FROM reading_bookmarks WHERE id = ?", (bookmark_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(bookmark_id)
+        return dict(row)
+
+    def delete_reading_bookmark(self, book_id: str, bookmark_id: int) -> bool:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM reading_bookmarks WHERE book_id = ? AND id = ?",
+                (book_id, bookmark_id),
+            )
+        return cursor.rowcount > 0
+
+    def get_book_preferences(self, book_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM book_preferences WHERE book_id = ?", (book_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        preferences = dict(row)
+        for key in ("page_turn", "ambience_enabled"):
+            value = preferences.get(key)
+            if value is not None:
+                preferences[key] = bool(value)
+        return preferences
+
+    def set_book_preferences(self, book_id: str, preferences: dict[str, object]) -> dict:
+        allowed = {
+            "reader_mode",
+            "reader_palette",
+            "reader_font",
+            "reader_size",
+            "page_turn",
+            "ambience_enabled",
+        }
+        unknown = set(preferences) - allowed
+        if unknown:
+            raise ValueError(f"Unknown book preferences: {sorted(unknown)}")
+        values = dict(preferences)
+        for key in ("page_turn", "ambience_enabled"):
+            if key in values and values[key] is not None:
+                values[key] = int(bool(values[key]))
+        now = _now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO book_preferences (
+                    book_id, reader_mode, reader_palette, reader_font,
+                    reader_size, page_turn, ambience_enabled, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    reader_mode=excluded.reader_mode,
+                    reader_palette=excluded.reader_palette,
+                    reader_font=excluded.reader_font,
+                    reader_size=excluded.reader_size,
+                    page_turn=excluded.page_turn,
+                    ambience_enabled=excluded.ambience_enabled,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    book_id,
+                    values.get("reader_mode"),
+                    values.get("reader_palette"),
+                    values.get("reader_font"),
+                    values.get("reader_size"),
+                    values.get("page_turn"),
+                    values.get("ambience_enabled"),
+                    now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM book_preferences WHERE book_id = ?", (book_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(book_id)
+        result = dict(row)
+        for key in ("page_turn", "ambience_enabled"):
+            value = result.get(key)
+            if value is not None:
+                result[key] = bool(value)
+        return result
 
     def get_settings(self) -> dict[str, object]:
         with self._connect() as connection:

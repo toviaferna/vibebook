@@ -110,6 +110,8 @@ export const sampleManifest: Manifest = {
 
 export const sampleChapter: ChapterPayload = {
   chapter: sampleManifest.chapters[0],
+  audio_ready: true,
+  duration_ms: 2_000,
   timing: {
     schema_version: 1,
     chapter_index: 1,

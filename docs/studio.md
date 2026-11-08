@@ -44,12 +44,14 @@ desarrollo se habilita el motor `Fake` para probar sin red.
 
 ### Lector
 
-La ruta `#/books/{id}/read` carga el manifest, el capítulo y su timing. El
-resaltado por palabra se usa cuando el timing es `exact` y la alineación supera
-el 80 % de cobertura; si no, se resalta el segmento completo. La posición,
-el capítulo y la velocidad se guardan con debounce en
-`PUT /api/books/{id}/state`, y se restauran sin autoplay al volver a abrir el
-libro.
+La ruta `#/books/{id}/read` carga el manifest, el capítulo y su timing. Un libro
+importado se puede leer aunque todavía no tenga audio: el capítulo devuelve
+`timing: null` y el lector funciona sin player. El resaltado por palabra se usa
+cuando el timing es `exact` y la alineación supera el 80 % de cobertura; si no,
+se resalta el segmento completo. La posición de audio, el capítulo y la velocidad
+se guardan con debounce en `PUT /api/books/{id}/state`, y se restauran sin
+autoplay al volver a abrir el libro. La posición de lectura y sus bookmarks viven
+aparte, en `reading-state` y `reading-bookmarks`.
 
 Opciones:
 
@@ -90,6 +92,9 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
 - `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`, `/epub`
 - `GET/PUT /api/books/{id}/state`
+- `GET/PUT /api/books/{id}/reading-state`
+- `GET/POST /api/books/{id}/reading-bookmarks`, `DELETE /api/books/{id}/reading-bookmarks/{id}`
+- `GET/PUT /api/books/{id}/preferences`
 - `GET /api/books/{id}/search?q=`
 - `GET/POST /api/books/{id}/bookmarks`, `DELETE /api/books/{id}/bookmarks/{bookmark_id}`
 - `GET /api/voices`, `POST /api/voices/preview`, `GET /api/previews/{key}`
