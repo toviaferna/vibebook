@@ -230,6 +230,27 @@ def get_audio(request: Request, book_id: str, chapter_index: int) -> FileRespons
     return FileResponse(path, media_type="audio/mpeg", filename=path.name)
 
 
+@router.get("/{book_id}/epub")
+def get_epub(request: Request, book_id: str) -> FileResponse:
+    record = _record(request, book_id)
+    manifest = _manifest(request, record)
+    epub = manifest.get("epub")
+    if not isinstance(epub, str):
+        raise ApiError(404, "epub_not_found", "El EPUB original no está disponible.")
+    try:
+        path = request.app.state.library.asset_path(record.id, epub)
+    except LibraryError as exc:
+        raise ApiError(404, "epub_not_found", "El EPUB original no existe.") from exc
+    if not path.is_file():
+        raise ApiError(404, "epub_not_found", "El EPUB original no existe.")
+    return FileResponse(
+        path,
+        media_type="application/epub+zip",
+        filename=f"{record.id}.epub",
+        content_disposition_type="inline",
+    )
+
+
 @router.get("/{book_id}/m4b")
 def get_m4b(request: Request, book_id: str) -> FileResponse:
     record = _record(request, book_id)

@@ -52,6 +52,18 @@ restaura la posición sin autoplay.
   abrir o eliminar desde el panel de marcadores.
 - Ambos paneles están en la barra superior del lector.
 
+## Vista EPUB original
+
+El toggle **Texto / Original** de la barra superior alterna entre el texto limpio
+sincronizado y el EPUB original renderizado con `epubjs` en un iframe aislado.
+
+- El original conserva imágenes y maquetación.
+- La sincronización es por capítulo y ancla del índice, no por palabra.
+- Los scripts, formularios, iframes, objetos y URLs externas se eliminan antes de
+  mostrar el contenido; además se aplica una CSP restrictiva y el iframe queda
+  sin `allow-scripts`.
+- El karaoke sigue usando la vista limpia.
+
 ## Ajustes
 
 Tema claro/sepia/noche, tipografía editorial/sans/Atkinson Hyperlegible, tamaño
@@ -60,7 +72,8 @@ settings del Studio.
 
 ## Limitaciones
 
-- La vista del EPUB original queda para T30.
+- La vista original no resalta palabras ni párrafos; solo sincroniza capítulo y
+  ancla del índice.
 - El resaltado por palabra depende de los timings generados por el motor TTS.
 - Azure sin el extra `azure-sdk` usa REST y no entrega word boundaries; esos
   capítulos usan resaltado por segmento. Instalá `uv sync --extra azure-sdk`

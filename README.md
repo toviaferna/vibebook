@@ -151,9 +151,9 @@ npm run e2e
 
 Cuando un libro está listo, abrí su detalle y elegí **Leer ahora**. El lector
 resalta el segmento y la palabra actuales, permite tocar el texto para saltar,
-busca dentro del libro, guarda marcadores con nota opcional, recuerda posición y
-velocidad, y ofrece índice, temas, tipografía, temporizador y controles del
-sistema vía Media Session.
+busca dentro del libro, guarda marcadores con nota opcional, alterna con la vista
+del EPUB original, recuerda posición y velocidad, y ofrece índice, temas,
+tipografía, temporizador y controles del sistema vía Media Session.
 
 Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
 cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`

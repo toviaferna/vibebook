@@ -16,6 +16,13 @@ test("reproduce, resalta y persiste la posición", async ({ page, playwright }) 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 
+  await page.getByRole("button", { name: "Original" }).click();
+  const original = page.getByTestId("original-epub");
+  await expect(original).toHaveAttribute("data-status", "ready", { timeout: 20_000 });
+  await expect(original.locator("iframe")).toBeVisible();
+  await page.getByRole("button", { name: "Texto" }).click();
+  await expect(original).toBeHidden();
+
   await page.getByRole("button", { name: "Reproducir" }).click();
   const activeWord = page.locator(".reader-word.is-active");
   await expect(activeWord).toBeVisible();

@@ -88,7 +88,7 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET/DELETE /api/books/{id}`, `GET /api/books/{id}/cover`
 - `POST /api/books/{id}/convert`
 - `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
-- `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`
+- `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`, `/epub`
 - `GET/PUT /api/books/{id}/state`
 - `GET /api/books/{id}/search?q=`
 - `GET/POST /api/books/{id}/bookmarks`, `DELETE /api/books/{id}/bookmarks/{bookmark_id}`
