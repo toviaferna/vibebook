@@ -261,6 +261,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ provider: "heuristic" }),
     }),
+  startAmbienceRender: (bookId: string) =>
+    apiFetch<{ job_id: string }>(`/books/${bookId}/ambience/render`, {
+      method: "POST",
+    }),
   searchBook: (bookId: string, query: string) =>
     apiFetch<SearchResponse>(`/books/${bookId}/search?q=${encodeURIComponent(query)}`),
   listBookmarks: (bookId: string) => apiFetch<BookmarkList>(`/books/${bookId}/bookmarks`),

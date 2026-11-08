@@ -13,11 +13,13 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
 import {
+  useAmbienceRenderJob,
   useAnalyzeBookAmbience,
   useBook,
   useBookAmbience,
   useDeleteBook,
   useGenerateAmbienceAssets,
+  useStartAmbienceRender,
 } from "../../api/queries";
 import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
@@ -34,6 +36,9 @@ export function BookDetailPage() {
   const generateBeds = useGenerateAmbienceAssets();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [ambienceJobId, setAmbienceJobId] = useState<string | null>(null);
+  const ambienceJob = useAmbienceRenderJob(ambienceJobId);
+  const startAmbienceRender = useStartAmbienceRender(id ?? "");
   const book = bookQuery.data;
 
   if (bookQuery.isLoading) {
@@ -227,7 +232,41 @@ export function BookDetailPage() {
             >
               Analizar capítulos
             </Button>
+            <Button
+              onClick={() =>
+                startAmbienceRender.mutate(undefined, {
+                  onSuccess: (result) => setAmbienceJobId(result.job_id),
+                })
+              }
+              loading={startAmbienceRender.isPending}
+              disabled={!ambienceQuery.data?.plan.chapters.length}
+            >
+              Exportar ambientado
+            </Button>
+            {ambienceJob.data?.status === "completed" ? (
+              <a
+                className="button button--ghost"
+                href={apiUrl(`/books/${book.id}/ambience/audio`)}
+                download
+              >
+                Descargar M4B ambientado
+              </a>
+            ) : null}
           </div>
+          {ambienceJob.data ? (
+            <p className="hint">
+              Render: {ambienceJob.data.status}
+              {ambienceJob.data.status === "running" && ambienceJob.data.chapter_title
+                ? ` · ${ambienceJob.data.chapter_title}`
+                : null}
+            </p>
+          ) : null}
+          {ambienceJob.data?.status === "failed" ? (
+            <div className="alert" role="alert">
+              <AlertTriangle size={18} />
+              <span>{ambienceJob.data.error ?? "No se pudo exportar el ambiente."}</span>
+            </div>
+          ) : null}
           {generateBeds.isSuccess ? (
             <p className="hint">Camas listas en la biblioteca de sonidos.</p>
           ) : null}

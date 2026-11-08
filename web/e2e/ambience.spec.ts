@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { API_URL, ensureImportedBook } from "./helpers";
+import { API_URL, ensureReadyBook } from "./helpers";
 
 function wavBuffer(seconds = 0.5, frequency = 440): Buffer {
   const rate = 24_000;
@@ -28,7 +28,7 @@ function wavBuffer(seconds = 0.5, frequency = 440): Buffer {
 
 test("analiza un plan y activa el ambiente del lector", async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: API_URL });
-  const book = await ensureImportedBook(api, "e2e-reader.epub", "Ambiente E2E");
+  const book = await ensureReadyBook(api, "e2e-reader.epub", "Ambiente E2E");
 
   const assetResponse = await api.post("/api/ambience/assets/import", {
     multipart: {
@@ -90,4 +90,9 @@ test("analiza un plan y activa el ambiente del lector", async ({ page, playwrigh
     "true",
   );
   await expect(page.locator(".reader-ambience")).toContainText("lluvia de prueba");
+
+  await page.goto(`/#/books/${book.id}`);
+  await page.getByRole("button", { name: "Exportar ambientado" }).click();
+  await expect(page.getByText("Render: completed")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("link", { name: "Descargar M4B ambientado" })).toBeVisible();
 });

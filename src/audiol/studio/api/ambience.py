@@ -19,6 +19,7 @@ from audiol.ambience.models import (
     SoundKind,
 )
 from audiol.ambience.plan import AmbiencePlanError, load_ambience, save_ambience, validate_plan
+from audiol.studio.ambience_jobs import AmbienceRenderError
 from audiol.studio.errors import ApiError
 
 router = APIRouter(tags=["ambience"])
@@ -209,6 +210,41 @@ def analyze_book_ambience(
         raise ApiError(422, "invalid_ambience", str(exc)) from exc
     save_ambience(record.path, settings, plan)
     return AmbienceResponse(book_id=record.id, settings=settings, plan=plan)
+
+
+@router.post("/books/{book_id}/ambience/render", status_code=202)
+def render_book_ambience(request: Request, book_id: str) -> dict:
+    record = _record(request, book_id)
+    settings, plan = load_ambience(record.path)
+    try:
+        validate_plan(plan, record, _known_assets(request))
+    except AmbiencePlanError as exc:
+        raise ApiError(422, "invalid_ambience", str(exc)) from exc
+    if not any(chapter.bed is not None or chapter.effects for chapter in plan.chapters):
+        raise ApiError(422, "empty_ambience", "El plan no tiene cues para exportar.")
+    try:
+        job_id = request.app.state.ambience_jobs.start(record.id)
+    except AmbienceRenderError as exc:
+        raise ApiError(409, "ambience_busy", str(exc)) from exc
+    return {"job_id": job_id}
+
+
+@router.get("/books/{book_id}/ambience/audio")
+def get_ambient_audio(request: Request, book_id: str) -> FileResponse:
+    record = _record(request, book_id)
+    path = record.path / "audio" / "ambientado.m4b"
+    if not path.is_file():
+        raise ApiError(404, "ambient_audio_missing", "Todavía no hay un M4B ambientado.")
+    return FileResponse(path, media_type="audio/mp4", filename="ambientado.m4b")
+
+
+@router.get("/books/{book_id}/ambience/attribution")
+def get_ambient_attribution(request: Request, book_id: str) -> FileResponse:
+    record = _record(request, book_id)
+    path = record.path / "audio" / "ambientado-attribution.txt"
+    if not path.is_file():
+        raise ApiError(404, "attribution_missing", "El libro no tiene atribuciones de ambiente.")
+    return FileResponse(path, media_type="text/plain", filename="ambientado-attribution.txt")
 
 
 def _known_assets(request: Request) -> set[str]:
