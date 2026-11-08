@@ -1,6 +1,8 @@
 import type {
+  AmbiencePlanUpdate,
   ApiErrorPayload,
   Book,
+  BookAmbience,
   BookDetail,
   BookList,
   Bookmark,
@@ -24,6 +26,7 @@ import type {
   ReadingStateInput,
   SearchResponse,
   Settings,
+  SoundAssetList,
   Voice,
 } from "./types";
 
@@ -217,6 +220,46 @@ export const api = {
     apiFetch<BookPreferences>(`/books/${bookId}/preferences`, {
       method: "PUT",
       body: JSON.stringify(input),
+    }),
+  listAmbienceAssets: (
+    params: {
+      query?: string;
+      kind?: string;
+      license?: string;
+      approved?: boolean;
+      limit?: number;
+      offset?: number;
+    } = {},
+  ) => {
+    const search = new URLSearchParams();
+    if (params.query) search.set("query", params.query);
+    if (params.kind) search.set("kind", params.kind);
+    if (params.license) search.set("license", params.license);
+    if (params.approved !== undefined) search.set("approved", String(params.approved));
+    if (params.limit !== undefined) search.set("limit", String(params.limit));
+    if (params.offset !== undefined) search.set("offset", String(params.offset));
+    const suffix = search.toString();
+    return apiFetch<SoundAssetList>(`/ambience/assets${suffix ? `?${suffix}` : ""}`);
+  },
+  generateAmbienceAssets: (preset?: string) =>
+    apiFetch<SoundAssetList["items"]>("/ambience/assets/generate", {
+      method: "POST",
+      body: JSON.stringify({ preset: preset ?? null }),
+    }),
+  approveAmbienceAsset: (assetId: string) =>
+    apiFetch<SoundAssetList["items"][number]>(`/ambience/assets/${assetId}/approve`, {
+      method: "POST",
+    }),
+  getBookAmbience: (bookId: string) => apiFetch<BookAmbience>(`/books/${bookId}/ambience`),
+  updateBookAmbience: (bookId: string, input: AmbiencePlanUpdate) =>
+    apiFetch<BookAmbience>(`/books/${bookId}/ambience`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  analyzeBookAmbience: (bookId: string) =>
+    apiFetch<BookAmbience>(`/books/${bookId}/ambience/analyze`, {
+      method: "POST",
+      body: JSON.stringify({ provider: "heuristic" }),
     }),
   searchBook: (bookId: string, query: string) =>
     apiFetch<SearchResponse>(`/books/${bookId}/search?q=${encodeURIComponent(query)}`),

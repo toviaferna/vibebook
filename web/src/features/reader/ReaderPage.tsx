@@ -7,12 +7,14 @@ import {
   Maximize,
   Search,
   Type,
+  Waves,
 } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
 import {
+  useBookAmbience,
   useBookPreferences,
   useCreateReadingBookmark,
   useReaderChapter,
@@ -41,6 +43,7 @@ import { ReaderSettingsDialog } from "./ReaderSettingsDialog";
 import { ReaderToc } from "./ReaderToc";
 import { ReaderTocDialog } from "./ReaderTocDialog";
 import { ShortcutsDialog } from "./ShortcutsDialog";
+import { useSoundscape } from "./soundscape/useSoundscape";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useMediaSession } from "./useMediaSession";
 
@@ -56,6 +59,7 @@ export function ReaderPage() {
   const readingStateQuery = useReadingState(id);
   const settingsQuery = useSettings();
   const preferencesQuery = useBookPreferences(id);
+  const ambienceQuery = useBookAmbience(id);
   const savePreferences = useUpdateBookPreferences(id ?? "");
   const saveState = useSaveReaderState(id ?? "");
   const saveReadingState = useSaveReadingState(id ?? "");
@@ -81,6 +85,10 @@ export function ReaderPage() {
   const [follow, setFollow] = useState(true);
   const [followSuspended, setFollowSuspended] = useState(false);
   const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
+  const [ambienceVolume, setAmbienceVolume] = useState(() => {
+    const stored = Number(window.localStorage.getItem("vibebook.ambience-volume"));
+    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.35;
+  });
   const [font, setFont] = useState<ReaderFont>("serif");
   const [size, setSize] = useState(19);
   const [skipSeconds, setSkipSeconds] = useState(15);
@@ -163,6 +171,16 @@ export function ReaderPage() {
   const chapter = chapterPayload?.chapter;
   const timing = chapterPayload?.timing ?? null;
   const audioReady = chapterPayload?.audio_ready ?? manifest?.status === "ready";
+  const soundscape = useSoundscape({
+    chapterIndex,
+    ambience: ambienceQuery.data,
+    timing,
+    audioTimeMs: currentTimeMs,
+    playing: isPlaying,
+    rate: playbackRate,
+    hasAudio: audioReady,
+    volume: ambienceVolume,
+  });
   const audioSrc = id && audioReady ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
   const chapters = manifest?.chapters ?? [];
   const bookInitialOffset =
@@ -208,6 +226,10 @@ export function ReaderPage() {
   useEffect(() => {
     storeReaderPalette(palette);
   }, [palette]);
+
+  useEffect(() => {
+    window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
+  }, [ambienceVolume]);
 
   const changePalette = useCallback(
     (next: ReaderPalette) => {
@@ -597,6 +619,21 @@ export function ReaderPage() {
           </div>
         </div>
         <div className="reader-topbar-actions">
+          {soundscape.available ? (
+            <button
+              type="button"
+              className={`icon-button${soundscape.active ? " is-active" : ""}`}
+              aria-pressed={soundscape.active}
+              aria-label={soundscape.active ? "Apagar ambiente" : "Activar ambiente"}
+              title={soundscape.active ? "Apagar ambiente" : "Activar ambiente"}
+              onClick={() => {
+                soundscape.toggle();
+                savePreferences.mutate({ ambience_enabled: !soundscape.active });
+              }}
+            >
+              <Waves size={18} aria-hidden="true" />
+            </button>
+          ) : null}
           {!audioReady ? (
             <Link
               className="icon-button"
@@ -700,6 +737,44 @@ export function ReaderPage() {
           </button>
         </div>
       </header>
+
+      {soundscape.active ? (
+        <div className={`reader-ambience${audioReady ? " reader-ambience--with-player" : ""}`}>
+          <Waves size={16} aria-hidden="true" />
+          <span className="reader-ambience-scene" aria-live="polite">
+            {soundscape.scene}
+          </span>
+          <label className="sr-only" htmlFor="ambience-volume">
+            Volumen del ambiente
+          </label>
+          <input
+            id="ambience-volume"
+            className="reader-volume"
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={ambienceVolume}
+            onChange={(event) => setAmbienceVolume(Number(event.target.value))}
+          />
+          <button
+            type="button"
+            className="reader-ambience-off"
+            onClick={() => {
+              soundscape.toggle();
+              savePreferences.mutate({ ambience_enabled: false });
+            }}
+          >
+            Apagar
+          </button>
+        </div>
+      ) : null}
+
+      {soundscape.error ? (
+        <p className="reader-audio-error" role="alert">
+          {soundscape.error}
+        </p>
+      ) : null}
 
       <div className="reader-layout">
         <aside className="reader-toc-panel">

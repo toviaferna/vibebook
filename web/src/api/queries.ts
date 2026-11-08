@@ -4,6 +4,8 @@ import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
 import type {
+  AmbiencePlanUpdate,
+  BookAmbience,
   BookmarkInput,
   BookPreferences,
   ConversionInput,
@@ -30,6 +32,8 @@ export const queryKeys = {
   bookPreferences: (bookId: string) => ["book-preferences", bookId] as const,
   bookSearch: (bookId: string, query: string) => ["book-search", bookId, query] as const,
   bookmarks: (bookId: string) => ["bookmarks", bookId] as const,
+  ambienceAssets: (params: Record<string, unknown> = {}) => ["ambience-assets", params] as const,
+  bookAmbience: (bookId: string) => ["book-ambience", bookId] as const,
 };
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
@@ -342,6 +346,52 @@ export function useUpdateBookPreferences(bookId: string) {
     mutationFn: (input: Partial<BookPreferences>) => api.updateBookPreferences(bookId, input),
     onSuccess: (preferences) => {
       queryClient.setQueryData(queryKeys.bookPreferences(bookId), preferences);
+    },
+  });
+}
+
+export function useAmbienceAssets(params: Record<string, unknown> = {}) {
+  return useQuery({
+    queryKey: queryKeys.ambienceAssets(params),
+    queryFn: () => api.listAmbienceAssets(params as Parameters<typeof api.listAmbienceAssets>[0]),
+    staleTime: 15_000,
+  });
+}
+
+export function useGenerateAmbienceAssets() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (preset?: string) => api.generateAmbienceAssets(preset),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
+    },
+  });
+}
+
+export function useBookAmbience(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.bookAmbience(bookId ?? ""),
+    queryFn: () => api.getBookAmbience(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useUpdateBookAmbience(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AmbiencePlanUpdate) => api.updateBookAmbience(bookId, input),
+    onSuccess: (ambience) => {
+      queryClient.setQueryData<BookAmbience>(queryKeys.bookAmbience(bookId), ambience);
+    },
+  });
+}
+
+export function useAnalyzeBookAmbience(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.analyzeBookAmbience(bookId),
+    onSuccess: (ambience) => {
+      queryClient.setQueryData<BookAmbience>(queryKeys.bookAmbience(bookId), ambience);
     },
   });
 }

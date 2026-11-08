@@ -1,10 +1,24 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertTriangle, ArrowLeft, BookOpen, Download, Headphones, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BookOpen,
+  Download,
+  Headphones,
+  Trash2,
+  Waves,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
-import { useBook, useDeleteBook } from "../../api/queries";
+import {
+  useAnalyzeBookAmbience,
+  useBook,
+  useBookAmbience,
+  useDeleteBook,
+  useGenerateAmbienceAssets,
+} from "../../api/queries";
 import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
 import { ProgressBar } from "../../components/ProgressBar";
@@ -15,6 +29,9 @@ export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookQuery = useBook(id);
   const deleteBook = useDeleteBook();
+  const ambienceQuery = useBookAmbience(id);
+  const analyzeAmbience = useAnalyzeBookAmbience(id ?? "");
+  const generateBeds = useGenerateAmbienceAssets();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const book = bookQuery.data;
@@ -176,6 +193,66 @@ export function BookDetailPage() {
           VB
           <small>{book.id.slice(-3).toUpperCase()}</small>
         </span>
+      </section>
+
+      <section className="panel ambience-panel">
+        <div className="panel-head">
+          <div>
+            <p className="eyebrow">Ambientación</p>
+            <h2>Sonido del libro</h2>
+          </div>
+          <span className="mono muted">
+            {ambienceQuery.data?.plan.chapters.length
+              ? `${ambienceQuery.data.plan.chapters.length} ${
+                  ambienceQuery.data.plan.chapters.length === 1 ? "capítulo" : "capítulos"
+                } con plan`
+              : "Sin plan"}
+          </span>
+        </div>
+        <div className="panel-body ambience-body">
+          <p className="hint">
+            Camas y efectos locales, sin cuentas ni APIs pagas. Generá las camas procedurales,
+            analizá el texto y después activá el ambiente desde el lector.
+          </p>
+          <div className="ambience-actions">
+            <Button onClick={() => generateBeds.mutate(undefined)} loading={generateBeds.isPending}>
+              <Waves size={16} />
+              Generar camas
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => analyzeAmbience.mutate()}
+              loading={analyzeAmbience.isPending}
+              disabled={generateBeds.isPending}
+            >
+              Analizar capítulos
+            </Button>
+          </div>
+          {generateBeds.isSuccess ? (
+            <p className="hint">Camas listas en la biblioteca de sonidos.</p>
+          ) : null}
+          {analyzeAmbience.isError ? (
+            <div className="alert" role="alert">
+              <AlertTriangle size={18} />
+              <span>{errorMessage(analyzeAmbience.error)}</span>
+            </div>
+          ) : null}
+          {ambienceQuery.data?.plan.chapters.length ? (
+            <ul className="ambience-chapters">
+              {ambienceQuery.data.plan.chapters.slice(0, 4).map((chapter) => (
+                <li key={chapter.chapter_index}>
+                  <span className="mono">Capítulo {chapter.chapter_index}</span>
+                  <span>{chapter.bed?.reason ?? "sin cama"}</span>
+                  <span className="mono muted">
+                    {chapter.effects.length} {chapter.effects.length === 1 ? "efecto" : "efectos"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="hint">Todavía no hay un plan de ambiente para este libro.</p>
+          )}
+        </div>
       </section>
 
       {book.last_job ? (

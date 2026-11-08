@@ -390,6 +390,12 @@
   color: var(--ink);
 }
 
+.icon-button.is-active {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 .link-button {
   padding: 0;
   border: 0;
@@ -1401,6 +1407,51 @@ input[type="radio"] {
   margin-top: 2px;
   font-size: 0.5rem;
   letter-spacing: 0.12em;
+}
+
+.ambience-panel {
+  margin-top: var(--space-5);
+}
+
+.ambience-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ambience-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ambience-chapters {
+  display: grid;
+  gap: 1px;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  list-style: none;
+}
+
+.ambience-chapters li {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--step-1);
+}
+
+.ambience-chapters li:last-child {
+  border-bottom: 0;
+}
+
+.ambience-chapters li span:nth-child(2) {
+  overflow: hidden;
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-facts {
