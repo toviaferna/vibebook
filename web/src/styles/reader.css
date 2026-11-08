@@ -109,6 +109,25 @@
   list-style: none;
 }
 
+.reader-toc-group {
+  list-style: none;
+}
+
+.reader-toc-part {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reader-toc-list--nested {
+  margin-top: 0;
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--line);
+}
+
 .reader-toc-item {
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr) auto;

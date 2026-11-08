@@ -4,6 +4,10 @@ El lector vive en `#/books/<id>/read` y funciona tanto en el navegador como en
 la app de escritorio. Carga el manifest, el capítulo y su timing; muestra el
 texto limpio del EPUB y sincroniza el audio con el párrafo y la palabra actuales.
 
+El índice respeta la estructura real del EPUB: partes, capítulos y títulos
+exactos. Si un capítulo se llama “La casa de los relojes”, eso es lo que se
+muestra; si el TOC solo trae un número, la UI lo presenta como “Capítulo N”.
+
 ## Resaltado
 
 - El segmento activo se resalta siempre.

@@ -17,6 +17,7 @@ describe("ReaderPage", () => {
     expect(await screen.findByRole("heading", { name: "Capítulo 1" })).toBeInTheDocument();
     expect(screen.getByText("Hola,")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Índice del libro" })).toBeInTheDocument();
+    expect(screen.getByText("Parte I")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reproducir" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Seguir/ })).toBeInTheDocument();
   });

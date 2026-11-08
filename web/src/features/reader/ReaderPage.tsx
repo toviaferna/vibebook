@@ -515,7 +515,12 @@ export function ReaderPage() {
 
       <div className="reader-layout">
         <aside className="reader-toc-panel">
-          <ReaderToc chapters={chapters} currentIndex={chapterIndex} onSelect={goToChapter} />
+          <ReaderToc
+            chapters={chapters}
+            toc={manifest.toc}
+            currentIndex={chapterIndex}
+            onSelect={goToChapter}
+          />
         </aside>
 
         <main
@@ -598,6 +603,7 @@ export function ReaderPage() {
         open={tocOpen}
         onOpenChange={setTocOpen}
         chapters={chapters}
+        toc={manifest.toc}
         currentIndex={chapterIndex}
         onSelect={goToChapter}
       />

@@ -1,12 +1,13 @@
 import * as Dialog from "@radix-ui/react-dialog";
 
-import type { ManifestChapter } from "../../api/types";
+import type { ManifestChapter, TocNode } from "../../api/types";
 import { ReaderToc } from "./ReaderToc";
 
 interface ReaderTocDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   chapters: ManifestChapter[];
+  toc?: TocNode[];
   currentIndex: number;
   onSelect: (index: number) => void;
 }
@@ -15,6 +16,7 @@ export function ReaderTocDialog({
   open,
   onOpenChange,
   chapters,
+  toc,
   currentIndex,
   onSelect,
 }: ReaderTocDialogProps) {
@@ -28,6 +30,7 @@ export function ReaderTocDialog({
           </Dialog.Title>
           <ReaderToc
             chapters={chapters}
+            toc={toc}
             currentIndex={currentIndex}
             onSelect={(index) => {
               onSelect(index);
