@@ -1,4 +1,4 @@
-import { ArrowLeft, Keyboard, List, Maximize, Type } from "lucide-react";
+import { ArrowLeft, Bookmark, Keyboard, List, Maximize, Search, Type } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -14,8 +14,10 @@ import {
 import type { ChapterTiming } from "../../api/types";
 import { Button } from "../../components/Button";
 import { alignSegment, findActive } from "./alignment";
+import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderPlayer } from "./ReaderPlayer";
+import { ReaderSearchDialog } from "./ReaderSearchDialog";
 import { ReaderSettingsDialog } from "./ReaderSettingsDialog";
 import { ReaderToc } from "./ReaderToc";
 import { ReaderTocDialog } from "./ReaderTocDialog";
@@ -37,6 +39,8 @@ export function ReaderPage() {
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
   const [tocOpen, setTocOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
@@ -449,6 +453,24 @@ export function ReaderPage() {
           <button
             type="button"
             className="icon-button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Buscar en el libro"
+            title="Buscar"
+          >
+            <Search size={19} />
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setBookmarksOpen(true)}
+            aria-label="Marcadores"
+            title="Marcadores"
+          >
+            <Bookmark size={19} />
+          </button>
+          <button
+            type="button"
+            className="icon-button"
             onClick={() => setSettingsOpen(true)}
             aria-label="Ajustes de lectura"
             title="Tipografía"
@@ -561,6 +583,21 @@ export function ReaderPage() {
         chapters={chapters}
         currentIndex={chapterIndex}
         onSelect={goToChapter}
+      />
+      <ReaderSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        bookId={manifest.id}
+        onSelect={goToChapter}
+      />
+      <ReaderBookmarksDialog
+        open={bookmarksOpen}
+        onOpenChange={setBookmarksOpen}
+        bookId={manifest.id}
+        chapters={chapters}
+        currentChapter={chapterIndex}
+        currentTimeMs={currentTimeMs}
+        onSelect={(bookmark) => goToChapter(bookmark.chapter_index, bookmark.position_ms)}
       />
       <ReaderSettingsDialog
         open={settingsOpen}

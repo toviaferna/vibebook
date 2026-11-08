@@ -105,6 +105,40 @@ class ChapterResponse(BaseModel):
     timing: dict
 
 
+class SearchResult(BaseModel):
+    chapter_index: int
+    chapter_title: str
+    segment_id: str
+    position_ms: int
+    excerpt: str
+    offset: int
+
+
+class SearchResponse(BaseModel):
+    items: list[SearchResult]
+
+
+class BookmarkCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_index: int = Field(ge=1)
+    position_ms: int = Field(ge=0)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class BookmarkResponse(BaseModel):
+    id: int
+    book_id: str
+    chapter_index: int
+    position_ms: int
+    note: str | None = None
+    created_at: str
+
+
+class BookmarkListResponse(BaseModel):
+    items: list[BookmarkResponse]
+
+
 class VoiceResponse(BaseModel):
     id: str
     locale: str

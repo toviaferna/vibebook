@@ -90,6 +90,8 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
 - `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`
 - `GET/PUT /api/books/{id}/state`
+- `GET /api/books/{id}/search?q=`
+- `GET/POST /api/books/{id}/bookmarks`, `DELETE /api/books/{id}/bookmarks/{bookmark_id}`
 - `GET /api/voices`, `POST /api/voices/preview`, `GET /api/previews/{key}`
 - `GET/PUT /api/settings`
 

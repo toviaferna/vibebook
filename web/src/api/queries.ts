@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
-import type { ConversionInput, Job, Settings } from "./types";
+import type { BookmarkInput, ConversionInput, Job, Settings } from "./types";
 
 export const queryKeys = {
   books: (params: { q?: string; sort?: string } = {}) => ["books", params] as const,
@@ -15,6 +15,8 @@ export const queryKeys = {
   readerChapter: (bookId: string, chapterIndex: number) =>
     ["reader-chapter", bookId, chapterIndex] as const,
   readerState: (bookId: string) => ["reader-state", bookId] as const,
+  bookSearch: (bookId: string, query: string) => ["book-search", bookId, query] as const,
+  bookmarks: (bookId: string) => ["bookmarks", bookId] as const,
 };
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
@@ -214,6 +216,44 @@ export function useSaveReaderState(bookId: string) {
       api.saveReaderState(bookId, state),
     onSuccess: (state) => {
       queryClient.setQueryData(queryKeys.readerState(bookId), state);
+    },
+  });
+}
+
+export function useBookSearch(bookId: string | undefined, query: string) {
+  const term = query.trim();
+  return useQuery({
+    queryKey: queryKeys.bookSearch(bookId ?? "", term),
+    queryFn: () => api.searchBook(bookId as string, term),
+    enabled: Boolean(bookId) && term.length >= 2,
+    staleTime: 10_000,
+  });
+}
+
+export function useBookmarks(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.bookmarks(bookId ?? ""),
+    queryFn: () => api.listBookmarks(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useCreateBookmark(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BookmarkInput) => api.createBookmark(bookId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(bookId) });
+    },
+  });
+}
+
+export function useDeleteBookmark(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookmarkId: number) => api.deleteBookmark(bookId, bookmarkId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookmarks(bookId) });
     },
   });
 }

@@ -183,4 +183,36 @@ export interface ChapterPayload {
   timing: ChapterTiming;
 }
 
+export interface SearchResult {
+  chapter_index: number;
+  chapter_title: string;
+  segment_id: string;
+  position_ms: number;
+  excerpt: string;
+  offset: number;
+}
+
+export interface SearchResponse {
+  items: SearchResult[];
+}
+
+export interface Bookmark {
+  id: number;
+  book_id: string;
+  chapter_index: number;
+  position_ms: number;
+  note: string | null;
+  created_at: string;
+}
+
+export interface BookmarkList {
+  items: Bookmark[];
+}
+
+export interface BookmarkInput {
+  chapter_index: number;
+  position_ms: number;
+  note?: string | null;
+}
+
 export type ReaderState = BookState;

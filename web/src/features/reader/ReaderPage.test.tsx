@@ -1,6 +1,8 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
+import { HttpResponse, http } from "msw";
+import { sampleBookmarks } from "../../test/fixtures";
+import { server } from "../../test/server";
 import { renderRoute } from "../../test/utils";
 import { ReaderPage } from "./ReaderPage";
 
@@ -35,5 +37,53 @@ describe("ReaderPage", () => {
     await user.click(screen.getByRole("radio", { name: "Noche" }));
 
     expect(document.body.dataset.theme).toBe("night");
+  });
+
+  it("busca dentro del libro y abre el resultado", async () => {
+    const user = userEvent.setup();
+    renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
+
+    await screen.findByRole("heading", { name: "Capítulo 1" });
+    await user.click(screen.getByRole("button", { name: "Buscar en el libro" }));
+    await user.type(screen.getByRole("searchbox", { name: "Texto a buscar" }), "Hola");
+
+    expect(await screen.findByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Cap\. 1/ }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("agrega un marcador desde el lector", async () => {
+    let items = [...sampleBookmarks.items];
+    server.use(
+      http.get("*/api/books/:id/bookmarks", () => HttpResponse.json({ items })),
+      http.post("*/api/books/:id/bookmarks", async ({ request }) => {
+        const input = (await request.json()) as {
+          chapter_index: number;
+          position_ms: number;
+          note?: string | null;
+        };
+        const bookmark = {
+          id: 2,
+          book_id: "lazarillo-1234",
+          chapter_index: input.chapter_index,
+          position_ms: input.position_ms,
+          note: input.note ?? null,
+          created_at: "2026-11-07T10:00:00+00:00",
+        };
+        items = [...items, bookmark];
+        return HttpResponse.json(bookmark, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
+
+    await screen.findByRole("heading", { name: "Capítulo 1" });
+    await user.click(screen.getByRole("button", { name: "Marcadores" }));
+    expect(await screen.findByText("Marcador de prueba")).toBeInTheDocument();
+
+    await user.type(screen.getByRole("textbox", { name: "Nota del marcador" }), "Nuevo");
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+
+    expect(await screen.findByText("Nuevo")).toBeInTheDocument();
   });
 });
