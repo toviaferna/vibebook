@@ -265,6 +265,7 @@ export interface ChapterTiming {
   chapter_index: number;
   duration_ms: number;
   precision: "exact" | "estimated";
+  timing_offset_ms?: number;
   segments: TimingSegment[];
 }
 

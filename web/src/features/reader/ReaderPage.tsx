@@ -348,12 +348,14 @@ export function ReaderPage() {
     return result;
   }, [chapter, timing]);
 
-  const active = useMemo(() => findActive(timing, currentTimeMs), [currentTimeMs, timing]);
+  const timingOffsetMs = timing?.timing_offset_ms ?? 0;
+  const timingTimeMs = Math.max(0, currentTimeMs - timingOffsetMs);
+  const active = useMemo(() => findActive(timing, timingTimeMs), [timing, timingTimeMs]);
   const activeSegment = timing?.segments[active.segmentIndex];
   const activeSegmentId = activeSegment?.id ?? null;
   const activeAligned = activeSegmentId ? alignments.get(activeSegmentId) : undefined;
   const activeWordIndex = activeAligned
-    ? (findActiveWord(activeAligned.words, currentTimeMs) ?? -1)
+    ? (findActiveWord(activeAligned.words, timingTimeMs) ?? -1)
     : -1;
   const activeWord = activeAligned?.words[activeWordIndex];
 
@@ -725,6 +727,7 @@ export function ReaderPage() {
               alignments={alignments}
               activeSegmentId={activeSegmentId}
               activeWordIndex={activeWordIndex}
+              timingOffsetMs={timingOffsetMs}
               onSeek={seekAndPlay}
               bookId={manifest.id}
               images={manifest.images ?? []}
@@ -792,7 +795,8 @@ export function ReaderPage() {
             {activeWord ? ` "${activeWord.text}" ${activeWord.startMs}-${activeWord.endMs}` : ""}
           </span>
           <span>
-            precision {timing?.precision ?? "—"} · fps {syncFps} · rate {playbackRate}
+            precision {timing?.precision ?? "-"} · offset {timingOffsetMs} ms · fps {syncFps} · rate{" "}
+            {playbackRate}
           </span>
         </aside>
       ) : null}

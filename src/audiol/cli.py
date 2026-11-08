@@ -6,6 +6,7 @@ from pathlib import Path
 
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
+from audiol.repair import repair_book
 from audiol.studio.server import run_studio
 from audiol.studio.settings import Settings, default_library_dir
 from audiol.tts.base import validate_rate
@@ -61,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip word timing sidecars and chapter timing files",
     )
+
+    repair_parser = subparsers.add_parser(
+        "repair-sync", help="Rebuild chapter audio and timing for an old book"
+    )
+    repair_parser.add_argument("book_dir")
 
     studio_parser = subparsers.add_parser("studio", help="Run the local studio backend")
     studio_parser.add_argument("--host", default="127.0.0.1")
@@ -133,6 +139,21 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, RuntimeError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
+
+    if args.command == "repair-sync":
+        try:
+            result = repair_book(Path(args.book_dir))
+        except (ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"Reparados: {', '.join(map(str, result['rebuilt'])) or '-'} · "
+            f"offset {result['timing_offset_ms']} ms · "
+            f"duración {result['duration_ms']} ms"
+        )
+        if result["skipped"]:
+            print(f"Omitidos sin audio: {', '.join(map(str, result['skipped']))}")
+        return 0
 
     if args.command == "convert":
         try:

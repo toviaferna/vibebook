@@ -21,6 +21,7 @@ uv run vibebook --version
 uv run vibebook voices --locale es-MX
 uv run vibebook convert libro.epub --voice es-MX-JorgeNeural --rate -10%
 uv run python scripts/sync_report.py out/libro
+uv run vibebook repair-sync out/libro
 uv run pytest
 uv run ruff check .
 uv run ruff format .

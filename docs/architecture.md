@@ -102,7 +102,11 @@ romper audio ni timings existentes.
   escalar dos veces las palabras.
 - Lector: el tiempo se actualiza con RAF, el seek sincroniza al instante y el
   resaltado conserva la palabra anterior en huecos cortos; `ReaderContent` está
-  memoizado para evitar renders completos por frame.
+  memoizado para evitar renders completos por frame. El timing guarda
+  `timing_offset_ms` para el delay medido del encoder y el lector lo aplica.
+- `repair.py`: reconstruye audio/timing de libros viejos desde
+  `audio/segments`; omite capítulos sin segmentos y actualiza el manifiesto de
+  forma atómica.
 
 ## Contratos
 

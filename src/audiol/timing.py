@@ -32,6 +32,7 @@ class ChapterTiming:
     duration_ms: int
     precision: Precision
     segments: list[SegmentTiming]
+    timing_offset_ms: int = 0
 
 
 def estimate_word_timings(text: str, duration_ms: int) -> list[WordTiming]:
@@ -91,6 +92,7 @@ def build_chapter_timing_from_offsets(
     segment_durations_ms: list[int],
     segment_words: list[list[WordTiming]],
     chapter_duration_ms: int | None = None,
+    timing_offset_ms: int = 0,
 ) -> ChapterTiming:
     if not (
         len(segment_offsets_ms)
@@ -148,6 +150,7 @@ def build_chapter_timing_from_offsets(
         duration_ms=total_ms,
         precision=precision,
         segments=segments,
+        timing_offset_ms=timing_offset_ms,
     )
 
 
@@ -260,6 +263,7 @@ def write_chapter_timing(path: Path, timing: ChapterTiming) -> None:
         "chapter_index": timing.chapter_index,
         "duration_ms": timing.duration_ms,
         "precision": timing.precision,
+        "timing_offset_ms": timing.timing_offset_ms,
         "segments": [
             {
                 "id": segment.id,
@@ -343,6 +347,7 @@ def read_chapter_timing(path: Path) -> ChapterTiming:
         duration_ms=int(payload["duration_ms"]),
         precision=cast(Precision, payload["precision"]),
         segments=segments,
+        timing_offset_ms=int(payload.get("timing_offset_ms", 0)),
     )
 
 

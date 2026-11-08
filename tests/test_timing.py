@@ -278,4 +278,21 @@ def test_timing_roundtrip_json(tmp_path: Path):
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == 1
     assert payload["duration_ms"] == 500
+    assert payload["timing_offset_ms"] == 0
     assert payload["segments"][0]["words"][0]["text"] == "Hola"
+
+
+def test_timing_roundtrip_preserves_encoder_offset(tmp_path: Path):
+    chapter = _chapter("Hola")
+    timing = build_chapter_timing_from_offsets(
+        chapter,
+        [0],
+        [500],
+        [[WordTiming(text="Hola", start_ms=0, end_ms=400)]],
+        timing_offset_ms=23,
+    )
+    path = tmp_path / "chapter_001.json"
+
+    write_chapter_timing(path, timing)
+
+    assert read_chapter_timing(path).timing_offset_ms == 23

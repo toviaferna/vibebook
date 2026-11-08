@@ -135,8 +135,23 @@ uv run python scripts/sync_report.py out/libro --strict --max-drift-ms 100
 
 El pipeline arma cada capítulo desde PCM: decodifica los segmentos a mono
 24 kHz, mide frames exactos, concatena y codifica una sola vez. El timing usa
-los offsets de frames; no se vuelve a escalar el capítulo entero. El delay del
-encoder final se mide aparte y queda para la calibración de Y4.
+los offsets de frames; no se vuelve a escalar el capítulo entero.
+
+El delay del encoder se mide con un impulso sintético, se codifica/decodifica
+con los mismos parámetros y se guarda como `timing_offset_ms` en el timing. El
+lector resta ese offset al reloj antes de buscar segmento/palabra. En los
+encoders medidos hasta ahora el contenido no se desplaza, así que el offset es
+0 ms; si una plataforma introduce delay, queda corregida sin offsets mágicos.
+
+Para reparar un libro viejo que ya tiene segmentos pero un timing escalado:
+
+```bash
+uv run vibebook repair-sync out/libro
+```
+
+El comando reconstruye el audio del capítulo desde `audio/segments`, vuelve a
+medir offsets y reescribe `timings/chapter_XXX.json` y el manifiesto. Si un
+capítulo no tiene segmentos, lo omite en vez de romper el libro.
 
 El reporte compara:
 

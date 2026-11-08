@@ -8,6 +8,7 @@ import pytest
 
 from audiol.assemble import (
     build_m4b,
+    calibrate_encoder_delay_ms,
     concat_pcm_to_mp3,
     concat_to_mp3,
     probe_duration,
@@ -73,6 +74,12 @@ def test_concat_pcm_to_mp3_tracks_exact_offsets(tmp_path: Path):
     assert result.durations_ms == [500, 250]
     assert result.total_ms == 750
     assert abs(probe_duration(output) - 0.75) < 0.15
+
+
+def test_calibrate_encoder_delay_is_bounded():
+    delay = calibrate_encoder_delay_ms()
+
+    assert -20 <= delay <= 20
 
 
 def test_concat_pcm_to_mp3_rejects_empty(tmp_path: Path):
