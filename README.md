@@ -248,6 +248,7 @@ Documentación:
 - [Arquitectura](docs/architecture.md)
 - [Desarrollo](docs/development.md)
 - [Release](docs/release.md)
+- [Rendimiento](docs/performance.md)
 - [Changelog](CHANGELOG.md)
 - [Roadmap](docs/roadmap.md)
 - [Bake-off histórico](docs/archive/bakeoff-2026-10.md)
