@@ -53,3 +53,6 @@ settings del Studio.
 - No hay búsqueda ni marcadores todavía (T32).
 - La vista del EPUB original queda para T30.
 - El resaltado por palabra depende de los timings generados por el motor TTS.
+- Azure sin el extra `azure-sdk` usa REST y no entrega word boundaries; esos
+  capítulos usan resaltado por segmento. Instalá `uv sync --extra azure-sdk`
+  para obtener timings por palabra.
