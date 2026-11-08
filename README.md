@@ -146,7 +146,9 @@ sincronización.
 ## Interfaz web
 
 La app web incluye biblioteca, importación, estudio de conversión, lector
-sincronizado y ajustes.
+sincronizado y ajustes. La biblioteca usa un estante de portadas 4:5 con lomo y
+progreso; el detalle agrega colofón y ficha, y el lector respeta la paleta
+elegida por libro.
 
 ```powershell
 cd web

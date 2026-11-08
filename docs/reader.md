@@ -35,6 +35,10 @@ app clara puede tener un lector noche y una app oscura puede tener papel. La
 preferencia se guarda en settings y en `localStorage`; el tema de la app se
 resuelve antes del primer paint desde `index.html`.
 
+Cada libro puede sobrescribir la paleta y el modo de lectura con
+`book_preferences`; el lector los aplica al abrir y los guarda cuando cambiás
+de vista o de paleta. El valor global queda como default para libros nuevos.
+
 `reader_theme` quedó como alias de compatibilidad: `light → paper`,
 `sepia → sepia`, `night → night`.
 

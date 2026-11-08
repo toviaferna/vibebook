@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { sampleBookmarks, sampleChapter, sampleManifest } from "../../test/fixtures";
@@ -83,6 +83,32 @@ describe("ReaderPage", () => {
 
     expect(document.querySelector(".reader-shell")).toHaveAttribute("data-reader-palette", "night");
     expect(document.documentElement.dataset.theme).not.toBe("night");
+  });
+
+  it("respeta la paleta guardada por libro", async () => {
+    server.use(
+      http.get("*/api/books/:id/preferences", () =>
+        HttpResponse.json({
+          book_id: "lazarillo-1234",
+          reader_mode: "text",
+          reader_palette: "sepia",
+          reader_font: null,
+          reader_size: null,
+          page_turn: null,
+          ambience_enabled: null,
+          updated_at: null,
+        }),
+      ),
+    );
+    renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
+
+    expect(await screen.findByRole("heading", { name: "Capítulo 1" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.querySelector(".reader-shell")).toHaveAttribute(
+        "data-reader-palette",
+        "sepia",
+      );
+    });
   });
 
   it("permite alternar entre texto y EPUB original", async () => {

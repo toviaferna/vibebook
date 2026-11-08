@@ -13,6 +13,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
 import {
+  useBookPreferences,
   useCreateReadingBookmark,
   useReaderChapter,
   useReaderManifest,
@@ -21,6 +22,7 @@ import {
   useSaveReaderState,
   useSaveReadingState,
   useSettings,
+  useUpdateBookPreferences,
   useUpdateSettings,
 } from "../../api/queries";
 import type { ChapterTiming, ReadingBookmark } from "../../api/types";
@@ -53,6 +55,8 @@ export function ReaderPage() {
   const stateQuery = useReaderState(id);
   const readingStateQuery = useReadingState(id);
   const settingsQuery = useSettings();
+  const preferencesQuery = useBookPreferences(id);
+  const savePreferences = useUpdateBookPreferences(id ?? "");
   const saveState = useSaveReaderState(id ?? "");
   const saveReadingState = useSaveReadingState(id ?? "");
   const createReadingBookmark = useCreateReadingBookmark(id ?? "");
@@ -186,8 +190,40 @@ export function ReaderPage() {
   }, [settings]);
 
   useEffect(() => {
+    const preferences = preferencesQuery.data;
+    if (!preferences) {
+      return;
+    }
+    if (preferences.reader_palette) {
+      setPalette(preferences.reader_palette);
+    }
+    if (preferences.reader_font) {
+      setFont(preferences.reader_font);
+    }
+    if (preferences.reader_size) {
+      setSize(preferences.reader_size);
+    }
+  }, [preferencesQuery.data]);
+
+  useEffect(() => {
     storeReaderPalette(palette);
   }, [palette]);
+
+  const changePalette = useCallback(
+    (next: ReaderPalette) => {
+      setPalette(next);
+      savePreferences.mutate({ reader_palette: next });
+    },
+    [savePreferences],
+  );
+
+  const changeView = useCallback(
+    (next: "book" | "album" | "text" | "original") => {
+      setView(next);
+      savePreferences.mutate({ reader_mode: next === "album" ? "book" : next });
+    },
+    [savePreferences],
+  );
 
   useEffect(() => {
     if (!prefsSeeded.current) {
@@ -221,12 +257,13 @@ export function ReaderPage() {
   }, [manifest, setRate, stateQuery.data]);
 
   useEffect(() => {
-    if (viewInitialized.current || !manifest || !chapterPayload) {
+    if (viewInitialized.current || !manifest || !chapterPayload || preferencesQuery.isLoading) {
       return;
     }
-    setView(chapterPayload.audio_ready ? "text" : "book");
+    const preferred = preferencesQuery.data?.reader_mode;
+    setView(preferred ?? (chapterPayload.audio_ready ? "text" : "book"));
     viewInitialized.current = true;
-  }, [chapterPayload, manifest]);
+  }, [chapterPayload, manifest, preferencesQuery.data?.reader_mode, preferencesQuery.isLoading]);
 
   const handleBookPage = useCallback(
     (page: BookPageState) => {
@@ -572,25 +609,25 @@ export function ReaderPage() {
           ) : null}
           <fieldset className="reader-view-toggle">
             <legend className="sr-only">Vista de lectura</legend>
-            <button type="button" aria-pressed={view === "book"} onClick={() => setView("book")}>
+            <button type="button" aria-pressed={view === "book"} onClick={() => changeView("book")}>
               Libro
             </button>
             {manifest.images?.length ? (
               <button
                 type="button"
                 aria-pressed={view === "album"}
-                onClick={() => setView("album")}
+                onClick={() => changeView("album")}
               >
                 Álbum
               </button>
             ) : null}
-            <button type="button" aria-pressed={view === "text"} onClick={() => setView("text")}>
+            <button type="button" aria-pressed={view === "text"} onClick={() => changeView("text")}>
               Texto
             </button>
             <button
               type="button"
               aria-pressed={view === "original"}
-              onClick={() => setView("original")}
+              onClick={() => changeView("original")}
             >
               Original
             </button>
@@ -847,7 +884,7 @@ export function ReaderPage() {
         font={font}
         size={size}
         follow={follow}
-        onPalette={setPalette}
+        onPalette={changePalette}
         onFont={setFont}
         onSize={setSize}
         onFollow={setFollow}

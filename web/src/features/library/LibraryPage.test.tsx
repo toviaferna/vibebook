@@ -12,7 +12,7 @@ describe("LibraryPage", () => {
     renderWithProviders(<LibraryPage />);
 
     expect((await screen.findAllByText("El Lazarillo de Tormes")).length).toBeGreaterThan(0);
-    expect(screen.getByText("Anónimo")).toBeInTheDocument();
+    expect(screen.getAllByText("Anónimo").length).toBeGreaterThan(0);
     expect(screen.getByText("Continuar")).toBeInTheDocument();
     expect(screen.getByText("Listo")).toBeInTheDocument();
   });
@@ -41,10 +41,10 @@ describe("LibraryPage", () => {
     const user = userEvent.setup();
     renderWithProviders(<LibraryPage />);
 
-    await screen.findByText("Solo texto");
+    await screen.findAllByText("Solo texto");
     await user.click(screen.getByRole("button", { name: "Sin audio" }));
 
-    expect(screen.getByText("Solo texto")).toBeInTheDocument();
+    expect(screen.getAllByText("Solo texto").length).toBeGreaterThan(0);
     expect(screen.queryByText("El Lazarillo de Tormes")).not.toBeInTheDocument();
   });
 

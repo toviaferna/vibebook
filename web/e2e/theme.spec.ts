@@ -19,7 +19,7 @@ test("separa el tema de la app de la paleta del lector", async ({ page, playwrig
   await api.dispose();
 
   await page.goto("/#/settings");
-  await page.getByRole("radio", { name: "Oscuro" }).check();
+  await page.getByText("Oscuro", { exact: true }).click();
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByRole("button", { name: "Guardado" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -29,7 +29,7 @@ test("separa el tema de la app de la paleta del lector", async ({ page, playwrig
 
   await page.goto(`/#/books/${book.id}/read`);
   await page.getByRole("button", { name: "Ajustes de lectura" }).click();
-  await page.getByRole("radio", { name: "Noche" }).check();
+  await page.getByText("Noche", { exact: true }).click();
 
   await expect(page.locator(".reader-shell")).toHaveAttribute("data-reader-palette", "night");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
