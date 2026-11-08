@@ -8,6 +8,18 @@ El índice respeta la estructura real del EPUB: partes, capítulos y títulos
 exactos. Si un capítulo se llama “La casa de los relojes”, eso es lo que se
 muestra; si el TOC solo trae un número, la UI lo presenta como “Capítulo N”.
 
+## Leer sin audio
+
+Un libro importado se puede abrir en el lector sin convertirlo. El capítulo
+llega con `timing: null` y el lector:
+
+- muestra el texto y el índice;
+- oculta el reproductor y los marcadores de audio;
+- mantiene búsqueda, tipografía y vista Original;
+- ofrece un acceso directo para convertir el libro a audiolibro.
+
+Cuando la conversión termina, el mismo libro muestra el player y el karaoke.
+
 ## Resaltado
 
 - El segmento activo se resalta siempre.

@@ -4,6 +4,10 @@
   background: var(--paper);
 }
 
+.reader-shell.reader-shell--no-audio {
+  padding-bottom: var(--space-6);
+}
+
 .reader-topbar {
   position: sticky;
   top: 0;
