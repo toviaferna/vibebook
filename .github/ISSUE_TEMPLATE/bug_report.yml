@@ -1,0 +1,69 @@
+name: Bug report
+description: Reportar un fallo reproducible de Vibebook
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. No incluyas claves, EPUBs con DRM ni datos personales.
+        Para vulnerabilidades, usá SECURITY.md en lugar de un issue público.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumen
+      description: ¿Qué pasó y qué esperabas que pasara?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Abrir ...
+        2. Importar ...
+        3. Ver ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Dónde ocurre
+      options:
+        - Biblioteca / importación
+        - Estudio / conversión
+        - Lector / karaoke
+        - App de escritorio
+        - CLI
+        - API
+        - Otro
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión
+      description: Tag, commit o versión mostrada por la app.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Entorno
+      description: Windows/macOS/Linux, navegador, WebView2, voz/motor.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs o capturas
+      description: Pegá logs sin tokens ni rutas personales.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmaciones
+      options:
+        - label: Revisé que no sea una vulnerabilidad de seguridad.
+          required: true
+        - label: No incluí claves, tokens ni datos personales.
+          required: true

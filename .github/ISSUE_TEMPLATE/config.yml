@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/toviaferna/vibebook/security/advisories/new
+    about: No abras un issue público para problemas de seguridad.
+  - name: Guía de contribución
+    url: https://github.com/toviaferna/vibebook/blob/main/CONTRIBUTING.md
+    about: Entorno, tests, estilo y proceso de PR.

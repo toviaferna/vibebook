@@ -1,0 +1,46 @@
+name: Feature request
+description: Proponer una mejora para Vibebook
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema o necesidad
+      description: ¿Qué te falta o qué te resulta incómodo hoy?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Propuesta
+      description: ¿Cómo te gustaría que funcionara?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: ¿Probaste otra forma o herramienta?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Lector / karaoke
+        - Biblioteca / importación
+        - Estudio / conversión
+        - App de escritorio
+        - CLI / API
+        - Documentación
+        - Release / distribución
+        - Otro
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Alcance
+      options:
+        - label: Estoy dispuesto/a a implementarlo o ayudar con tests.
+        - label: Esto no requiere servicios en la nube ni telemetría.
