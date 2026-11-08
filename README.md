@@ -205,7 +205,8 @@ podés leer en noche con la app en claro, o al revés.
 
 Si el libro tiene un plan de ambientación, el lector muestra un toggle de
 ambiente con volumen y escena. También funciona en libros sin audio (A4b), con
-una cama suave de fondo.
+una cama suave de fondo. Desde el detalle podés generar camas, analizar el plan
+y exportar un M4B ambientado sin tocar el original.
 
 Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
 cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`

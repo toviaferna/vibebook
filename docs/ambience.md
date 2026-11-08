@@ -122,6 +122,27 @@ En el detalle, “Generar camas” crea las seis camas procedurales y “Analiza
 capítulos” propone el plan heurístico. El plan se puede editar por API; la UI de
 edición fina queda para una iteración posterior.
 
+## M4B ambientado (A5)
+
+`POST /api/books/{id}/ambience/render` crea un job separado
+(`kind=ambience_render`) y devuelve `{job_id}`. El job:
+
+1. valida el plan contra el manifiesto y la biblioteca;
+2. mezcla cada capítulo con `ffmpeg`:
+   - voz + cama con `sidechaincompress` (la voz abre el ducking),
+   - efectos con `adelay` y `amix`,
+   - `alimiter` para evitar clipping;
+3. escribe WAV intermedios y los convierte en `audio/ambientado.m4b`;
+4. conserva el M4B original;
+5. escribe `audio/ambientado-attribution.txt` si hay assets CC-BY.
+
+El original no se sobrescribe. El resultado se descarga con
+`GET /api/books/{id}/ambience/audio`; las atribuciones con
+`GET /api/books/{id}/ambience/attribution`.
+
+Desde el detalle, “Exportar ambientado” inicia el job y el botón de descarga
+aparece al completarse.
+
 ## Pruebas
 
 ```bash
@@ -139,11 +160,12 @@ del lector.
 
 ## Pendiente
 
-- A5: M4B ambientado con ducking.
 - A6: Freesound y plugin IA local opcionales.
 
 Limitaciones actuales:
 
 - la cama se mantiene al pausar, pero los efectos ya pasados no se repiten;
 - la edición visual del plan (mover/eliminar cues) todavía es por API;
-- los efectos se limitan a assets existentes; no se generan por IA.
+- los efectos se limitan a assets existentes; no se generan por IA;
+- el M4B ambientado se renderiza en un job de un solo worker; no hay cola
+  paralela para varios libros.

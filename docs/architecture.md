@@ -92,6 +92,8 @@ blur decorativos se eliminaron para cuidar el rendimiento.
 - `analyzer.py`: heurístico español offline; no inventa segment IDs.
 - `web/src/features/reader/soundscape/useSoundscape.ts`: mezcla Web Audio,
   loop, ducking y cues; solo arranca con un gesto del usuario.
+- `mix.py` y `studio/ambience_jobs.py`: render de un M4B ambientado en un job
+  separado, con sidechain, límites de duración y atribuciones CC-BY.
 
 Los assets importados quedan sin aprobar hasta que el usuario los escucha. El
 flujo base no requiere red, cuenta ni API paga.

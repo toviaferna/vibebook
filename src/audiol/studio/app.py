@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from audiol.ambience.library import AmbienceLibrary
+from audiol.studio.ambience_jobs import AmbienceJobManager
 from audiol.studio.api import ambience, books, engines, jobs, reader, voices
 from audiol.studio.api import settings as settings_api
 from audiol.studio.db import Database
@@ -42,6 +43,7 @@ def create_app(
         allow_fake=settings.allow_fake,
         plugins=plugins,
     )
+    ambience_jobs = AmbienceJobManager(db, library, ambience_library)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -59,6 +61,7 @@ def create_app(
     app.state.library = library
     app.state.db = db
     app.state.ambience = ambience_library
+    app.state.ambience_jobs = ambience_jobs
     app.state.jobs = job_manager
     app.state.plugins = plugins
     app.state.provider_factory = resolved_factory
