@@ -494,6 +494,39 @@ input[type="radio"] {
   margin-bottom: var(--space-5);
 }
 
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: calc(var(--space-2) * -1) 0 var(--space-5);
+  padding: 0;
+  border: 0;
+}
+
+.library-filter {
+  min-height: 30px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.library-filter:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.library-filter[aria-pressed="true"] {
+  background: var(--surface-raised);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
 .search-box {
   position: relative;
   flex: 1 1 260px;

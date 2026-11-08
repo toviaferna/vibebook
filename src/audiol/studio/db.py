@@ -235,9 +235,13 @@ class Database:
                 SELECT b.*,
                        COALESCE(s.position_ms, 0) AS position_ms,
                        COALESCE(s.chapter_index, 1) AS chapter_index,
-                       COALESCE(s.playback_rate, 1.0) AS playback_rate
+                       COALESCE(s.playback_rate, 1.0) AS playback_rate,
+                       COALESCE(r.percent, 0) AS reading_progress,
+                       r.chapter_index AS reading_chapter_index,
+                       r.updated_at AS reading_updated_at
                 FROM books b
                 LEFT JOIN book_state s ON s.book_id = b.id
+                LEFT JOIN reading_state r ON r.book_id = b.id
                 {where}
                 ORDER BY {SORT_SQL[sort]}
                 LIMIT ? OFFSET ?
@@ -253,9 +257,13 @@ class Database:
                 SELECT b.*,
                        COALESCE(s.position_ms, 0) AS position_ms,
                        COALESCE(s.chapter_index, 1) AS chapter_index,
-                       COALESCE(s.playback_rate, 1.0) AS playback_rate
+                       COALESCE(s.playback_rate, 1.0) AS playback_rate,
+                       COALESCE(r.percent, 0) AS reading_progress,
+                       r.chapter_index AS reading_chapter_index,
+                       r.updated_at AS reading_updated_at
                 FROM books b
                 LEFT JOIN book_state s ON s.book_id = b.id
+                LEFT JOIN reading_state r ON r.book_id = b.id
                 WHERE b.id = ?
                 """,
                 (book_id,),

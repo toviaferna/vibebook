@@ -21,21 +21,48 @@ const SORT_OPTIONS = [
   { value: "progress", label: "Progreso" },
 ];
 
+type LibraryFilter = "all" | "reading" | "audio" | "no-audio";
+
+const FILTER_OPTIONS: { value: LibraryFilter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "reading", label: "Leyendo" },
+  { value: "audio", label: "Con audio" },
+  { value: "no-audio", label: "Sin audio" },
+];
+
+function matchesFilter(book: Book, filter: LibraryFilter): boolean {
+  if (filter === "reading") {
+    return book.reading_progress > 0;
+  }
+  if (filter === "audio") {
+    return book.status === "ready";
+  }
+  if (filter === "no-audio") {
+    return book.status !== "ready";
+  }
+  return true;
+}
+
 export function LibraryPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recent");
+  const [filter, setFilter] = useState<LibraryFilter>("all");
   const debouncedQuery = useDebouncedValue(query);
   const books = useBooks({ q: debouncedQuery, sort });
   const rescan = useRescan();
   const items = books.data?.items ?? [];
-  const continueBook = items.find((book) => book.progress > 0 && book.status === "ready");
+  const filteredItems = items.filter((book) => matchesFilter(book, filter));
+  const continueBook =
+    items.find((book) => book.reading_progress > 0) ??
+    items.find((book) => book.progress > 0 && book.status === "ready");
+  const hasActiveFilter = filter !== "all" || query.length > 0;
 
   return (
     <div className="page">
       <PageHeader
         eyebrow="Biblioteca"
         title="Tu taller de escucha"
-        subtitle="Convierte EPUB en audiolibros y retoma la lectura donde la dejaste."
+        subtitle="Importá EPUB, leelos a tu ritmo y convertí a audiolibro solo cuando quieras."
         actions={
           <>
             <IconButton
@@ -53,7 +80,7 @@ export function LibraryPage() {
         }
       />
 
-      {continueBook ? <ContinueListening book={continueBook} /> : null}
+      {continueBook && !hasActiveFilter ? <ContinueBook book={continueBook} /> : null}
 
       <div className="library-toolbar">
         <div className="search-box">
@@ -84,10 +111,28 @@ export function LibraryPage() {
             ))}
           </select>
           <span className="mono muted">
-            {books.data?.total ?? 0} {pluralize(books.data?.total ?? 0, "libro", "libros")}
+            {filteredItems.length} {pluralize(filteredItems.length, "libro", "libros")}
           </span>
         </div>
       </div>
+
+      <fieldset className="library-filters">
+        <legend className="sr-only">Filtrar biblioteca</legend>
+        {FILTER_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className="library-filter"
+            aria-pressed={filter === option.value}
+            onClick={() => setFilter(option.value)}
+          >
+            {option.label}
+            {option.value === "reading" && items.some((book) => book.reading_progress > 0)
+              ? ` (${items.filter((book) => book.reading_progress > 0).length})`
+              : null}
+          </button>
+        ))}
+      </fieldset>
 
       {books.isLoading ? <LibrarySkeleton /> : null}
 
@@ -110,7 +155,7 @@ export function LibraryPage() {
           description={
             query
               ? "Probá con otro título, autor o limpiá la búsqueda."
-              : "Arrastrá un EPUB o elegí un archivo para empezar. La conversión se puede pausar y retomar."
+              : "Arrastrá un EPUB o elegí un archivo para empezar. No hace falta convertirlo para leerlo."
           }
           action={
             query ? (
@@ -124,9 +169,17 @@ export function LibraryPage() {
         />
       ) : null}
 
-      {items.length > 0 ? (
+      {!books.isLoading && !books.isError && items.length > 0 && filteredItems.length === 0 ? (
+        <EmptyState
+          title="No hay libros con este filtro"
+          description="Probá con otro filtro o volvé a ver toda la biblioteca."
+          action={<Button onClick={() => setFilter("all")}>Ver todos</Button>}
+        />
+      ) : null}
+
+      {filteredItems.length > 0 ? (
         <div className="book-grid">
-          {items.map((book) => (
+          {filteredItems.map((book) => (
             <BookCard book={book} key={book.id} />
           ))}
         </div>
@@ -135,22 +188,32 @@ export function LibraryPage() {
   );
 }
 
-function ContinueListening({ book }: { book: Book }) {
+function ContinueBook({ book }: { book: Book }) {
+  const reading = book.reading_progress > 0;
+  const progress = reading ? book.reading_progress : book.progress;
+  const chapter =
+    reading && book.last_read_chapter_index ? ` · Capítulo ${book.last_read_chapter_index}` : "";
+
   return (
-    <section className="continue-strip" aria-label="Continuar escuchando">
+    <section
+      className="continue-strip"
+      aria-label={reading ? "Continuar leyendo" : "Continuar escuchando"}
+    >
       <div>
         <p className="eyebrow">Continuar</p>
         <h2>{book.title}</h2>
         <p>
-          {formatPercent(book.progress)} escuchado · {formatDuration(book.duration_ms)}
+          {formatPercent(progress)} {reading ? "leído" : "escuchado"}
+          {chapter}
+          {!reading && book.duration_ms ? ` · ${formatDuration(book.duration_ms)}` : null}
         </p>
       </div>
       <div className="continue-actions">
         <Link className="button button--primary" to={`/books/${book.id}/read`}>
           Continuar leyendo
         </Link>
-        <Link className="button button--ghost" to={`/books/${book.id}/studio`}>
-          Ver estudio
+        <Link className="button button--ghost" to={`/books/${book.id}`}>
+          Ver detalle
         </Link>
       </div>
     </section>

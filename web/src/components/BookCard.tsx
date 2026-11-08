@@ -14,6 +14,9 @@ export function BookCard({ book }: { book: Book }) {
     .map((word) => word[0])
     .join("")
     .toUpperCase();
+  const reading = book.reading_progress > 0;
+  const progress = reading ? book.reading_progress : book.progress;
+  const progressLabel = reading ? "leído" : "escuchado";
 
   return (
     <Link className="book-card" to={`/books/${book.id}`}>
@@ -35,10 +38,12 @@ export function BookCard({ book }: { book: Book }) {
           <StatusChip status={book.status} />
           <span className="mono muted">{formatDuration(book.duration_ms)}</span>
         </div>
-        {book.progress > 0 ? (
+        {progress > 0 ? (
           <div className="book-progress">
-            <ProgressBar value={book.progress} label={`Progreso de ${book.title}`} />
-            <span className="mono muted">{formatPercent(book.progress)} escuchado</span>
+            <ProgressBar value={progress} label={`Progreso de ${book.title}`} />
+            <span className="mono muted">
+              {formatPercent(progress)} {progressLabel}
+            </span>
           </div>
         ) : null}
       </div>

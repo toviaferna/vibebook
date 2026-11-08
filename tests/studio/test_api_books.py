@@ -33,6 +33,31 @@ def test_import_and_list_books(client, imported):
     assert payload["items"][0]["id"] == imported["id"]
 
 
+def test_book_exposes_reading_progress(client, imported):
+    initial = client.get(f"/api/books/{imported['id']}").json()
+    assert initial["reading_progress"] == 0
+    assert initial["last_read_chapter_index"] is None
+
+    client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={
+            "chapter_index": 1,
+            "char_offset": 5,
+            "page_index": 1,
+            "page_count": 4,
+            "percent": 0.42,
+        },
+    )
+
+    detail = client.get(f"/api/books/{imported['id']}").json()
+    listed = client.get("/api/books").json()["items"][0]
+
+    assert detail["reading_progress"] == 0.42
+    assert detail["last_read_chapter_index"] == 1
+    assert listed["reading_progress"] == 0.42
+    assert listed["last_read_chapter_index"] == 1
+
+
 def test_import_requires_token(unauth_client, tiny_epub: Path):
     response = unauth_client.get("/api/books")
 

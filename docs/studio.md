@@ -34,7 +34,7 @@ desarrollo se habilita el motor `Fake` para probar sin red.
 
 ## Interfaz
 
-- Biblioteca con búsqueda, orden, progreso y estado.
+- Biblioteca con búsqueda, orden, filtros, progreso de lectura y estado.
 - Importación por arrastre o selector de archivo.
 - Estudio por pasos: libro, voz, salida y conversión.
 - Progreso en vivo, cancelación y reanudación.

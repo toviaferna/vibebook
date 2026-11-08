@@ -25,6 +25,9 @@ export const sampleBook: Book = {
   progress: 0.25,
   last_position_ms: 900_000,
   last_chapter_index: 3,
+  reading_progress: 0.4,
+  last_read_chapter_index: 2,
+  last_read_at: "2026-11-07T10:00:00+00:00",
   created_at: "2026-11-07T10:00:00+00:00",
   updated_at: "2026-11-07T10:00:00+00:00",
 };

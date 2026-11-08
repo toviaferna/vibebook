@@ -33,6 +33,9 @@ export interface Book {
   progress: number;
   last_position_ms: number;
   last_chapter_index: number;
+  reading_progress: number;
+  last_read_chapter_index: number | null;
+  last_read_at: string | null;
   created_at: string;
   updated_at: string;
 }

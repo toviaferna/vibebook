@@ -84,6 +84,9 @@ class BookResponse(BaseModel):
     progress: float = 0.0
     last_position_ms: int = 0
     last_chapter_index: int = 1
+    reading_progress: float = 0.0
+    last_read_chapter_index: int | None = None
+    last_read_at: str | None = None
     created_at: str
     updated_at: str
 
