@@ -114,5 +114,8 @@ ESPEAK = EngineSpec(
     license="GPL-3.0",
     source_url="https://github.com/espeak-ng/espeak-ng",
     description="Fallback local pequeño y robótico; requiere espeak-ng.",
-    implemented=False,
+    config_schema={
+        "binary_env": "VIBEBOOK_ESPEAK_BIN",
+        "path_env": "VIBEBOOK_ESPEAK_PATH",
+    },
 )

@@ -165,7 +165,7 @@ def _real_piper_available() -> bool:
 def test_real_piper_synthesizes_wav(tmp_path):
     provider = PiperProvider()
     result = provider.synthesize(
-        "Hola. Esta es una prueba real de Piper.",
+        "Hola. Esta es una prueba real de Piper: canción, niño, corazón.",
         DEFAULT_PIPER_VOICE,
         tmp_path / "real.wav",
         rate="-10%",

@@ -25,8 +25,9 @@ especialmente las de los componentes copyleft.
 | Beautiful Soup | MIT | Limpieza de HTML |
 | lxml | BSD-3-Clause | Parser XML/HTML |
 | Piper | GPL-3.0-or-later | Motor TTS local, proceso separado |
+| eSpeak NG | GPL-3.0-or-later | Fallback TTS local, proceso separado |
 | Voz Piper `es_MX-ald-medium` | Unlicense (dataset Aldo); modelo Piper | Voz local por defecto |
-| edge-tts | LGPL-3.0 | Motor TTS por defecto |
+| edge-tts | LGPL-3.0 | Motor TTS legado |
 | Mutagen | GPL-2.0-or-later | Metadata de audio |
 | platformdirs | MIT | Rutas de datos del usuario |
 | requests | Apache-2.0 | Cliente HTTP |
@@ -41,10 +42,10 @@ especialmente las de los componentes copyleft.
 - **EbookLib (AGPL-3.0)** y **Mutagen (GPL-2.0-or-later)** son copyleft. La
   distribución de binarios puede exigir ofrecer el código fuente correspondiente
   y cumplir las condiciones de cada licencia.
-- **Piper (GPL-3.0-or-later)** se ejecuta como proceso separado. Si se
-  distribuye el binario, hay que ofrecer el código fuente correspondiente y
-  conservar sus avisos. La voz `es_MX-ald-medium` se descarga desde
-  `rhasspy/piper-voices`; su dataset usa Unlicense.
+- **Piper y eSpeak NG (GPL-3.0-or-later)** se ejecutan como procesos separados.
+  Si se distribuyen sus binarios, hay que ofrecer el código fuente
+  correspondiente y conservar sus avisos. La voz `es_MX-ald-medium` se descarga
+  desde `rhasspy/piper-voices`; su dataset usa Unlicense.
 - **edge-tts (LGPL-3.0)** se usa como dependencia; revisar si el binario
   empaquetado requiere permitir el reemplazo de la biblioteca.
 - **FFmpeg** se incluye como ejecutable separado. La licencia depende del build
@@ -58,6 +59,7 @@ especialmente las de los componentes copyleft.
 
 - https://github.com/tauri-apps/tauri
 - https://github.com/OHF-Voice/piper1-gpl
+- https://github.com/espeak-ng/espeak-ng
 - https://huggingface.co/rhasspy/piper-voices
 - https://github.com/rany2/edge-tts
 - https://github.com/aerkalov/ebooklib

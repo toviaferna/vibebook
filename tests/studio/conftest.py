@@ -8,6 +8,13 @@ from audiol.studio.settings import Settings
 from audiol.tts.fake import FakeProvider
 
 
+@pytest.fixture(autouse=True)
+def isolate_local_engines(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(

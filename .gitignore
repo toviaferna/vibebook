@@ -10,6 +10,7 @@ portable/
 checksums.txt
 packaging/piper/bin/
 packaging/piper/voices/
+packaging/espeak/bin/
 __pycache__/
 *.pyc
 *.egg-info/

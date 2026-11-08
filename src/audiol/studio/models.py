@@ -34,6 +34,7 @@ class PreviewRequest(BaseModel):
 class SettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    default_engine: Literal["piper", "espeak", "edge", "azure"] | None = None
     default_voice: str | None = None
     default_rate: str | None = None
     reader_theme: Literal["light", "sepia", "night"] | None = None
@@ -244,6 +245,7 @@ class PreviewResponse(BaseModel):
 
 class SettingsResponse(BaseModel):
     library_dir: str
+    default_engine: str | None
     default_voice: str
     default_rate: str
     reader_theme: str

@@ -4,14 +4,17 @@ import pytest
 
 from audiol.tts.azure import AzureProvider
 from audiol.tts.edge import EdgeProvider
+from audiol.tts.espeak import EspeakProvider
 from audiol.tts.fake import FakeProvider
 from audiol.tts.piper import PiperProvider
 from audiol.tts.registry import (
     ENGINES,
+    default_voice_for_engine,
     engine_available,
     get_engine,
     list_engines,
     make_provider,
+    preferred_engine,
 )
 
 
@@ -89,6 +92,24 @@ def test_piper_is_available_with_binary_and_voice(tmp_path: Path, monkeypatch):
     assert engine_available("piper") is True
 
 
+def _install_fake_espeak(tmp_path: Path, monkeypatch) -> None:
+    binary = tmp_path / "espeak-ng.exe"
+    binary.write_bytes(b"fake")
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(binary))
+
+
+def test_espeak_is_unavailable_without_binary(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+
+    assert engine_available("espeak") is False
+
+
+def test_espeak_is_available_with_binary(tmp_path: Path, monkeypatch):
+    _install_fake_espeak(tmp_path, monkeypatch)
+
+    assert engine_available("espeak") is True
+
+
 def test_edge_is_available():
     assert engine_available("edge") is True
 
@@ -119,9 +140,40 @@ def test_make_provider_returns_piper(tmp_path: Path, monkeypatch):
     assert isinstance(make_provider("piper"), PiperProvider)
 
 
-def test_make_provider_rejects_unimplemented_engine():
-    with pytest.raises(ValueError, match="not implemented yet"):
-        make_provider("espeak")
+def test_make_provider_returns_espeak(tmp_path: Path, monkeypatch):
+    _install_fake_espeak(tmp_path, monkeypatch)
+
+    assert isinstance(make_provider("espeak"), EspeakProvider)
+
+
+def test_preferred_engine_prefers_piper(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+    _install_fake_piper(tmp_path, monkeypatch)
+
+    assert preferred_engine() == "piper"
+
+
+def test_preferred_engine_falls_back_to_espeak(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    _install_fake_espeak(tmp_path, monkeypatch)
+
+    assert preferred_engine() == "espeak"
+
+
+def test_preferred_engine_returns_none_without_local_engines(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+
+    assert preferred_engine() is None
+
+
+def test_default_voice_for_engine():
+    assert default_voice_for_engine("piper") == "es_MX-ald-medium"
+    assert default_voice_for_engine("espeak") == "es-419"
+    assert default_voice_for_engine("edge") == "es-MX-JorgeNeural"
+    assert default_voice_for_engine("azure") == "es-MX-JorgeNeural"
 
 
 def test_make_provider_rejects_unknown_engine():

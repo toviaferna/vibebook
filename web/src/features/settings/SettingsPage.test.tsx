@@ -14,4 +14,15 @@ describe("SettingsPage", () => {
 
     expect(document.body.dataset.theme).toBe("night");
   });
+
+  it("permite elegir Piper como motor por defecto", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    const engine = await screen.findByLabelText("Motor");
+    await user.selectOptions(engine, "piper");
+
+    expect(engine).toHaveValue("piper");
+    expect(screen.getByLabelText("Voz")).toHaveValue("es_MX-ald-medium");
+  });
 });

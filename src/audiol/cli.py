@@ -16,7 +16,13 @@ from audiol.tts.piper_voices import (
     download_piper_voice,
     get_piper_voice,
 )
-from audiol.tts.registry import engine_available, get_engine, list_engines
+from audiol.tts.registry import (
+    default_voice_for_engine,
+    engine_available,
+    get_engine,
+    list_engines,
+    preferred_engine,
+)
 from audiol.voices import get_voice, list_voices
 
 
@@ -38,8 +44,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     convert_parser = subparsers.add_parser("convert", help="Convert an EPUB to M4B")
     convert_parser.add_argument("epub")
-    convert_parser.add_argument("--voice", default="es-MX-JorgeNeural")
-    convert_parser.add_argument("--engine", default="edge")
+    convert_parser.add_argument("--voice", default=None)
+    convert_parser.add_argument("--engine", default=None)
     convert_parser.add_argument("--style", default="neutral")
     convert_parser.add_argument(
         "--rate",
@@ -146,18 +152,25 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _convert(args: argparse.Namespace) -> int:
-    spec = get_engine(args.engine)
+    engine_id = args.engine or preferred_engine()
+    if engine_id is None:
+        raise SystemExit(
+            "No local TTS engine is available. Install Piper or eSpeak NG, "
+            "or pass --engine edge explicitly."
+        )
+    spec = get_engine(engine_id)
     if not spec.implemented:
-        raise SystemExit(f"TTS engine is not implemented yet: {args.engine}")
-    voice = get_voice(args.voice)
-    if not spec.test_only and args.engine not in voice.engines:
-        raise SystemExit(f"{args.voice} does not support engine {args.engine}")
+        raise SystemExit(f"TTS engine is not implemented yet: {engine_id}")
+    voice_id = args.voice or default_voice_for_engine(engine_id)
+    voice = get_voice(voice_id)
+    if not spec.test_only and engine_id not in voice.engines:
+        raise SystemExit(f"{voice_id} does not support engine {engine_id}")
     if args.style != "neutral":
         if not spec.supports_styles:
-            raise SystemExit(f"{args.engine} does not support styles")
+            raise SystemExit(f"{engine_id} does not support styles")
         if args.style not in voice.styles:
             raise SystemExit(
-                f"{args.voice} does not support style {args.style}; "
+                f"{voice_id} does not support style {args.style}; "
                 f"available: {', '.join(voice.styles) or '-'}"
             )
 
@@ -181,13 +194,13 @@ def _convert(args: argparse.Namespace) -> int:
         print(json.dumps(stats, ensure_ascii=False, indent=2))
         return 0
 
-    provider = make_provider(args.engine, allow_fake=True)
+    provider = make_provider(engine_id, allow_fake=True)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "book.md").write_text(render_markdown(book), encoding="utf-8")
     result = convert(
         book,
-        args.voice,
-        args.engine,
+        voice_id,
+        engine_id,
         provider,
         out_dir,
         style=args.style,

@@ -119,6 +119,7 @@ export interface EngineList {
 
 export interface Settings {
   library_dir: string;
+  default_engine: string | null;
   default_voice: string;
   default_rate: string;
   reader_theme: "light" | "sepia" | "night";

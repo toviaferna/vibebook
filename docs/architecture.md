@@ -23,14 +23,15 @@ alias `audiol`.
 | Modo | Motor | Voces | Emoción | Coste |
 |---|---|---|---|---|
 | Local sin cuenta | Piper | `es_MX-ald-medium` | Rate | 0 |
+| Fallback local | eSpeak NG | `es-419` | Rate | 0 |
 | Rápido y gratis | Edge TTS | `es-MX-JorgeNeural`, `es-MX-DaliaNeural`, `es-PY-MarioNeural`, `es-PY-TaniaNeural` | Rate y pitch | 0 |
 | Emoción gratis | Azure TTS F0 | `es-MX-JorgeNeural`, `es-MX-DaliaNeural` | SSML: `chat`, `cheerful`, `excited`, `sad`, `whispering` | 0,5 M caracteres/mes |
 | Emoción fuerte | Chatterbox `es-mx-latam` | clonación y exageración | GPU | Futuro |
 | Descartado | Kokoro | - | - | No se usa |
 
-La voz por defecto de la app sigue siendo `es-MX-JorgeNeural` con Edge hasta
-que E3 migre el default. Piper ya se puede elegir y convertir sin red. El rate
-por defecto es `-10%`.
+El motor por defecto se resuelve local-first: Piper si hay binario y voz, luego
+eSpeak NG, y Edge solo como legado explícito. Los libros existentes conservan su
+motor. El rate por defecto es `-10%`.
 
 ### Registro de motores
 
@@ -43,14 +44,14 @@ proveedores; `factory.py` mantiene la firma histórica.
 `GET /api/engines` expone el catálogo. Un motor puede estar en el catálogo y no
 estar implementado todavía: en ese caso `implemented` y `available` son
 `false`, y la conversión falla con un error claro en lugar de intentar usarlo.
-Edge y Azure se conservan como legado externo; Piper corre local y eSpeak NG
-queda reservado para E3.
+Edge y Azure se conservan como legado externo; Piper y eSpeak NG corren local.
 
 Piper se ejecuta como proceso separado con `subprocess.run`, sin `shell=True` y
 con timeout. La voz se descarga explícitamente, se verifica por tamaño y MD5 y
 se resuelve desde `VIBEBOOK_PIPER_VOICES`, el directorio de datos o un bundle.
-En Windows, las rutas no ASCII se convierten a rutas cortas 8.3 antes de invocar
-el binario. Detalle en [engines.md](engines.md).
+eSpeak NG usa el mismo aislamiento y `--path` para encontrar sus datos. En
+Windows, las rutas no ASCII se convierten a rutas cortas 8.3 antes de invocar
+los binarios. Detalle en [engines.md](engines.md).
 
 ## Pipeline
 
@@ -59,7 +60,7 @@ EPUB
   -> ingest (estructura + texto)
   -> clean
   -> chunk
-  -> synthesize (motor resuelto por el registro; Piper local o nube)
+  -> synthesize (motor resuelto por el registro; Piper/eSpeak local o nube)
   -> assemble (ffmpeg)
   -> book.m4b + manifest.json + book.md
 ```

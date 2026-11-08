@@ -48,6 +48,7 @@ export const sampleBookDetail: BookDetail = {
 
 export const sampleSettings: Settings = {
   library_dir: "C:\\Vibebook\\library",
+  default_engine: "edge",
   default_voice: "es-MX-JorgeNeural",
   default_rate: "-10%",
   reader_theme: "light",

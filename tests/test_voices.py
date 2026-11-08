@@ -29,6 +29,7 @@ def test_list_voices_by_engine():
     ]
     assert azure_ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
     assert [voice.id for voice in list_voices(engine="piper")] == ["es_MX-ald-medium"]
+    assert [voice.id for voice in list_voices(engine="espeak")] == ["es-419"]
 
 
 def test_list_fake_voices_returns_catalog():

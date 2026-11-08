@@ -32,6 +32,13 @@ if PIPER_BIN.is_dir():
 PIPER_VOICES = PIPER_ROOT / "voices"
 if PIPER_VOICES.is_dir():
     datas.append((str(PIPER_VOICES), "piper-voices"))
+ESPEAK_BIN = ROOT / "packaging" / "espeak" / "bin"
+if ESPEAK_BIN.is_dir():
+    for item in sorted(ESPEAK_BIN.iterdir()):
+        if item.is_dir():
+            datas.append((str(item), f"espeak/bin/{item.name}"))
+        else:
+            binaries.append((str(item), "espeak/bin"))
 
 analysis = Analysis(
     [str(ROOT / "packaging" / "pyinstaller" / "sidecar_entry.py")],
