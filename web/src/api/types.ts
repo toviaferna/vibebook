@@ -156,6 +156,19 @@ export interface TocNode {
   children: TocNode[];
 }
 
+export interface ManifestImage {
+  id: string;
+  path: string;
+  alt: string;
+  caption: string | null;
+  role: string;
+  chapter_index: number | null;
+  paragraph_index: number;
+  position: "before" | "after" | "inline" | "page";
+  width: number | null;
+  height: number | null;
+}
+
 export interface Manifest {
   schema_version: number;
   id: string;
@@ -170,6 +183,7 @@ export interface Manifest {
   rate: string | null;
   epub?: string | null;
   toc?: TocNode[];
+  images?: ManifestImage[];
   chapters: ManifestChapter[];
 }
 

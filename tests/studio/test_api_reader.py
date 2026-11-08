@@ -261,3 +261,37 @@ def test_unknown_book_returns_404(client):
     assert client.get("/api/books/nope/manifest").status_code == 404
     assert client.get("/api/books/nope/chapters/1").status_code == 404
     assert client.get("/api/books/nope/state").status_code == 404
+
+
+def test_imported_book_exposes_and_serves_images(client, image_epub):
+    response = client.post(
+        "/api/books/import",
+        files={
+            "file": (
+                "illustrated.epub",
+                image_epub.read_bytes(),
+                "application/epub+zip",
+            )
+        },
+    )
+    assert response.status_code == 201, response.text
+    book = response.json()
+
+    manifest = client.get(f"/api/books/{book['id']}/manifest").json()
+    assert len(manifest["images"]) == 1
+    image = manifest["images"][0]
+    assert image["alt"] == "Una casa verde"
+    assert image["caption"] == "La casa del bosque"
+    assert image["chapter_index"] == 1
+    assert image["paragraph_index"] == 1
+
+    served = client.get(f"/api/books/{book['id']}/images/{image['id']}")
+    assert served.status_code == 200
+    assert served.headers["content-type"].startswith("image/")
+    assert served.content
+
+    path = client.app.state.library.root / book["id"] / image["path"]
+    path.unlink()
+    missing = client.get(f"/api/books/{book['id']}/images/{image['id']}")
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "image_not_found"

@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from audiol.models import Book, Chapter, Segment, TocNode, make_segment_id
+from audiol.models import Book, BookImage, Chapter, Segment, TocNode, make_segment_id
 
 SCHEMA_VERSION = 2
 
@@ -70,7 +70,36 @@ def book_from_manifest(data: dict) -> Book:
         language=str(data.get("language", "es-419")),
         chapters=chapters,
         toc=_toc_from_manifest(data.get("toc")),
+        images=_images_from_manifest(data.get("images")),
     )
+
+
+def _images_from_manifest(value: object) -> list[BookImage]:
+    if not isinstance(value, list):
+        return []
+    result: list[BookImage] = []
+    for item in value:
+        if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+            continue
+        result.append(
+            BookImage(
+                id=str(item["id"]),
+                path=str(item["path"]) if isinstance(item.get("path"), str) else None,
+                alt=str(item.get("alt", "")),
+                caption=str(item["caption"]) if isinstance(item.get("caption"), str) else None,
+                role=str(item.get("role", "illustration")),
+                chapter_index=(
+                    int(item["chapter_index"])
+                    if isinstance(item.get("chapter_index"), int)
+                    else None
+                ),
+                paragraph_index=int(item.get("paragraph_index", 0)),
+                position=str(item.get("position", "after")),
+                width=int(item["width"]) if isinstance(item.get("width"), int) else None,
+                height=int(item["height"]) if isinstance(item.get("height"), int) else None,
+            )
+        )
+    return result
 
 
 def _toc_from_manifest(value: object) -> list[TocNode]:
@@ -134,6 +163,22 @@ def write_manifest(
         "cover": cover,
         "epub": source_epub,
         "toc": [asdict(node) for node in book.toc],
+        "images": [
+            {
+                "id": image.id,
+                "path": image.path,
+                "alt": image.alt,
+                "caption": image.caption,
+                "role": image.role,
+                "chapter_index": image.chapter_index,
+                "paragraph_index": image.paragraph_index,
+                "position": image.position,
+                "width": image.width,
+                "height": image.height,
+            }
+            for image in book.images
+            if image.path is not None
+        ],
         "chapters": [
             {
                 "index": chapter.index,

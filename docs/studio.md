@@ -91,6 +91,7 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `POST /api/books/{id}/convert`
 - `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
 - `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`, `/epub`
+- `GET /api/books/{id}/images/{image_id}`
 - `GET/PUT /api/books/{id}/state`
 - `GET/PUT /api/books/{id}/reading-state`
 - `GET/POST /api/books/{id}/reading-bookmarks`, `DELETE /api/books/{id}/reading-bookmarks/{id}`

@@ -91,6 +91,7 @@ def prepare_book(book: Book, max_chars: int = 400) -> Book:
         language=book.language,
         chapters=chapters,
         toc=book.toc if len(chapters) == len(book.chapters) else [],
+        images=book.images if len(chapters) == len(book.chapters) else [],
     )
 
 

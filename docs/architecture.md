@@ -61,6 +61,8 @@ romper audio ni timings existentes.
 - `ingest/epub.py`: lee el spine, usa los anclajes del índice para dividir
   documentos que agrupan varios capítulos, ignora documentos de navegación y
   avisa si un documento no tiene texto.
+- `ingest/images.py`: extrae ilustraciones, las valida/optimiza con Pillow, las
+  deduplica y las ancla a un capítulo/párrafo.
 - `clean.py`: elimina números de página, encabezados de Gutenberg, marcas de
   agua, líneas duplicadas y corrige guiones.
 - `chunk.py`: agrupa frases hasta 400 caracteres; parte las frases largas.

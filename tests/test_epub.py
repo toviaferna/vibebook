@@ -108,3 +108,21 @@ def test_read_epub_keeps_frontmatter(frontmatter_epub: Path):
     assert [chapter.title for chapter in book.chapters] == ["Prólogo", "La casa"]
     assert [chapter.kind for chapter in book.chapters] == ["frontmatter", "chapter"]
     assert [node.title for node in book.toc] == ["Prólogo", "La casa"]
+
+
+def test_read_epub_extracts_images(image_epub: Path, tmp_path: Path):
+    image_dir = tmp_path / "images"
+    book = read_epub(image_epub, image_dir=image_dir)
+
+    assert len(book.images) == 1
+    image = book.images[0]
+    assert image.alt == "Una casa verde"
+    assert image.caption == "La casa del bosque"
+    assert image.role == "illustration"
+    assert image.chapter_index == 1
+    assert image.paragraph_index == 1
+    assert image.position == "after"
+    assert image.width == 320
+    assert image.height == 200
+    assert image.path is not None
+    assert (image_dir / Path(image.path).name).is_file()
