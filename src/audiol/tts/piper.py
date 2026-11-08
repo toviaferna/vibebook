@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ctypes
 import logging
 import os
 import shutil
@@ -9,6 +8,7 @@ from pathlib import Path
 
 from audiol.tools import find_optional_binary
 from audiol.tts.base import AudioResult, validate_rate
+from audiol.tts.paths import to_ascii_path
 from audiol.tts.piper_voices import (
     DEFAULT_PIPER_VOICE,
     PiperNotConfigured,
@@ -93,6 +93,8 @@ class PiperProvider:
                 command,
                 input=f"{text}\n",
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 capture_output=True,
                 timeout=self.timeout,
                 check=False,
@@ -178,27 +180,13 @@ def _length_scale(rate: str) -> float:
 
 
 def _piper_path(path: Path) -> Path:
-    if str(path).isascii() or os.name != "nt":
-        return path
-    short = _windows_short_path(path)
-    if short is not None and str(short).isascii():
-        return short
-    raise PiperNotConfigured(
-        "Piper cannot open non-ASCII paths on this system. "
-        "Set VIBEBOOK_PIPER_BIN and VIBEBOOK_PIPER_VOICES to ASCII paths."
-    )
-
-
-def _windows_short_path(path: Path) -> Path | None:
-    windll = getattr(ctypes, "windll", None)
-    if windll is None:
-        return None
-    try:
-        buffer = ctypes.create_unicode_buffer(32768)
-        result = windll.kernel32.GetShortPathNameW(str(path), buffer, len(buffer))
-    except (AttributeError, OSError):
-        return None
-    return Path(buffer.value) if result else None
+    ascii_path = to_ascii_path(path)
+    if ascii_path is None:
+        raise PiperNotConfigured(
+            "Piper cannot open non-ASCII paths on this system. "
+            "Set VIBEBOOK_PIPER_BIN and VIBEBOOK_PIPER_VOICES to ASCII paths."
+        )
+    return ascii_path
 
 
 def _creation_flags() -> int:

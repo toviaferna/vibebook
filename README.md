@@ -3,9 +3,9 @@
 Generador de audiolibros en español latinoamericano a partir de EPUB.
 
 El paquete Python se llama `audiol`; el comando instalado es `vibebook` y
-también existe el alias `audiol`. v0 usa Edge TTS por defecto y Azure Speech
-como opción para estilos; Piper corre local, sin cuenta ni red. La salida es un
-M4B AAC con capítulos y metadata.
+también existe el alias `audiol`. La conversión es local-first: Piper si está
+instalado, eSpeak NG como fallback, y Edge/Azure solo como legado explícito. La
+salida es un M4B AAC con capítulos y metadata.
 
 ## Instalación
 
@@ -15,7 +15,8 @@ Requisitos:
 - `ffmpeg` y `ffprobe`. Si no están en el sistema, `static-ffmpeg` los
   descarga la primera vez.
 - Azure es opcional: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
-- Piper es opcional: binario local y voz `es_MX-ald-medium`; ver
+- Piper es opcional: binario local y voz `es_MX-ald-medium`.
+- eSpeak NG es opcional: binario local y voz `es-419`; ver
   [docs/engines.md](docs/engines.md).
 
 ```bash
@@ -43,10 +44,16 @@ uv run vibebook piper download
 uv run vibebook piper status
 ```
 
-Convertir un EPUB:
+Convertir un EPUB (elige Piper o eSpeak NG automáticamente):
 
 ```bash
 uv run vibebook convert libro.epub --out out/libro
+```
+
+Si no hay motor local, indicá el legado explícitamente:
+
+```bash
+uv run vibebook convert libro.epub --engine edge --out out/libro-edge
 ```
 
 La velocidad por defecto es `-10%`:
@@ -101,8 +108,8 @@ el sidecar/CLI usa `speech_synthesis_word_boundary` y conserva REST como fallbac
 
 | Opción | Default | Descripción |
 |---|---|---|
-| `--voice` | `es-MX-JorgeNeural` | Voz del catálogo |
-| `--engine` | `edge` | `edge`, `azure`, `piper` o `fake` para tests |
+| `--voice` | según el motor | Voz del catálogo |
+| `--engine` | local-first | `piper`, `espeak`, `edge`, `azure` o `fake` para tests |
 | `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
 | `--rate` | `-10%` | Velocidad entre `-100%` y `+100%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
@@ -227,9 +234,10 @@ Más detalle en [docs/desktop.md](docs/desktop.md) y
 | `es-PY-MarioNeural` | `es-PY` | masculino | Edge | - |
 | `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | - |
 | `es_MX-ald-medium` | `es-MX` | masculino | Piper | - |
+| `es-419` | `es-419` | neutral | eSpeak NG | - |
 
-Edge solo admite estilo neutral. Los estilos requieren `--engine azure`. Piper
-no usa estilos y devuelve timing por segmento.
+Edge solo admite estilo neutral. Los estilos requieren `--engine azure`. Piper y
+eSpeak NG no usan estilos y devuelven timing por segmento.
 
 Edge TTS es un servicio no oficial y puede limitar peticiones. Azure Speech
 incluye 0,5 M de caracteres al mes en la capa gratuita.

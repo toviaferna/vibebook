@@ -27,6 +27,7 @@ def test_cli_engines(capsys):
     assert main(["engines"]) == 0
     output = capsys.readouterr().out
     assert "piper" in output
+    assert "espeak" in output
     assert "edge" in output
     assert "segment" in output
 
@@ -36,6 +37,11 @@ def test_cli_voices_filtered_by_engine(capsys):
     output = capsys.readouterr().out
     assert "es_MX-ald-medium" in output
     assert "es-MX-JorgeNeural" not in output
+
+    assert main(["voices", "--engine", "espeak"]) == 0
+    output = capsys.readouterr().out
+    assert "es-419" in output
+    assert "es_MX-ald-medium" not in output
 
 
 def test_cli_piper_download(monkeypatch, tmp_path, capsys):
@@ -80,3 +86,20 @@ def test_cli_piper_status_without_install(monkeypatch, tmp_path, capsys):
     output = capsys.readouterr().out
     assert "no encontrado" in output
     assert "no instalada" in output
+
+
+def test_cli_convert_requires_a_local_engine_by_default(monkeypatch, tmp_path, tiny_epub):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+
+    with pytest.raises(SystemExit, match="No local TTS engine"):
+        main(["convert", str(tiny_epub), "--dry-run"])
+
+
+def test_cli_convert_allows_explicit_legacy_engine(monkeypatch, tmp_path, tiny_epub):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+
+    assert main(["convert", str(tiny_epub), "--engine", "edge", "--dry-run"]) == 0

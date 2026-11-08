@@ -31,6 +31,13 @@ def test_filter_voices_by_piper(client):
     assert [voice["id"] for voice in response.json()] == ["es_MX-ald-medium"]
 
 
+def test_filter_voices_by_espeak(client):
+    response = client.get("/api/voices", params={"engine": "espeak"})
+
+    assert response.status_code == 200
+    assert [voice["id"] for voice in response.json()] == ["es-419"]
+
+
 def test_filter_voices_by_fake_keeps_catalog(client):
     response = client.get("/api/voices", params={"engine": "fake"})
 
@@ -45,11 +52,16 @@ def test_filter_voices_rejects_unknown_engine(client):
     assert response.json()["error"]["code"] == "invalid_options"
 
 
-def test_preview_rejects_unimplemented_engine(client):
+def test_preview_rejects_uninstalled_espeak(client, monkeypatch, tmp_path):
+    from audiol.tts.registry import make_provider
+
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+    client.app.state.provider_factory = lambda engine: make_provider(engine, allow_fake=True)
+
     response = client.post(
         "/api/voices/preview",
         json={
-            "voice": "es-MX-JorgeNeural",
+            "voice": "es-419",
             "engine": "espeak",
             "text": "Hola",
         },
@@ -57,7 +69,7 @@ def test_preview_rejects_unimplemented_engine(client):
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_options"
-    assert "todavía no está disponible" in response.json()["error"]["message"]
+    assert "eSpeak NG" in response.json()["error"]["message"]
 
 
 def test_preview_rejects_uninstalled_piper(client, monkeypatch, tmp_path):
@@ -162,6 +174,8 @@ def test_settings_roundtrip(client):
     initial = client.get("/api/settings")
     assert initial.status_code == 200
     assert initial.json()["reader_theme"] == "light"
+    assert initial.json()["default_engine"] == "edge"
+    assert initial.json()["default_voice"] == "es-MX-JorgeNeural"
     assert initial.json()["azure_configured"] is False
 
     updated = client.put("/api/settings", json={"reader_theme": "night"})
@@ -192,3 +206,71 @@ def test_azure_key_never_returned(client, monkeypatch):
 def test_invalid_preview_key_returns_404(client):
     assert client.get("/api/previews/nope.mp3").status_code == 404
     assert client.get("/api/previews/../../etc/passwd").status_code == 404
+
+
+def _install_fake_piper(tmp_path: Path, monkeypatch) -> None:
+    binary = tmp_path / "piper.exe"
+    binary.write_bytes(b"fake")
+    voices = tmp_path / "voices"
+    voices.mkdir()
+    (voices / "es_MX-ald-medium.onnx").write_bytes(b"model")
+    (voices / "es_MX-ald-medium.onnx.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(binary))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(voices))
+
+
+def _install_fake_espeak(tmp_path: Path, monkeypatch) -> None:
+    binary = tmp_path / "espeak-ng.exe"
+    binary.write_bytes(b"fake")
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(binary))
+
+
+def test_settings_defaults_to_piper_when_available(client, monkeypatch, tmp_path):
+    _install_fake_piper(tmp_path, monkeypatch)
+
+    payload = client.get("/api/settings").json()
+
+    assert payload["default_engine"] == "piper"
+    assert payload["default_voice"] == "es_MX-ald-medium"
+
+
+def test_settings_defaults_to_espeak_when_piper_is_missing(client, monkeypatch, tmp_path):
+    _install_fake_espeak(tmp_path, monkeypatch)
+
+    payload = client.get("/api/settings").json()
+
+    assert payload["default_engine"] == "espeak"
+    assert payload["default_voice"] == "es-419"
+
+
+def test_settings_update_default_engine(client, monkeypatch, tmp_path):
+    _install_fake_piper(tmp_path, monkeypatch)
+
+    response = client.put("/api/settings", json={"default_engine": "piper"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["default_engine"] == "piper"
+    assert response.json()["default_voice"] == "es_MX-ald-medium"
+    assert client.get("/api/settings").json()["default_engine"] == "piper"
+
+
+def test_settings_rejects_unavailable_engine(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+
+    response = client.put("/api/settings", json={"default_engine": "piper"})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"
+
+
+def test_settings_rejects_incompatible_voice(client, monkeypatch, tmp_path):
+    _install_fake_espeak(tmp_path, monkeypatch)
+
+    response = client.put(
+        "/api/settings",
+        json={"default_engine": "espeak", "default_voice": "es-MX-JorgeNeural"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"

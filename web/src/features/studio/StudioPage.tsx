@@ -20,7 +20,7 @@ import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
 import { StatusChip } from "../../components/StatusChip";
 import { formatDuration, formatRate } from "../../lib/format";
-import { voiceLabel } from "../../lib/voices";
+import { defaultVoiceForEngine, voiceLabel } from "../../lib/voices";
 import { ProgressPanel } from "./ProgressPanel";
 import { StepCard } from "./StepCard";
 import { VoicePicker } from "./VoicePicker";
@@ -86,7 +86,7 @@ export function StudioPage() {
     const defaults = settings;
     setVoice(book.voice ?? defaults?.default_voice ?? "es-MX-JorgeNeural");
     setRate(book.rate ?? defaults?.default_rate ?? "-10%");
-    setEngine(book.engine ?? "edge");
+    setEngine(book.engine ?? defaults?.default_engine ?? "edge");
     initialized.current = true;
   }, [book, settings]);
 
@@ -145,9 +145,9 @@ export function StudioPage() {
     const spec = engines.find((item) => item.id === nextEngine);
     const current = voices.find((item) => item.id === voice);
     if (current && nextEngine !== "fake" && !current.engines.includes(nextEngine)) {
-      const fallback = voices.find((item) => item.engines.includes(nextEngine));
+      const fallback = defaultVoiceForEngine(nextEngine, voices);
       if (fallback) {
-        setVoice(fallback.id);
+        setVoice(fallback);
       }
     }
     if (!spec?.supports_styles) {

@@ -5,12 +5,16 @@ from fastapi import APIRouter, Request
 from audiol.studio.errors import ApiError
 from audiol.studio.models import SettingsResponse, SettingsUpdate
 from audiol.tts.base import validate_rate
+from audiol.tts.registry import (
+    default_voice_for_engine,
+    engine_available,
+    preferred_engine,
+)
 from audiol.voices import get_voice
 
 router = APIRouter(tags=["settings"])
 
 DEFAULTS = {
-    "default_voice": "es-MX-JorgeNeural",
     "default_rate": "-10%",
     "reader_theme": "light",
     "reader_font": "serif",
@@ -29,8 +33,18 @@ def get_settings(request: Request) -> SettingsResponse:
 def update_settings(request: Request, payload: SettingsUpdate) -> SettingsResponse:
     updates = payload.model_dump(exclude_none=True)
     try:
+        stored = request.app.state.db.get_settings()
+        engine = _current_engine(request, stored)
+        if "default_engine" in updates:
+            engine = updates["default_engine"]
+            if not engine_available(engine, allow_fake=request.app.state.settings.allow_fake):
+                raise ValueError(f"El motor {engine} no está configurado.")
+            if "default_voice" not in updates:
+                updates["default_voice"] = default_voice_for_engine(engine)
         if "default_voice" in updates:
-            get_voice(updates["default_voice"])
+            voice = get_voice(updates["default_voice"])
+            if engine != "fake" and engine not in voice.engines:
+                raise ValueError(f"{voice.id} no soporta el motor {engine}.")
         if "default_rate" in updates:
             validate_rate(updates["default_rate"])
     except ValueError as exc:
@@ -45,12 +59,36 @@ def update_settings(request: Request, payload: SettingsUpdate) -> SettingsRespon
 
 def _settings_response(request: Request) -> SettingsResponse:
     stored = request.app.state.db.get_settings()
+    engine = _current_engine(request, stored)
+    voice_id = stored.get("default_voice")
+    if not voice_id or not _voice_supports(voice_id, engine):
+        voice_id = default_voice_for_engine(engine)
     values = {**DEFAULTS, **{key: value for key, value in stored.items() if key in DEFAULTS}}
     azure_configured = bool(
         os.environ.get("AZURE_SPEECH_KEY") and os.environ.get("AZURE_SPEECH_REGION")
     )
     return SettingsResponse(
         library_dir=str(request.app.state.settings.library_dir),
+        default_engine=engine,
+        default_voice=voice_id,
         azure_configured=azure_configured,
         **values,
     )
+
+
+def _current_engine(request: Request, stored: dict) -> str:
+    stored_engine = stored.get("default_engine")
+    allow_fake = request.app.state.settings.allow_fake
+    if stored_engine in {"piper", "espeak", "edge", "azure"} and engine_available(
+        stored_engine, allow_fake=allow_fake
+    ):
+        return stored_engine
+    return preferred_engine(allow_fake=allow_fake) or "edge"
+
+
+def _voice_supports(voice_id: str, engine: str) -> bool:
+    try:
+        voice = get_voice(voice_id)
+    except ValueError:
+        return False
+    return engine == "fake" or engine in voice.engines

@@ -2,18 +2,19 @@ import { AlertTriangle, Check, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { errorMessage } from "../../api/client";
-import { useSettings, useUpdateSettings, useVoices } from "../../api/queries";
+import { useEngines, useSettings, useUpdateSettings, useVoices } from "../../api/queries";
 import type { Settings } from "../../api/types";
 import { Button } from "../../components/Button";
 import { Field } from "../../components/Field";
 import { PageHeader } from "../../components/PageHeader";
 import { formatRate } from "../../lib/format";
-import { voiceLabel } from "../../lib/voices";
+import { defaultVoiceForEngine, voiceLabel } from "../../lib/voices";
 
 const RATES = ["-20%", "-15%", "-10%", "-5%", "+0%", "+5%"];
 
 export function SettingsPage() {
   const settingsQuery = useSettings();
+  const enginesQuery = useEngines();
   const voicesQuery = useVoices();
   const update = useUpdateSettings();
   const [form, setForm] = useState<Partial<Settings>>({});
@@ -45,9 +46,32 @@ export function SettingsPage() {
   }
 
   const settings = settingsQuery.data;
+  const engines = enginesQuery.data?.items ?? [];
   const voices = voicesQuery.data ?? [];
+  const selectableEngines = engines.filter(
+    (engine) => engine.implemented && engine.available && !engine.test_only,
+  );
+  const currentEngine =
+    form.default_engine ?? settings.default_engine ?? selectableEngines[0]?.id ?? "edge";
+  const selectedEngine = selectableEngines.find((engine) => engine.id === currentEngine);
+  const voiceOptions = voices.filter((voice) => voice.engines.includes(currentEngine));
+  const currentVoice = form.default_voice ?? settings.default_voice;
+  const selectedVoice = voiceOptions.some((voice) => voice.id === currentVoice)
+    ? currentVoice
+    : (voiceOptions[0]?.id ?? currentVoice);
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+  const changeEngine = (engine: string) => {
+    const keepVoice = voices.some(
+      (voice) => voice.id === currentVoice && voice.engines.includes(engine),
+    );
+    const fallback = defaultVoiceForEngine(engine, voices);
+    setForm((current) => ({
+      ...current,
+      default_engine: engine,
+      ...(keepVoice ? {} : fallback ? { default_voice: fallback } : {}),
+    }));
   };
   const error = update.isError ? errorMessage(update.error) : null;
 
@@ -81,14 +105,37 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="panel-body settings-section">
+            <Field
+              label="Motor"
+              htmlFor="default-engine"
+              hint={
+                selectedEngine?.description ??
+                "Piper y eSpeak NG funcionan sin conexión. Edge y Azure son legado."
+              }
+            >
+              <select
+                id="default-engine"
+                className="select"
+                value={currentEngine}
+                disabled={selectableEngines.length === 0}
+                onChange={(event) => changeEngine(event.target.value)}
+              >
+                {selectableEngines.map((engine) => (
+                  <option key={engine.id} value={engine.id}>
+                    {engine.label}
+                    {engine.legacy ? " · legado" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Voz" htmlFor="default-voice">
               <select
                 id="default-voice"
                 className="select"
-                value={form.default_voice ?? settings.default_voice}
+                value={selectedVoice}
                 onChange={(event) => set("default_voice", event.target.value)}
               >
-                {voices.map((voice) => (
+                {voiceOptions.map((voice) => (
                   <option key={voice.id} value={voice.id}>
                     {voiceLabel(voice).name} · {voiceLabel(voice).detail}
                   </option>

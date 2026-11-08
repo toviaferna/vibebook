@@ -3,6 +3,7 @@ def test_list_engines(client, monkeypatch, tmp_path):
     monkeypatch.delenv("AZURE_SPEECH_REGION", raising=False)
     monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
     monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
 
     response = client.get("/api/engines")
 
@@ -16,6 +17,7 @@ def test_list_engines(client, monkeypatch, tmp_path):
     assert by_id["edge"]["timing"] == "native_word"
     assert by_id["piper"]["implemented"] is True
     assert by_id["piper"]["available"] is False
+    assert by_id["espeak"]["implemented"] is True
     assert by_id["espeak"]["available"] is False
     assert by_id["azure"]["available"] is False
     assert by_id["fake"]["available"] is True
@@ -77,11 +79,16 @@ def test_convert_rejects_unknown_engine(client, imported):
     assert "Unknown TTS engine" in response.json()["error"]["message"]
 
 
-def test_convert_rejects_unimplemented_engine(client, imported):
+def test_convert_rejects_uninstalled_espeak(client, imported, monkeypatch, tmp_path):
+    from audiol.tts.registry import make_provider
+
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(tmp_path / "missing-espeak"))
+    client.app.state.jobs.provider_factory = lambda engine: make_provider(engine, allow_fake=True)
+
     response = client.post(
         f"/api/books/{imported['id']}/convert",
         json={
-            "voice": "es-MX-JorgeNeural",
+            "voice": "es-419",
             "engine": "espeak",
             "style": "neutral",
             "rate": "-10%",
@@ -91,7 +98,7 @@ def test_convert_rejects_unimplemented_engine(client, imported):
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_options"
-    assert "not implemented yet" in response.json()["error"]["message"]
+    assert "eSpeak NG" in response.json()["error"]["message"]
 
 
 def test_convert_rejects_uninstalled_piper(client, imported, monkeypatch, tmp_path):
@@ -132,3 +139,15 @@ def test_engines_reports_installed_piper(client, monkeypatch, tmp_path):
     assert response.status_code == 200
     piper = next(item for item in response.json()["items"] if item["id"] == "piper")
     assert piper["available"] is True
+
+
+def test_engines_reports_installed_espeak(client, monkeypatch, tmp_path):
+    binary = tmp_path / "espeak-ng.exe"
+    binary.write_bytes(b"fake")
+    monkeypatch.setenv("VIBEBOOK_ESPEAK_BIN", str(binary))
+
+    response = client.get("/api/engines")
+
+    assert response.status_code == 200
+    espeak = next(item for item in response.json()["items"] if item["id"] == "espeak")
+    assert espeak["available"] is True
