@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from audiol.studio.api import books, engines, jobs, reader, voices
+from audiol.ambience.library import AmbienceLibrary
+from audiol.studio.api import ambience, books, engines, jobs, reader, voices
 from audiol.studio.api import settings as settings_api
 from audiol.studio.db import Database
 from audiol.studio.errors import install_error_handlers
@@ -29,6 +30,7 @@ def create_app(
 ) -> FastAPI:
     library = Library(settings.library_dir)
     db = Database(settings.library_dir / ".vibebook.db")
+    ambience_library = AmbienceLibrary(settings.library_dir / "ambience", db)
     plugins = PluginRegistry(settings.library_dir)
     resolved_factory = provider_factory or (
         lambda engine: plugins.make_provider(engine, allow_fake=settings.allow_fake)
@@ -56,6 +58,7 @@ def create_app(
     app.state.settings = settings
     app.state.library = library
     app.state.db = db
+    app.state.ambience = ambience_library
     app.state.jobs = job_manager
     app.state.plugins = plugins
     app.state.provider_factory = resolved_factory
@@ -80,6 +83,7 @@ def create_app(
     )
     install_security_middleware(app, settings)
 
+    app.include_router(ambience.router, prefix="/api")
     app.include_router(books.router, prefix="/api")
     app.include_router(engines.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")

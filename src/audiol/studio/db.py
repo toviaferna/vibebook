@@ -101,6 +101,32 @@ CREATE TABLE IF NOT EXISTS book_preferences (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS sound_assets (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  tags_json TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT,
+  seed INTEGER,
+  duration_ms INTEGER NOT NULL,
+  loopable INTEGER NOT NULL DEFAULT 0,
+  sample_rate INTEGER NOT NULL,
+  channels INTEGER NOT NULL,
+  loudness_lufs REAL,
+  license TEXT NOT NULL,
+  attribution TEXT,
+  source_url TEXT,
+  checksum TEXT NOT NULL UNIQUE,
+  approved INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT,
+  usage_count INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_sound_assets_kind ON sound_assets(kind, approved);
+CREATE INDEX IF NOT EXISTS idx_sound_assets_license ON sound_assets(license);
+CREATE INDEX IF NOT EXISTS idx_sound_assets_checksum ON sound_assets(checksum);
 CREATE INDEX IF NOT EXISTS idx_jobs_book_created ON jobs(book_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
@@ -625,6 +651,141 @@ class Database:
                 (key, json.dumps(value)),
             )
 
+    def upsert_sound_asset(self, asset: dict) -> dict:
+        created = str(asset.get("created_at") or _now())
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO sound_assets (
+                    id, kind, prompt, tags_json, provider, model, seed, duration_ms,
+                    loopable, sample_rate, channels, loudness_lufs, license,
+                    attribution, source_url, checksum, approved, created_at,
+                    last_used_at, usage_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    asset["id"],
+                    asset["kind"],
+                    asset["prompt"],
+                    json.dumps(asset.get("tags", []), ensure_ascii=False),
+                    asset["provider"],
+                    asset.get("model"),
+                    asset.get("seed"),
+                    asset["duration_ms"],
+                    1 if asset.get("loopable") else 0,
+                    asset["sample_rate"],
+                    asset["channels"],
+                    asset.get("loudness_lufs"),
+                    asset["license"],
+                    asset.get("attribution"),
+                    asset.get("source_url"),
+                    asset["checksum"],
+                    1 if asset.get("approved") else 0,
+                    created,
+                    asset.get("last_used_at"),
+                    int(asset.get("usage_count", 0)),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM sound_assets WHERE checksum = ?", (asset["checksum"],)
+            ).fetchone()
+        if row is None:
+            raise ValueError(f"Could not store sound asset {asset['id']}")
+        return _sound_asset_row(row)
+
+    def get_sound_asset(self, asset_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM sound_assets WHERE id = ?", (asset_id,)
+            ).fetchone()
+        return _sound_asset_row(row) if row is not None else None
+
+    def get_sound_asset_by_checksum(self, checksum: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM sound_assets WHERE checksum = ?", (checksum,)
+            ).fetchone()
+        return _sound_asset_row(row) if row is not None else None
+
+    def list_sound_assets(
+        self,
+        query: str = "",
+        kind: str | None = None,
+        license_name: str | None = None,
+        approved: bool | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        if limit < 1 or limit > 200:
+            raise ValueError("limit must be between 1 and 200")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        clauses: list[str] = []
+        params: list[Any] = []
+        if query:
+            clauses.append(
+                "(instr(lower(prompt), lower(?)) > 0 OR instr(lower(tags_json), lower(?)) > 0)"
+            )
+            params.extend([query, query])
+        if kind:
+            clauses.append("kind = ?")
+            params.append(kind)
+        if license_name:
+            clauses.append("license = ?")
+            params.append(license_name)
+        if approved is not None:
+            clauses.append("approved = ?")
+            params.append(1 if approved else 0)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with self._connect() as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*) FROM sound_assets {where}", params
+            ).fetchone()[0]
+            rows = connection.execute(
+                f"""
+                SELECT * FROM sound_assets
+                {where}
+                ORDER BY usage_count DESC, created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                [*params, limit, offset],
+            ).fetchall()
+        return [_sound_asset_row(row) for row in rows], int(total)
+
+    def set_sound_asset_approved(self, asset_id: str, approved: bool) -> dict:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE sound_assets SET approved = ? WHERE id = ?",
+                (1 if approved else 0, asset_id),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(asset_id)
+            row = connection.execute(
+                "SELECT * FROM sound_assets WHERE id = ?", (asset_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(asset_id)
+        return _sound_asset_row(row)
+
+    def record_sound_asset_use(self, asset_id: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE sound_assets
+                SET usage_count = usage_count + 1, last_used_at = ?
+                WHERE id = ?
+                """,
+                (_now(), asset_id),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(asset_id)
+
+    def delete_sound_asset(self, asset_id: str) -> None:
+        with self._connect() as connection:
+            cursor = connection.execute("DELETE FROM sound_assets WHERE id = ?", (asset_id,))
+            if cursor.rowcount == 0:
+                raise KeyError(asset_id)
+
     def mark_interrupted(self) -> None:
         now = _now()
         with self._connect() as connection:
@@ -677,6 +838,17 @@ class Database:
             raise
         finally:
             connection.close()
+
+
+def _sound_asset_row(row: sqlite3.Row) -> dict:
+    result = dict(row)
+    try:
+        result["tags"] = json.loads(result.pop("tags_json", "[]"))
+    except ValueError:
+        result["tags"] = []
+    result["loopable"] = bool(result.get("loopable"))
+    result["approved"] = bool(result.get("approved"))
+    return result
 
 
 def _now() -> str:

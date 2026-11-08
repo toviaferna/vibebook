@@ -1,0 +1,117 @@
+# Ambientación open source
+
+Vibebook puede agregar una cama de sonido y efectos a un libro ya convertido sin
+APIs pagas, cuentas ni créditos. La IA generativa es opcional y nunca es el
+default.
+
+## Fuentes y licencias
+
+| Fuente | Licencia | Costo | Offline | Rol |
+|---|---|---|---|---|
+| Procedural (`ffmpeg`) | AGPL-3.0 | 0 | Sí | Default |
+| Pack CC0 curado | CC0 | 0 | Sí, tras descarga | Default |
+| Import del usuario | Responsabilidad del usuario | 0 | Sí | Custom |
+| Freesound | CC0/CC-BY | API gratis | No | Opcional (A6) |
+| Plugin IA local | Licencia del modelo | 0 | Sí, si está instalado | Opcional (A6) |
+
+Cada asset guarda `license`, `attribution`, `source_url` y `checksum`. Un asset
+sin licencia conocida no se importa. Los assets importados quedan
+`approved=false` hasta que el usuario los escucha y aprueba.
+
+## Biblioteca
+
+`AmbienceLibrary` vive en `audiol/ambience/library.py` y usa
+`<library>/ambience/assets/`:
+
+- `<id>.ogg` (o el formato importado);
+- `<id>.json` con metadata, hash, licencia y uso.
+
+El índice SQLite `sound_assets` permite listar y filtrar sin recorrer archivos.
+Si el índice se pierde, `rebuild_index()` lo reconstruye desde los JSON.
+
+Campos principales:
+
+```text
+id, kind, prompt, tags, provider, model, seed, duration_ms, loopable,
+sample_rate, channels, loudness_lufs, license, attribution, source_url,
+checksum, approved, created_at, last_used_at, usage_count
+```
+
+### Camas procedurales
+
+`ambience/procedural.py` genera seis camas loopables de 30 s, mono 48 kHz:
+`rain`, `wind`, `sea`, `room`, `fire`, `night`. Usa `anoisesrc`, filtros de
+ffmpeg, fades de 1 s y Opus/Vorbis. Se generan a pedido, no al arrancar.
+
+## API
+
+```text
+GET    /api/ambience/assets?query=&kind=&license=&approved=
+GET    /api/ambience/assets/{id}
+POST   /api/ambience/assets/import       (multipart)
+POST   /api/ambience/assets/generate     (preset opcional)
+POST   /api/ambience/assets/{id}/approve
+GET    /api/ambience/assets/{id}/audio
+DELETE /api/ambience/assets/{id}         (solo si usage_count=0)
+
+GET    /api/books/{id}/ambience
+PUT    /api/books/{id}/ambience
+POST   /api/books/{id}/ambience/analyze
+```
+
+## Plan de sonido
+
+`ambience/plan.json` guarda por capítulo:
+
+- una cama (`bed`) opcional;
+- hasta 3 efectos (`effects`) con `segment_id` y `offset_ms`;
+- ganancia, fades, confianza y razón.
+
+Límites validados:
+
+- 1 cama + 3 efectos por capítulo;
+- separación mínima de 8 s entre efectos;
+- nada en los primeros/últimos 2 s;
+- confianza mínima 0.5;
+- `segment_id` debe existir en el manifiesto;
+- `asset_id` debe existir en la biblioteca.
+
+El manifiesto del libro guarda:
+
+```json
+"ambience": {
+  "version": 1,
+  "plan": "ambience/plan.json",
+  "enabled": false,
+  "master_gain_db": -18,
+  "ducking_db": -12
+}
+```
+
+Un libro sin `ambience` se comporta exactamente como antes.
+
+## Analizador heurístico
+
+`ambience/analyzer.py` es offline, determinista y no inventa segment IDs. Usa un
+lexicón español de escenas (lluvia, mar, viento, casa, fuego, noche) y efectos
+(puerta, campana, pasos, trueno, cristal, pájaros). Elige el asset por tags o
+prompt y calcula una confianza. Si no hay assets, devuelve un plan vacío.
+
+El analizador acepta assets existentes; no genera audio automáticamente.
+
+## Pruebas
+
+```bash
+uv run pytest tests/test_ambience_library.py tests/test_ambience_plan.py \
+  tests/test_ambience_analyzer.py tests/studio/test_api_ambience.py
+```
+
+Cubren import, dedupe por checksum, licencia obligatoria, reconstrucción del
+índice, borrado bloqueado por uso, camas procedurales, roundtrip del plan,
+anchors inválidos, límites, analyzer y endpoints.
+
+## Pendiente
+
+- A4/A4b: mezcla Web Audio en el lector y ambiente de lectura sin audio.
+- A5: M4B ambientado con ducking.
+- A6: Freesound y plugin IA local opcionales.

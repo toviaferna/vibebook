@@ -55,6 +55,10 @@ Reparar la sincronización de un libro viejo que ya tiene segmentos:
 uv run vibebook repair-sync out/libro
 ```
 
+Ambientación open source: biblioteca de sonidos CC0/importados, camas
+procedurales con ffmpeg, plan por capítulo y análisis heurístico. Sin APIs pagas
+ni IA obligatoria. Detalle y endpoints en [docs/ambience.md](docs/ambience.md).
+
 Convertir un EPUB (elige Piper o eSpeak NG automáticamente):
 
 ```bash
