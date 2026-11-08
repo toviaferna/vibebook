@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from audiol.models import Book, Chapter, Segment, make_segment_id
+from audiol.models import Book, Chapter, Segment, TocNode, make_segment_id
 
 SCHEMA_VERSION = 2
 
@@ -54,6 +54,14 @@ def book_from_manifest(data: dict) -> Book:
                 segments=segments,
                 source_href=chapter_data.get("source_href"),
                 source_fragment=chapter_data.get("source_fragment"),
+                level=int(chapter_data.get("level", 1)),
+                kind=str(chapter_data.get("kind", "chapter")),
+                number=(
+                    int(chapter_data["number"])
+                    if isinstance(chapter_data.get("number"), int)
+                    else None
+                ),
+                generated_title=bool(chapter_data.get("generated_title", False)),
             )
         )
     return Book(
@@ -61,7 +69,31 @@ def book_from_manifest(data: dict) -> Book:
         author=str(data.get("author", "Desconocido")),
         language=str(data.get("language", "es-419")),
         chapters=chapters,
+        toc=_toc_from_manifest(data.get("toc")),
     )
+
+
+def _toc_from_manifest(value: object) -> list[TocNode]:
+    if not isinstance(value, list):
+        return []
+    result: list[TocNode] = []
+    for item in value:
+        if not isinstance(item, dict) or not isinstance(item.get("title"), str):
+            continue
+        result.append(
+            TocNode(
+                title=str(item["title"]),
+                level=int(item.get("level", 1)),
+                chapter_index=(
+                    int(item["chapter_index"])
+                    if isinstance(item.get("chapter_index"), int)
+                    else None
+                ),
+                kind=str(item.get("kind", "chapter")),
+                children=_toc_from_manifest(item.get("children")),
+            )
+        )
+    return result
 
 
 def write_manifest(
@@ -101,10 +133,15 @@ def write_manifest(
         "duration_ms": total_duration_ms,
         "cover": cover,
         "epub": source_epub,
+        "toc": [asdict(node) for node in book.toc],
         "chapters": [
             {
                 "index": chapter.index,
                 "title": chapter.title,
+                "level": chapter.level,
+                "kind": chapter.kind,
+                "number": chapter.number,
+                "generated_title": chapter.generated_title,
                 "duration_ms": (
                     chapter_durations_ms[position] if chapter_durations_ms is not None else None
                 ),

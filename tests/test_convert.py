@@ -12,7 +12,7 @@ from audiol.convert import (
     synthesize_with_retries,
 )
 from audiol.ingest.epub import read_epub
-from audiol.models import Book, Chapter, Segment, make_segment_id
+from audiol.models import Book, Chapter, Segment, TocNode, make_segment_id
 from audiol.timing import (
     audio_duration_ms,
     read_chapter_timing,
@@ -76,6 +76,44 @@ def test_prepare_book_preserves_text(tiny_epub: Path):
         segment.text for chapter in prepared.chapters for segment in chapter.segments
     )
     assert prepared_text == original_text
+
+
+def test_prepare_book_preserves_structure_metadata():
+    segment = Segment(
+        id=make_segment_id(1, 1),
+        chapter_index=1,
+        paragraph_index=1,
+        text="Hola mundo.",
+    )
+    book = Book(
+        title="Libro",
+        author="Autora",
+        chapters=[
+            Chapter(
+                index=1,
+                title="La casa",
+                segments=[segment],
+                level=1,
+                kind="chapter",
+                number=1,
+            )
+        ],
+        toc=[
+            TocNode(
+                title="Parte I",
+                level=0,
+                kind="part",
+                children=[TocNode(title="La casa", level=1, chapter_index=1)],
+            )
+        ],
+    )
+
+    prepared = prepare_book(book)
+
+    assert prepared.chapters[0].number == 1
+    assert prepared.chapters[0].kind == "chapter"
+    assert prepared.toc[0].title == "Parte I"
+    assert prepared.toc[0].children[0].chapter_index == 1
 
 
 def test_prepare_book_keeps_paragraph_index_for_chunks():

@@ -34,13 +34,27 @@ La voz por defecto es `es-MX-JorgeNeural` con Edge. El rate por defecto es
 
 ```text
 EPUB
-  -> ingest
+  -> ingest (estructura + texto)
   -> clean
   -> chunk
   -> synthesize (Edge, Azure o Fake)
   -> assemble (ffmpeg)
   -> book.m4b + manifest.json + book.md
 ```
+
+### Estructura del libro
+
+`ingest/structure.py` resuelve la estructura antes de extraer párrafos:
+
+- lee el TOC como árbol, sin aplanar partes ni subcapítulos;
+- usa títulos exactos, sin prefijar “Capítulo”;
+- si no hay TOC, divide por headings dominantes;
+- separa partes, prólogos y apéndices con `epub:type` y heurísticas;
+- guarda `level`, `kind`, `number` y un `toc` jerárquico opcional en el
+  manifiesto.
+
+Los libros viejos conservan su manifiesto; el reanálisis es explícito para no
+romper audio ni timings existentes.
 
 ### Etapas
 

@@ -47,10 +47,13 @@ def test_read_epub_skips_heading_in_bare_text_chapter(mixed_block_epub: Path):
 def test_read_epub_splits_by_toc_anchors(toc_epub: Path):
     book = read_epub(toc_epub)
     assert [chapter.title for chapter in book.chapters] == [
-        "Capítulo 1",
-        "Capítulo 2",
-        "Capítulo 3",
+        "1",
+        "2",
+        "3",
     ]
+    assert [chapter.number for chapter in book.chapters] == [1, 2, 3]
+    assert [chapter.kind for chapter in book.chapters] == ["chapter", "chapter", "chapter"]
+    assert [node.title for node in book.toc] == ["1", "2", "3"]
     assert [segment.text for segment in book.chapters[0].segments] == [
         "Primer párrafo.",
         "Segundo párrafo.",
@@ -61,3 +64,47 @@ def test_read_epub_splits_by_toc_anchors(toc_epub: Path):
     ]
     assert book.chapters[1].segments[-1].source_href == "continuation.xhtml"
     assert [segment.text for segment in book.chapters[2].segments] == ["Cuarto párrafo."]
+
+
+def test_read_epub_preserves_real_chapter_titles(titled_toc_epub: Path):
+    book = read_epub(titled_toc_epub)
+
+    assert [chapter.title for chapter in book.chapters] == [
+        "La casa de los relojes",
+        "La voz del papel",
+    ]
+    assert all(chapter.number is None for chapter in book.chapters)
+    assert [chapter.level for chapter in book.chapters] == [1, 1]
+    assert [node.title for node in book.toc] == [
+        "La casa de los relojes",
+        "La voz del papel",
+    ]
+
+
+def test_read_epub_builds_nested_toc(nested_toc_epub: Path):
+    book = read_epub(nested_toc_epub)
+
+    assert [chapter.title for chapter in book.chapters] == ["La casa", "El zorro"]
+    assert len(book.toc) == 1
+    part = book.toc[0]
+    assert part.title == "Parte I"
+    assert part.level == 0
+    assert part.chapter_index is None
+    assert [child.title for child in part.children] == ["La casa", "El zorro"]
+    assert [child.chapter_index for child in part.children] == [1, 2]
+
+
+def test_read_epub_splits_by_headings_without_toc(heading_chapters_epub: Path):
+    book = read_epub(heading_chapters_epub)
+
+    assert [chapter.title for chapter in book.chapters] == ["La casa", "El zorro"]
+    assert all(not chapter.generated_title for chapter in book.chapters)
+    assert [node.title for node in book.toc] == ["La casa", "El zorro"]
+
+
+def test_read_epub_keeps_frontmatter(frontmatter_epub: Path):
+    book = read_epub(frontmatter_epub)
+
+    assert [chapter.title for chapter in book.chapters] == ["Prólogo", "La casa"]
+    assert [chapter.kind for chapter in book.chapters] == ["frontmatter", "chapter"]
+    assert [node.title for node in book.toc] == ["Prólogo", "La casa"]

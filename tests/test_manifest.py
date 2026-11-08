@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from audiol.manifest import book_from_manifest, load_manifest, write_manifest
-from audiol.models import Chapter, Segment, make_segment_id
+from audiol.models import Book, Chapter, Segment, TocNode, make_segment_id
 from audiol.timing import ensure_chapter_timing, read_chapter_timing, write_chapter_timing
 
 
@@ -216,3 +216,49 @@ def test_write_manifest_preserves_created_at_and_can_hide_timings(tmp_path: Path
     assert second["created_at"] == first["created_at"]
     assert second["chapters"][0]["timing"] is None
     assert second["chapters"][0]["audio"] == "audio/chapters/chapter_001.mp3"
+
+
+def test_write_manifest_preserves_structure_and_toc(tmp_path: Path):
+    chapter = Chapter(
+        index=1,
+        title="La casa",
+        segments=[
+            Segment(
+                id=make_segment_id(1, 1),
+                chapter_index=1,
+                paragraph_index=1,
+                text="Hola mundo.",
+            )
+        ],
+        level=1,
+        kind="chapter",
+        number=1,
+    )
+    book = Book(
+        title="Libro",
+        author="Autora",
+        chapters=[chapter],
+        toc=[
+            TocNode(
+                title="Parte I",
+                level=0,
+                kind="part",
+                children=[TocNode(title="La casa", level=1, chapter_index=1)],
+            )
+        ],
+    )
+
+    write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+    data = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+
+    assert data["chapters"][0]["level"] == 1
+    assert data["chapters"][0]["kind"] == "chapter"
+    assert data["chapters"][0]["number"] == 1
+    assert data["chapters"][0]["generated_title"] is False
+    assert data["toc"][0]["title"] == "Parte I"
+    assert data["toc"][0]["children"][0]["chapter_index"] == 1
+
+    loaded = book_from_manifest(data)
+    assert loaded.chapters[0].number == 1
+    assert loaded.toc[0].title == "Parte I"
+    assert loaded.toc[0].children[0].title == "La casa"
