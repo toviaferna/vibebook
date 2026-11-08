@@ -16,6 +16,7 @@ export function useAudioPlayer(
   const [volume, setVolumeState] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const endedRef = useRef(onEnded);
+  const lastTimeRef = useRef(0);
   endedRef.current = onEnded;
 
   useEffect(() => {
@@ -23,10 +24,20 @@ export function useAudioPlayer(
       return;
     }
 
-    const syncTime = () => setCurrentTimeMs(audio.currentTime * 1000);
+    lastTimeRef.current = Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 : 0;
+    const syncTime = (force = false) => {
+      if (!Number.isFinite(audio.currentTime)) {
+        return;
+      }
+      const next = audio.currentTime * 1000;
+      if (force || Math.abs(next - lastTimeRef.current) >= 10) {
+        lastTimeRef.current = next;
+        setCurrentTimeMs(next);
+      }
+    };
     const syncDuration = () => {
       setDurationMs(Number.isFinite(audio.duration) ? audio.duration * 1000 : 0);
-      syncTime();
+      syncTime(true);
       setError(null);
     };
     let frame = 0;
@@ -61,15 +72,16 @@ export function useAudioPlayer(
     const onPause = () => {
       setIsPlaying(false);
       stopLoop();
-      syncTime();
+      syncTime(true);
     };
     const onEndedEvent = () => {
       setIsPlaying(false);
       stopLoop();
-      syncTime();
+      syncTime(true);
       endedRef.current?.();
     };
-    const onTimeUpdate = syncTime;
+    const onTimeUpdate = () => syncTime();
+    const onSeeked = () => syncTime(true);
     const onRateChange = () => setRateState(audio.playbackRate);
     const onVolumeChange = () => setVolumeState(audio.volume);
     const onError = () => setError("No se pudo cargar el audio de este capítulo.");
@@ -81,6 +93,8 @@ export function useAudioPlayer(
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEndedEvent);
     audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("seeking", onSeeked);
+    audio.addEventListener("seeked", onSeeked);
     audio.addEventListener("ratechange", onRateChange);
     audio.addEventListener("volumechange", onVolumeChange);
     audio.addEventListener("error", onError);
@@ -96,6 +110,8 @@ export function useAudioPlayer(
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEndedEvent);
       audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("seeking", onSeeked);
+      audio.removeEventListener("seeked", onSeeked);
       audio.removeEventListener("ratechange", onRateChange);
       audio.removeEventListener("volumechange", onVolumeChange);
       audio.removeEventListener("error", onError);
@@ -146,6 +162,7 @@ export function useAudioPlayer(
       const maximum = Number.isFinite(audio.duration) ? audio.duration * 1000 : value;
       const clamped = Math.max(0, Math.min(maximum, value));
       audio.currentTime = clamped / 1000;
+      lastTimeRef.current = clamped;
       setCurrentTimeMs(clamped);
     },
     [audio],

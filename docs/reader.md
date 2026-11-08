@@ -149,6 +149,13 @@ En desarrollo, abrí el lector con `?sync=1` para ver un overlay con tiempo
 actual, segmento, palabra, precisión, FPS de render y velocidad. El overlay no
 se muestra en producción ni afecta la reproducción.
 
+El resaltado mantiene la palabra anterior durante huecos de hasta 1 segundo y
+la quita en silencios más largos. El tiempo se actualiza con
+`requestAnimationFrame` cada ~60 ms, solo si cambió al menos 10 ms; el seek
+sincroniza de inmediato y cambiar la velocidad no reescala los timings. El
+contenido del lector está memoizado para no re-renderizar el capítulo completo
+en cada frame.
+
 ## Limitaciones
 
 - La vista original no resalta palabras ni párrafos; solo sincroniza capítulo y
