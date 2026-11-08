@@ -42,10 +42,12 @@ _VOICE_LIST = (
 VOICES: dict[str, Voice] = {voice.id: voice for voice in _VOICE_LIST}
 
 
-def list_voices(locale: str | None = None) -> list[Voice]:
+def list_voices(locale: str | None = None, engine: str | None = None) -> list[Voice]:
     voices = sorted(VOICES.values(), key=lambda voice: (voice.locale, voice.id))
     if locale:
         voices = [voice for voice in voices if voice.locale == locale]
+    if engine and engine != "fake":
+        voices = [voice for voice in voices if engine in voice.engines]
     return voices
 
 

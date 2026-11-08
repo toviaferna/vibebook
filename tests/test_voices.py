@@ -17,6 +17,23 @@ def test_mx_styles_are_available():
     assert "sad" in voice.styles
 
 
+def test_list_voices_by_engine():
+    edge_ids = [voice.id for voice in list_voices(engine="edge")]
+    azure_ids = [voice.id for voice in list_voices(engine="azure")]
+
+    assert edge_ids == [
+        "es-MX-DaliaNeural",
+        "es-MX-JorgeNeural",
+        "es-PY-MarioNeural",
+        "es-PY-TaniaNeural",
+    ]
+    assert azure_ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
+
+
+def test_list_fake_voices_returns_catalog():
+    assert len(list_voices(engine="fake")) == len(list_voices())
+
+
 def test_unknown_voice_raises():
     try:
         get_voice("no-existe")
