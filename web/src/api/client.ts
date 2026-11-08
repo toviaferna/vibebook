@@ -12,6 +12,9 @@ import type {
   EngineList,
   Job,
   Manifest,
+  Plugin,
+  PluginList,
+  PluginTest,
   Preview,
   ReaderState,
   ReadingBookmark,
@@ -137,6 +140,21 @@ export const api = {
       body: JSON.stringify(input),
     }),
   getEngines: () => apiFetch<EngineList>("/engines"),
+  getPlugins: () => apiFetch<PluginList>("/engines/plugins"),
+  addPlugin: (url: string, token: string | null) =>
+    apiFetch<Plugin>("/engines/plugins", {
+      method: "POST",
+      body: JSON.stringify({ url, token }),
+    }),
+  deletePlugin: (pluginId: string) =>
+    apiFetch<void>(`/engines/plugins/${pluginId}`, { method: "DELETE" }),
+  testPlugin: (pluginId: string) =>
+    apiFetch<PluginTest>(`/engines/${pluginId}/test`, { method: "POST" }),
+  updatePluginConfig: (pluginId: string, input: { token?: string; enabled?: boolean }) =>
+    apiFetch<Plugin>(`/engines/${pluginId}/config`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
   getJob: (jobId: string) => apiFetch<Job>(`/jobs/${jobId}`),
   cancelJob: (jobId: string) => apiFetch<Job>(`/jobs/${jobId}/cancel`, { method: "POST" }),
   resumeJob: (jobId: string) =>

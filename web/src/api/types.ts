@@ -111,10 +111,43 @@ export interface Engine {
   implemented: boolean;
   test_only: boolean;
   available: boolean;
+  configured: boolean;
+  plugin_url: string | null;
 }
 
 export interface EngineList {
   items: Engine[];
+}
+
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  url: string;
+  protocol: string;
+  license: string;
+  source: string;
+  languages: string[];
+  styles: string[];
+  timings: string;
+  max_chars: number;
+  timeout_seconds: number;
+  voice_count: number;
+  has_token: boolean;
+  enabled: boolean;
+  added_at: string;
+  updated_at: string;
+}
+
+export interface PluginList {
+  items: Plugin[];
+}
+
+export interface PluginTest {
+  ok: boolean;
+  latency_ms: number;
+  voice_count: number;
+  message: string;
 }
 
 export interface Settings {

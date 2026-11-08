@@ -12,6 +12,8 @@ en el ejecutable, y la ventana carga la SPA empaquetada.
 - Internet para Edge TTS. Azure es opcional.
 - Piper y eSpeak NG son opcionales y funcionan offline; ver
   [engines.md](engines.md).
+- Los plugins VEP pueden ser locales por HTTP o remotos por HTTPS; el token se
+  guarda en `secrets.json`.
 - Para compilar: Rust, Visual Studio Build Tools con el workload C++, Node 22,
   `uv` y `npm`.
 

@@ -12,6 +12,7 @@ from audiol.convert import ConversionCancelled, convert
 from audiol.manifest import book_from_manifest, load_manifest
 from audiol.studio.db import Database
 from audiol.studio.library import BookRecord, Library
+from audiol.studio.plugins import PluginRegistry
 from audiol.tts.base import TTSProvider, validate_rate
 from audiol.tts.registry import get_engine
 from audiol.voices import get_voice
@@ -53,11 +54,13 @@ class JobManager:
         library: Library,
         provider_factory: Callable[[str], TTSProvider],
         allow_fake: bool = False,
+        plugins: PluginRegistry | None = None,
     ) -> None:
         self.db = db
         self.library = library
         self.provider_factory = provider_factory
         self.allow_fake = allow_fake
+        self.plugins = plugins
         self._active_job_id: str | None = None
         self._cancel_event: threading.Event | None = None
         self._lock = threading.Lock()
@@ -141,6 +144,24 @@ class JobManager:
             self._cancel_event = None
 
     def _validate_options(self, options: JobOptions) -> None:
+        if self.plugins is not None and self.plugins.has(options.engine):
+            record = self.plugins.get(options.engine)
+            if not record.enabled:
+                raise ValueError(f"The plugin {options.engine} is disabled")
+            plugin_voice = next(
+                (item for item in record.info.voices if item.id == options.voice),
+                None,
+            )
+            if plugin_voice is None:
+                raise ValueError(f"{options.voice} is not a voice of plugin {options.engine}")
+            if options.style != "neutral":
+                if options.style not in record.info.capabilities.styles:
+                    raise ValueError(f"Styles are not supported by the {options.engine} plugin")
+                if options.style not in plugin_voice.styles:
+                    raise ValueError(f"{options.voice} does not support style {options.style}")
+            validate_rate(options.rate)
+            return
+
         spec = get_engine(options.engine)
         if not spec.implemented:
             raise ValueError(f"TTS engine is not implemented yet: {options.engine}")

@@ -9,6 +9,8 @@ import {
   sampleEngines,
   sampleJob,
   sampleManifest,
+  samplePlugin,
+  samplePlugins,
   sampleReadingBookmarks,
   sampleReadingState,
   sampleSearch,
@@ -112,6 +114,21 @@ export const server = setupServer(
     return HttpResponse.json({ ...sampleSettings, ...patch });
   }),
   http.get("*/api/engines", () => HttpResponse.json(sampleEngines)),
+  http.get("*/api/engines/plugins", () => HttpResponse.json(samplePlugins)),
+  http.post("*/api/engines/plugins", () => HttpResponse.json(samplePlugin, { status: 201 })),
+  http.delete("*/api/engines/plugins/:pluginId", () => new HttpResponse(null, { status: 204 })),
+  http.post("*/api/engines/:pluginId/test", () =>
+    HttpResponse.json({
+      ok: true,
+      latency_ms: 120,
+      voice_count: 1,
+      message: "Plugin disponible y síntesis correcta.",
+    }),
+  ),
+  http.put("*/api/engines/:pluginId/config", async ({ request }) => {
+    const patch = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...samplePlugin, ...patch });
+  }),
   http.get("*/api/voices", () => HttpResponse.json(sampleVoices)),
   http.post("*/api/books/import", () =>
     HttpResponse.json({ ...sampleBook, status: "imported", duration_ms: null }, { status: 201 }),

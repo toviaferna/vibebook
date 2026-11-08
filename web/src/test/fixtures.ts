@@ -6,6 +6,7 @@ import type {
   EngineList,
   Job,
   Manifest,
+  PluginList,
   ReadingBookmarkList,
   ReadingState,
   SearchResponse,
@@ -114,6 +115,8 @@ export const sampleEngines: EngineList = {
       implemented: true,
       test_only: false,
       available: true,
+      configured: true,
+      plugin_url: null,
     },
     {
       id: "edge",
@@ -134,6 +137,8 @@ export const sampleEngines: EngineList = {
       implemented: true,
       test_only: false,
       available: true,
+      configured: true,
+      plugin_url: null,
     },
     {
       id: "azure",
@@ -157,6 +162,8 @@ export const sampleEngines: EngineList = {
       implemented: true,
       test_only: false,
       available: false,
+      configured: false,
+      plugin_url: null,
     },
     {
       id: "fake",
@@ -177,9 +184,33 @@ export const sampleEngines: EngineList = {
       implemented: true,
       test_only: true,
       available: true,
+      configured: true,
+      plugin_url: null,
     },
   ],
 };
+
+export const samplePlugin = {
+  id: "demo-vep",
+  name: "Demo VEP",
+  version: "1.0.0",
+  url: "http://127.0.0.1:9001",
+  protocol: "vep/1",
+  license: "MIT",
+  source: "https://example.com/demo-vep",
+  languages: ["es"],
+  styles: [],
+  timings: "segment",
+  max_chars: 400,
+  timeout_seconds: 30,
+  voice_count: 1,
+  has_token: false,
+  enabled: true,
+  added_at: "2026-11-08T10:00:00+00:00",
+  updated_at: "2026-11-08T10:00:00+00:00",
+};
+
+export const samplePlugins: PluginList = { items: [] };
 
 export const sampleManifest: Manifest = {
   schema_version: 2,

@@ -48,6 +48,8 @@ especialmente las de los componentes copyleft.
   desde `rhasspy/piper-voices`; su dataset usa Unlicense.
 - **edge-tts (LGPL-3.0)** se usa como dependencia; revisar si el binario
   empaquetado requiere permitir el reemplazo de la biblioteca.
+- **Plugins VEP** son servidores externos que el usuario agrega por URL; no se
+  empaquetan en el binario. Cada plugin declara su licencia y fuente.
 - **FFmpeg** se incluye como ejecutable separado. La licencia depende del build
   descargado por `static-ffmpeg`; los builds con códecs GPL requieren cumplir la
   GPL. Verificar el build exacto antes de distribuir.

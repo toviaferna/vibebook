@@ -110,6 +110,105 @@ export VIBEBOOK_ESPEAK_PATH=/ruta/que-contiene/espeak-ng-data
 También usa rutas cortas 8.3 en Windows para salida y datos cuando la ruta del
 usuario tiene caracteres no ASCII.
 
+## Plugins VEP
+
+Un plugin es un servidor HTTP/JSON que cumple **Vibebook Engine Protocol v1**.
+Puede estar escrito en cualquier lenguaje y no se instala ni se descarga solo.
+
+### Contrato
+
+| Método | Ruta | Uso |
+|---|---|---|
+| `GET` | `/v1/info` | Manifiesto, licencia, fuente, capacidades, límites y voces |
+| `GET` | `/v1/health` | Salud del plugin |
+| `GET` | `/v1/voices` | Voces disponibles |
+| `POST` | `/v1/synthesize` | Texto a audio |
+
+`/v1/info` devuelve como mínimo:
+
+```json
+{
+  "protocol": "vep/1",
+  "id": "mi-motor",
+  "name": "Mi motor",
+  "version": "1.0.0",
+  "license": "MIT",
+  "source": "https://github.com/...",
+  "capabilities": {
+    "languages": ["es"],
+    "styles": [],
+    "timings": "segment",
+    "streaming": false
+  },
+  "limits": {
+    "max_chars": 400,
+    "max_concurrency": 1,
+    "timeout_seconds": 120
+  },
+  "voices": [
+    {"id": "es-MX-demo", "locale": "es-MX", "gender": "female", "styles": []}
+  ]
+}
+```
+
+`POST /v1/synthesize` recibe `text`, `voice`, `style`, `rate` y `format`
+(`wav`) y devuelve:
+
+```json
+{
+  "audio_base64": "...",
+  "format": "wav",
+  "duration_ms": 1234,
+  "words": []
+}
+```
+
+`words` puede ser `[]`. Vibebook valida que el WAV sea legible, limita la
+respuesta a 50 MB y aplica timeout. Los errores usan
+`{"error":{"code":"...","message":"..."}}`.
+
+### Agregar un plugin
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/engines/plugins \
+  -H "Content-Type: application/json" \
+  -H "X-Vibebook-Token: <token>" \
+  -d '{"url":"http://127.0.0.1:9001","token":"opcional"}'
+```
+
+El plugin aparece en `GET /api/engines`, `GET /api/engines/plugins` y sus voces
+en `GET /api/voices?engine=<id>`. La UI de Ajustes permite agregar, probar y
+eliminar plugins, y muestra licencia y fuente.
+
+Endpoints de administración:
+
+- `GET /api/engines/plugins`
+- `POST /api/engines/plugins`
+- `DELETE /api/engines/plugins/{id}`
+- `PUT /api/engines/{id}/config`
+- `POST /api/engines/{id}/test`
+- `GET /api/engines/{id}/voices`
+
+### Seguridad
+
+- Los plugins locales por HTTP solo se aceptan en `127.0.0.1`, `localhost` o
+  `::1`; los remotos deben usar HTTPS.
+- El token opcional se envía en `X-Vibebook-Plugin-Token`, se guarda en
+  `secrets.json` con permisos restringidos y nunca se devuelve a la interfaz.
+- No se instala ni se descarga código automáticamente.
+- Los textos no se registran en logs.
+- La licencia y la fuente se muestran antes de usar el plugin.
+
+### Plantilla
+
+Hay un servidor mínimo funcional en
+[`examples/plugin-template`](../examples/plugin-template/README.md). Se puede
+usar como base y probar con:
+
+```bash
+python examples/plugin-template/server.py --port 9001
+```
+
 ## Motor por defecto
 
 El orden local-first es:

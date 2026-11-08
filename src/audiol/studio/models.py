@@ -34,7 +34,7 @@ class PreviewRequest(BaseModel):
 class SettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    default_engine: Literal["piper", "espeak", "edge", "azure"] | None = None
+    default_engine: str | None = None
     default_voice: str | None = None
     default_rate: str | None = None
     reader_theme: Literal["light", "sepia", "night"] | None = None
@@ -232,10 +232,57 @@ class EngineResponse(BaseModel):
     implemented: bool
     test_only: bool
     available: bool
+    configured: bool = True
+    plugin_url: str | None = None
 
 
 class EngineListResponse(BaseModel):
     items: list[EngineResponse]
+
+
+class PluginAddRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str = Field(min_length=1, max_length=500)
+    token: str | None = Field(default=None, max_length=500)
+
+
+class PluginConfigUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str | None = Field(default=None, max_length=500)
+    enabled: bool | None = None
+
+
+class PluginResponse(BaseModel):
+    id: str
+    name: str
+    version: str
+    url: str
+    protocol: str
+    license: str
+    source: str
+    languages: list[str]
+    styles: list[str]
+    timings: str
+    max_chars: int
+    timeout_seconds: float
+    voice_count: int
+    has_token: bool
+    enabled: bool
+    added_at: str
+    updated_at: str
+
+
+class PluginListResponse(BaseModel):
+    items: list[PluginResponse]
+
+
+class PluginTestResponse(BaseModel):
+    ok: bool
+    latency_ms: int
+    voice_count: int
+    message: str
 
 
 class PreviewResponse(BaseModel):
