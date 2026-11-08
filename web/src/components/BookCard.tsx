@@ -16,7 +16,7 @@ export function BookCard({ book }: { book: Book }) {
     .toUpperCase();
 
   return (
-    <Link className="book-card" to={`/books/${book.id}`} aria-label={`Abrir ${book.title}`}>
+    <Link className="book-card" to={`/books/${book.id}`}>
       <div className="book-cover">
         {book.cover_url ? (
           <img src={apiUrl(book.cover_url)} alt={`Portada de ${book.title}`} loading="lazy" />

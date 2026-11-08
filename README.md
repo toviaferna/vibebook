@@ -143,6 +143,8 @@ npm run lint
 npm run typecheck
 npm run test
 npm run build
+npx playwright install chromium
+npm run e2e
 ```
 
 ### Lector

@@ -35,7 +35,7 @@ export function AppShell() {
       </a>
       <div className="app-shell">
         <aside className="sidebar">
-          <NavLink className="brand" to="/" aria-label="Vibebook Studio, inicio">
+          <NavLink className="brand" to="/">
             <span className="brand-mark" aria-hidden="true">
               V
             </span>
@@ -53,7 +53,7 @@ export function AppShell() {
 
         <main className="main" id="main">
           <div className="topbar">
-            <NavLink className="brand" to="/" aria-label="Vibebook Studio, inicio">
+            <NavLink className="brand" to="/">
               <span className="brand-mark" aria-hidden="true">
                 V
               </span>
