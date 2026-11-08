@@ -108,6 +108,32 @@ export const server = setupServer(
     const patch = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ book_id: sampleBook.id, ...patch, updated_at: null });
   }),
+  http.get("*/api/books/:id/ambience", () =>
+    HttpResponse.json({
+      book_id: sampleBook.id,
+      settings: { enabled: false, master_gain_db: -18, ducking_db: -12 },
+      plan: { version: 1, chapters: [] },
+    }),
+  ),
+  http.put("*/api/books/:id/ambience", async ({ request }) => {
+    const patch = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      book_id: sampleBook.id,
+      settings: patch.settings,
+      plan: patch.plan,
+    });
+  }),
+  http.post("*/api/books/:id/ambience/analyze", () =>
+    HttpResponse.json({
+      book_id: sampleBook.id,
+      settings: { enabled: false, master_gain_db: -18, ducking_db: -12 },
+      plan: { version: 1, chapters: [] },
+    }),
+  ),
+  http.get("*/api/ambience/assets", () =>
+    HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+  ),
+  http.post("*/api/ambience/assets/generate", () => HttpResponse.json([])),
   http.get("*/api/settings", () => HttpResponse.json(sampleSettings)),
   http.put("*/api/settings", async ({ request }) => {
     const patch = (await request.json()) as Record<string, unknown>;

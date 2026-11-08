@@ -90,6 +90,8 @@ blur decorativos se eliminaron para cuidar el rendimiento.
 - `plan.py`: valida y persiste `ambience/plan.json`, actualiza el manifiesto y
   respeta 1 cama + 3 efectos por capítulo, separación de 8 s y guardas de 2 s;
 - `analyzer.py`: heurístico español offline; no inventa segment IDs.
+- `web/src/features/reader/soundscape/useSoundscape.ts`: mezcla Web Audio,
+  loop, ducking y cues; solo arranca con un gesto del usuario.
 
 Los assets importados quedan sin aprobar hasta que el usuario los escucha. El
 flujo base no requiere red, cuenta ni API paga.

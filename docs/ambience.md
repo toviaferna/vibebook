@@ -99,19 +99,51 @@ prompt y calcula una confianza. Si no hay assets, devuelve un plan vacío.
 
 El analizador acepta assets existentes; no genera audio automáticamente.
 
+## Lector
+
+`web/src/features/reader/soundscape/useSoundscape.ts` implementa la mezcla:
+
+- crea el `AudioContext` solo cuando el usuario activa el ambiente;
+- carga la cama y los efectos del capítulo actual con `fetch` + `decodeAudioData`;
+- reproduce la cama en loop, con ganancia master y ducking cuando suena la voz;
+- programa efectos one-shot desde `segment_id + offset_ms` y los reprograma al
+  buscar más de 2 s;
+- pausa/reanuda el contexto con la voz;
+- libera buffers y cierra el contexto al salir o cambiar de capítulo.
+
+El lector muestra un botón “Activar/ Apagar ambiente” en la topbar, una barra
+con la escena y el volumen, y guarda `ambience_enabled` en `book_preferences`.
+El volumen se recuerda en `localStorage`.
+
+A4b usa el mismo motor sin voz: solo la cama, sin ducking y sin efectos. Sirve
+para leer un EPUB importado con una sala de fondo.
+
+En el detalle, “Generar camas” crea las seis camas procedurales y “Analizar
+capítulos” propone el plan heurístico. El plan se puede editar por API; la UI de
+edición fina queda para una iteración posterior.
+
 ## Pruebas
 
 ```bash
 uv run pytest tests/test_ambience_library.py tests/test_ambience_plan.py \
   tests/test_ambience_analyzer.py tests/studio/test_api_ambience.py
+
+cd web && npm run test
+cd web && npm run e2e
 ```
 
 Cubren import, dedupe por checksum, licencia obligatoria, reconstrucción del
 índice, borrado bloqueado por uso, camas procedurales, roundtrip del plan,
-anchors inválidos, límites, analyzer y endpoints.
+anchors inválidos, límites, analyzer, endpoints, scheduler de cues y el toggle
+del lector.
 
 ## Pendiente
 
-- A4/A4b: mezcla Web Audio en el lector y ambiente de lectura sin audio.
 - A5: M4B ambientado con ducking.
 - A6: Freesound y plugin IA local opcionales.
+
+Limitaciones actuales:
+
+- la cama se mantiene al pausar, pero los efectos ya pasados no se repiten;
+- la edición visual del plan (mover/eliminar cues) todavía es por API;
+- los efectos se limitan a assets existentes; no se generan por IA.

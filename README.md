@@ -203,6 +203,10 @@ lectura (papel, sepia o noche), tipografía, temporizador y controles del sistem
 vía Media Session. El tema de la app y la paleta del lector son independientes:
 podés leer en noche con la app en claro, o al revés.
 
+Si el libro tiene un plan de ambientación, el lector muestra un toggle de
+ambiente con volumen y escena. También funciona en libros sin audio (A4b), con
+una cama suave de fondo.
+
 Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
 cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`
 pantalla completa y `?` muestra la ayuda.

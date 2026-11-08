@@ -166,6 +166,95 @@ export interface Settings {
   azure_configured: boolean;
 }
 
+export type SoundKind = "ambience" | "effect" | "music";
+
+export interface SoundAsset {
+  id: string;
+  kind: SoundKind;
+  prompt: string;
+  tags: string[];
+  provider: string;
+  model: string | null;
+  seed: number | null;
+  duration_ms: number;
+  loopable: boolean;
+  sample_rate: number;
+  channels: number;
+  loudness_lufs: number | null;
+  license: string;
+  attribution: string | null;
+  source_url: string | null;
+  checksum: string;
+  approved: boolean;
+  created_at: string;
+  last_used_at: string | null;
+  usage_count: number;
+  audio_url: string;
+}
+
+export interface SoundAssetList {
+  items: SoundAsset[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AmbienceSettings {
+  enabled: boolean;
+  master_gain_db: number;
+  ducking_db: number;
+}
+
+export interface AmbienceAnchor {
+  segment_id: string;
+  offset_ms: number;
+}
+
+export interface AmbienceBed {
+  asset_id: string;
+  kind: "ambience";
+  start_ms: number;
+  end_ms: number | null;
+  loop: boolean;
+  gain_db: number;
+  fade_in_ms: number;
+  fade_out_ms: number;
+  confidence: number;
+  reason: string;
+}
+
+export interface AmbienceEffect {
+  asset_id: string;
+  kind: "effect";
+  anchor: AmbienceAnchor;
+  duration_ms: number;
+  gain_db: number;
+  confidence: number;
+  reason: string;
+}
+
+export interface AmbienceChapter {
+  chapter_index: number;
+  bed: AmbienceBed | null;
+  effects: AmbienceEffect[];
+}
+
+export interface AmbiencePlan {
+  version: number;
+  chapters: AmbienceChapter[];
+}
+
+export interface BookAmbience {
+  book_id: string;
+  settings: AmbienceSettings;
+  plan: AmbiencePlan;
+}
+
+export interface AmbiencePlanUpdate {
+  settings: AmbienceSettings;
+  plan: AmbiencePlan;
+}
+
 export interface Preview {
   url: string;
   key: string;
