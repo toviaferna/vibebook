@@ -17,6 +17,7 @@ export const queryKeys = {
   books: (params: { q?: string; sort?: string } = {}) => ["books", params] as const,
   book: (id: string) => ["book", id] as const,
   job: (id: string) => ["job", id] as const,
+  engines: ["engines"] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
   readerManifest: (bookId: string) => ["reader-manifest", bookId] as const,
@@ -42,6 +43,14 @@ export function useBook(bookId: string | undefined) {
     queryKey: queryKeys.book(bookId ?? ""),
     queryFn: () => api.getBook(bookId as string),
     enabled: Boolean(bookId),
+  });
+}
+
+export function useEngines() {
+  return useQuery({
+    queryKey: queryKeys.engines,
+    queryFn: api.getEngines,
+    staleTime: 30_000,
   });
 }
 

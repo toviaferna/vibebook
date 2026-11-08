@@ -10,6 +10,13 @@ from audiol.studio.server import run_studio
 from audiol.studio.settings import Settings, default_library_dir
 from audiol.tts.base import validate_rate
 from audiol.tts.factory import make_provider
+from audiol.tts.piper import resolve_piper_binary, resolve_piper_model
+from audiol.tts.piper_voices import (
+    DEFAULT_PIPER_VOICE,
+    download_piper_voice,
+    get_piper_voice,
+)
+from audiol.tts.registry import engine_available, get_engine, list_engines
 from audiol.voices import get_voice, list_voices
 
 
@@ -18,13 +25,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"vibebook {version('vibebook')}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    engines = subparsers.add_parser("engines", help="List TTS engines")
+    engines.add_argument(
+        "--available",
+        action="store_true",
+        help="Only list engines available in this installation",
+    )
+
     voices = subparsers.add_parser("voices", help="List available voices")
     voices.add_argument("--locale", default=None, help="Filter by locale, e.g. es-MX")
+    voices.add_argument("--engine", default=None, help="Filter by engine, e.g. piper")
 
     convert_parser = subparsers.add_parser("convert", help="Convert an EPUB to M4B")
     convert_parser.add_argument("epub")
     convert_parser.add_argument("--voice", default="es-MX-JorgeNeural")
-    convert_parser.add_argument("--engine", choices=["edge", "azure", "fake"], default="edge")
+    convert_parser.add_argument("--engine", default="edge")
     convert_parser.add_argument("--style", default="neutral")
     convert_parser.add_argument(
         "--rate",
@@ -50,6 +65,17 @@ def build_parser() -> argparse.ArgumentParser:
     studio_parser.add_argument("--token", default=None)
     studio_parser.add_argument("--dev", action="store_true")
 
+    piper_parser = subparsers.add_parser("piper", help="Manage the local Piper engine")
+    piper_subparsers = piper_parser.add_subparsers(dest="piper_command", required=True)
+    piper_download = piper_subparsers.add_parser(
+        "download", help="Download and verify a Piper voice"
+    )
+    piper_download.add_argument("--voice", default=DEFAULT_PIPER_VOICE)
+    piper_download.add_argument("--dest", default=None)
+    piper_download.add_argument("--force", action="store_true")
+    piper_status = piper_subparsers.add_parser("status", help="Show Piper installation status")
+    piper_status.add_argument("--voice", default=DEFAULT_PIPER_VOICE)
+
     return parser
 
 
@@ -71,12 +97,36 @@ def main(argv: list[str] | None = None) -> int:
     raw_argv = sys.argv[1:] if argv is None else list(argv)
     args = build_parser().parse_args(_normalize_rate_args(raw_argv))
 
+    if args.command == "engines":
+        for spec in list_engines():
+            available = engine_available(spec.id, allow_fake=True)
+            if args.available and not available:
+                continue
+            print(
+                f"{spec.id}\t{spec.kind}\t{spec.transport}\t{spec.timing}\t"
+                f"{'yes' if available else 'no'}\t{spec.license}"
+            )
+        return 0
+
     if args.command == "voices":
-        for voice in list_voices(args.locale):
+        try:
+            if args.engine:
+                get_engine(args.engine)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        for voice in list_voices(args.locale, engine=args.engine):
             styles = ",".join(voice.styles) if voice.styles else "-"
             engines = ",".join(voice.engines)
             print(f"{voice.id}\t{voice.locale}\t{voice.gender}\t{engines}\t{styles}")
         return 0
+
+    if args.command == "piper":
+        try:
+            return _piper(args)
+        except (ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
 
     if args.command == "convert":
         try:
@@ -96,12 +146,15 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _convert(args: argparse.Namespace) -> int:
+    spec = get_engine(args.engine)
+    if not spec.implemented:
+        raise SystemExit(f"TTS engine is not implemented yet: {args.engine}")
     voice = get_voice(args.voice)
-    if args.engine != "fake" and args.engine not in voice.engines:
+    if not spec.test_only and args.engine not in voice.engines:
         raise SystemExit(f"{args.voice} does not support engine {args.engine}")
     if args.style != "neutral":
-        if args.engine != "azure":
-            raise SystemExit("Styles require --engine azure")
+        if not spec.supports_styles:
+            raise SystemExit(f"{args.engine} does not support styles")
         if args.style not in voice.styles:
             raise SystemExit(
                 f"{args.voice} does not support style {args.style}; "
@@ -144,6 +197,29 @@ def _convert(args: argparse.Namespace) -> int:
     )
     print(f"M4B: {result.m4b_path}")
     return 0
+
+
+def _piper(args: argparse.Namespace) -> int:
+    if args.piper_command == "download":
+        get_piper_voice(args.voice)
+        destination = Path(args.dest).expanduser() if args.dest else None
+        model = download_piper_voice(
+            args.voice,
+            destination,
+            force=args.force,
+            on_progress=print,
+        )
+        print(f"Voz Piper: {model}")
+        return 0
+
+    if args.piper_command == "status":
+        binary = resolve_piper_binary(optional=True)
+        voice_path = resolve_piper_model(args.voice, optional=True)
+        print(f"binario: {binary or 'no encontrado'}")
+        print(f"voz: {voice_path or 'no instalada'}")
+        return 0
+
+    return 1
 
 
 def _studio(args: argparse.Namespace) -> int:

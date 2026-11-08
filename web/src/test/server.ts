@@ -6,6 +6,7 @@ import {
   sampleBookDetail,
   sampleBookmarks,
   sampleChapter,
+  sampleEngines,
   sampleJob,
   sampleManifest,
   sampleReadingBookmarks,
@@ -110,6 +111,7 @@ export const server = setupServer(
     const patch = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...sampleSettings, ...patch });
   }),
+  http.get("*/api/engines", () => HttpResponse.json(sampleEngines)),
   http.get("*/api/voices", () => HttpResponse.json(sampleVoices)),
   http.post("*/api/books/import", () =>
     HttpResponse.json({ ...sampleBook, status: "imported", duration_ms: null }, { status: 201 }),

@@ -104,6 +104,10 @@ def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse
                 rate=rate,
             )
             os.replace(temporary, path)
+        except ValueError as exc:
+            logger.exception("Preview configuration failed")
+            temporary.unlink(missing_ok=True)
+            raise ApiError(422, "invalid_options", str(exc)) from exc
         except Exception as exc:
             logger.exception("Preview generation failed")
             temporary.unlink(missing_ok=True)

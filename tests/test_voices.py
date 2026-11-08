@@ -3,7 +3,7 @@ from audiol.voices import get_voice, list_voices
 
 def test_list_mx_voices():
     ids = [voice.id for voice in list_voices("es-MX")]
-    assert ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
+    assert ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural", "es_MX-ald-medium"]
 
 
 def test_list_py_voices():
@@ -28,6 +28,7 @@ def test_list_voices_by_engine():
         "es-PY-TaniaNeural",
     ]
     assert azure_ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
+    assert [voice.id for voice in list_voices(engine="piper")] == ["es_MX-ald-medium"]
 
 
 def test_list_fake_voices_returns_catalog():

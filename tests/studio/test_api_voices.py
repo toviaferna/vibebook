@@ -24,6 +24,13 @@ def test_filter_voices_by_engine(client):
     assert ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
 
 
+def test_filter_voices_by_piper(client):
+    response = client.get("/api/voices", params={"engine": "piper"})
+
+    assert response.status_code == 200
+    assert [voice["id"] for voice in response.json()] == ["es_MX-ald-medium"]
+
+
 def test_filter_voices_by_fake_keeps_catalog(client):
     response = client.get("/api/voices", params={"engine": "fake"})
 
@@ -43,7 +50,7 @@ def test_preview_rejects_unimplemented_engine(client):
         "/api/voices/preview",
         json={
             "voice": "es-MX-JorgeNeural",
-            "engine": "piper",
+            "engine": "espeak",
             "text": "Hola",
         },
     )
@@ -51,6 +58,27 @@ def test_preview_rejects_unimplemented_engine(client):
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_options"
     assert "todavía no está disponible" in response.json()["error"]["message"]
+
+
+def test_preview_rejects_uninstalled_piper(client, monkeypatch, tmp_path):
+    from audiol.tts.registry import make_provider
+
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+    client.app.state.provider_factory = lambda engine: make_provider(engine, allow_fake=True)
+
+    response = client.post(
+        "/api/voices/preview",
+        json={
+            "voice": "es_MX-ald-medium",
+            "engine": "piper",
+            "text": "Hola",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"
+    assert "Piper" in response.json()["error"]["message"]
 
 
 def test_preview_with_fake_is_cached(client):

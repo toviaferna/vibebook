@@ -8,6 +8,8 @@ src-tauri/target/
 src-tauri/gen/
 portable/
 checksums.txt
+packaging/piper/bin/
+packaging/piper/voices/
 __pycache__/
 *.pyc
 *.egg-info/

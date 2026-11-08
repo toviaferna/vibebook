@@ -7,6 +7,7 @@ import { api, apiUrl, errorMessage } from "../../api/client";
 import {
   useBook,
   useCancelJob,
+  useEngines,
   useJob,
   useJobEvents,
   useResumeJob,
@@ -27,11 +28,11 @@ import { VoicePicker } from "./VoicePicker";
 const ACTIVE = new Set(["queued", "running", "cancelling"]);
 const RESUMABLE = new Set(["cancelled", "interrupted", "failed"]);
 const SAMPLE = "Hola. Así va a sonar tu próximo audiolibro en Vibebook.";
-const ALLOW_FAKE = import.meta.env.DEV || import.meta.env.VITE_ALLOW_FAKE === "true";
 
 export function StudioPage() {
   const { id } = useParams<{ id: string }>();
   const bookQuery = useBook(id);
+  const enginesQuery = useEngines();
   const voicesQuery = useVoices();
   const settingsQuery = useSettings();
 
@@ -47,6 +48,7 @@ export function StudioPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const book = bookQuery.data;
+  const engines = enginesQuery.data?.items ?? [];
   const voices = voicesQuery.data ?? [];
   const settings = settingsQuery.data;
   const jobQuery = useJob(jobId);
@@ -57,6 +59,7 @@ export function StudioPage() {
   useJobEvents(jobId, id ?? "");
 
   const selectedVoice = voices.find((item) => item.id === voice);
+  const selectedEngine = engines.find((item) => item.id === engine);
   const previewMutation = useMutation({
     mutationFn: (voiceId: string) =>
       api.previewVoice({ voice: voiceId, engine, style, rate, text: SAMPLE }),
@@ -83,7 +86,7 @@ export function StudioPage() {
     const defaults = settings;
     setVoice(book.voice ?? defaults?.default_voice ?? "es-MX-JorgeNeural");
     setRate(book.rate ?? defaults?.default_rate ?? "-10%");
-    setEngine(book.engine === "azure" ? "azure" : "edge");
+    setEngine(book.engine ?? "edge");
     initialized.current = true;
   }, [book, settings]);
 
@@ -139,14 +142,15 @@ export function StudioPage() {
 
   const changeEngine = (nextEngine: string) => {
     setEngine(nextEngine);
+    const spec = engines.find((item) => item.id === nextEngine);
     const current = voices.find((item) => item.id === voice);
-    if (current && !current.engines.includes(nextEngine)) {
+    if (current && nextEngine !== "fake" && !current.engines.includes(nextEngine)) {
       const fallback = voices.find((item) => item.engines.includes(nextEngine));
       if (fallback) {
         setVoice(fallback.id);
       }
     }
-    if (nextEngine !== "azure") {
+    if (!spec?.supports_styles) {
       setStyle("neutral");
     }
   };
@@ -154,10 +158,11 @@ export function StudioPage() {
   const changeVoice = (voiceId: string) => {
     setVoice(voiceId);
     const selected = voices.find((item) => item.id === voiceId);
-    if (selected && !selected.engines.includes(engine)) {
+    if (selected && engine !== "fake" && !selected.engines.includes(engine)) {
       const fallbackEngine = selected.engines[0] ?? "edge";
       setEngine(fallbackEngine);
-      if (fallbackEngine !== "azure") {
+      const fallbackSpec = engines.find((item) => item.id === fallbackEngine);
+      if (!fallbackSpec?.supports_styles) {
         setStyle("neutral");
       }
     }
@@ -190,6 +195,9 @@ export function StudioPage() {
   };
 
   const showProgress = Boolean(jobId);
+  const visibleEngines = engines.filter(
+    (item) => item.implemented && (!item.test_only || item.available),
+  );
 
   return (
     <div className="page">
@@ -208,10 +216,12 @@ export function StudioPage() {
         }
       />
 
-      {voicesQuery.isError ? (
+      {enginesQuery.isError || voicesQuery.isError ? (
         <div className="alert" role="alert" style={{ marginBottom: "var(--space-5)" }}>
           <AlertTriangle size={18} />
-          <span>{errorMessage(voicesQuery.error)}</span>
+          <span>
+            {errorMessage(enginesQuery.error ?? voicesQuery.error ?? new Error("Error de carga"))}
+          </span>
         </div>
       ) : null}
 
@@ -287,7 +297,7 @@ export function StudioPage() {
               <p className="hint">Una velocidad más lenta ayuda a seguir la lectura.</p>
             </div>
 
-            {engine === "azure" && selectedVoice?.styles.length ? (
+            {selectedEngine?.supports_styles && selectedVoice?.styles.length ? (
               <div className="field" style={{ marginTop: "var(--space-3)" }}>
                 <label className="label" htmlFor="style">
                   Estilo
@@ -335,18 +345,24 @@ export function StudioPage() {
                   id="engine"
                   className="select"
                   value={engine}
-                  disabled={locked}
+                  disabled={locked || engines.length === 0}
                   onChange={(event) => changeEngine(event.target.value)}
                 >
-                  <option value="edge">Edge · gratis</option>
-                  <option value="azure" disabled={!settings?.azure_configured}>
-                    Azure · estilos
-                    {settings?.azure_configured ? "" : " (sin configurar)"}
-                  </option>
-                  {ALLOW_FAKE ? <option value="fake">Fake · solo pruebas</option> : null}
+                  {visibleEngines.map((item) => (
+                    <option key={item.id} value={item.id} disabled={!item.available}>
+                      {item.label}
+                      {item.legacy ? " · legado" : ""}
+                      {!item.available
+                        ? item.transport === "local"
+                          ? " (no instalado)"
+                          : " (sin configurar)"
+                        : ""}
+                    </option>
+                  ))}
                 </select>
                 <p className="hint">
-                  Edge es el camino rápido. Azure requiere credenciales y tiene cuota mensual.
+                  {selectedEngine?.description ??
+                    "Edge es el camino rápido. Azure requiere credenciales y tiene cuota mensual."}
                 </p>
               </div>
               <details className="advanced">
@@ -398,9 +414,7 @@ export function StudioPage() {
                   </div>
                   <div className="summary-row">
                     <span>Motor</span>
-                    <strong>
-                      {engine === "azure" ? "Azure" : engine === "fake" ? "Fake" : "Edge"}
-                    </strong>
+                    <strong>{selectedEngine?.label ?? engine}</strong>
                   </div>
                   <div className="summary-row">
                     <span>Capítulos</span>

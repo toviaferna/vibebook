@@ -91,12 +91,14 @@ PIPER = EngineSpec(
     audio_suffix=".wav",
     license="GPL-3.0",
     source_url="https://github.com/OHF-Voice/piper1-gpl",
-    description="TTS local en CPU; requiere binario y voz Piper.",
+    description="TTS local en CPU; requiere binario, voz Piper y espeak-ng-data.",
     config_schema={
         "binary_env": "VIBEBOOK_PIPER_BIN",
         "model_env": "VIBEBOOK_PIPER_MODEL",
+        "config_env": "VIBEBOOK_PIPER_CONFIG",
+        "voices_env": "VIBEBOOK_PIPER_VOICES",
+        "espeak_env": "VIBEBOOK_PIPER_ESPEAK_DATA",
     },
-    implemented=False,
 )
 
 ESPEAK = EngineSpec(

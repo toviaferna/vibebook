@@ -4,7 +4,8 @@ Generador de audiolibros en español latinoamericano a partir de EPUB.
 
 El paquete Python se llama `audiol`; el comando instalado es `vibebook` y
 también existe el alias `audiol`. v0 usa Edge TTS por defecto y Azure Speech
-como opción para estilos. La salida es un M4B AAC con capítulos y metadata.
+como opción para estilos; Piper corre local, sin cuenta ni red. La salida es un
+M4B AAC con capítulos y metadata.
 
 ## Instalación
 
@@ -14,6 +15,8 @@ Requisitos:
 - `ffmpeg` y `ffprobe`. Si no están en el sistema, `static-ffmpeg` los
   descarga la primera vez.
 - Azure es opcional: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
+- Piper es opcional: binario local y voz `es_MX-ald-medium`; ver
+  [docs/engines.md](docs/engines.md).
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -24,12 +27,20 @@ No hay que activar ningún venv. `uv run` usa el entorno del proyecto.
 
 ## Uso
 
-Listar voces:
+Listar motores y voces:
 
 ```bash
+uv run vibebook engines
 uv run vibebook voices
 uv run vibebook voices --locale es-MX
-uv run vibebook voices --locale es-PY
+uv run vibebook voices --engine piper
+```
+
+Preparar Piper local (opcional):
+
+```bash
+uv run vibebook piper download
+uv run vibebook piper status
 ```
 
 Convertir un EPUB:
@@ -50,6 +61,15 @@ Elegir voz:
 uv run vibebook convert libro.epub \
   --voice es-PY-MarioNeural \
   --out out/libro-py
+```
+
+Convertir con Piper, sin red:
+
+```bash
+uv run vibebook convert libro.epub \
+  --engine piper \
+  --voice es_MX-ald-medium \
+  --out out/libro-piper
 ```
 
 Simular sin escribir archivos:
@@ -82,7 +102,7 @@ el sidecar/CLI usa `speech_synthesis_word_boundary` y conserva REST como fallbac
 | Opción | Default | Descripción |
 |---|---|---|
 | `--voice` | `es-MX-JorgeNeural` | Voz del catálogo |
-| `--engine` | `edge` | `edge`, `azure` o `fake` para tests |
+| `--engine` | `edge` | `edge`, `azure`, `piper` o `fake` para tests |
 | `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
 | `--rate` | `-10%` | Velocidad entre `-100%` y `+100%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
@@ -171,7 +191,7 @@ La app de escritorio usa Tauri y empaqueta el backend Python y ffmpeg en un
 sidecar. No necesita Python ni Node instalados para ejecutarse.
 
 Requisitos: Windows 10/11 x64, WebView2 (incluido en Windows 11) e internet para
-Edge TTS.
+Edge TTS. Piper es opcional y funciona sin internet.
 
 Para desarrollo:
 
@@ -195,7 +215,8 @@ El modo portable se activa creando un archivo `portable.flag` junto a
 Los logs del sidecar quedan en
 `%LOCALAPPDATA%\com.vibebook.desktop\logs\vibebook-sidecar.log`.
 
-Más detalle en [docs/desktop.md](docs/desktop.md).
+Más detalle en [docs/desktop.md](docs/desktop.md) y
+[docs/engines.md](docs/engines.md).
 
 ## Voces
 
@@ -205,8 +226,10 @@ Más detalle en [docs/desktop.md](docs/desktop.md).
 | `es-MX-DaliaNeural` | `es-MX` | femenino | Edge, Azure | `cheerful`, `sad`, `whispering` |
 | `es-PY-MarioNeural` | `es-PY` | masculino | Edge | - |
 | `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | - |
+| `es_MX-ald-medium` | `es-MX` | masculino | Piper | - |
 
-Edge solo admite estilo neutral. Los estilos requieren `--engine azure`.
+Edge solo admite estilo neutral. Los estilos requieren `--engine azure`. Piper
+no usa estilos y devuelve timing por segmento.
 
 Edge TTS es un servicio no oficial y puede limitar peticiones. Azure Speech
 incluye 0,5 M de caracteres al mes en la capa gratuita.

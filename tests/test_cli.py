@@ -21,3 +21,62 @@ def test_cli_voices(capsys):
     assert "es-PY-MarioNeural" in output
     assert "es-PY-TaniaNeural" in output
     assert "es-MX-JorgeNeural" not in output
+
+
+def test_cli_engines(capsys):
+    assert main(["engines"]) == 0
+    output = capsys.readouterr().out
+    assert "piper" in output
+    assert "edge" in output
+    assert "segment" in output
+
+
+def test_cli_voices_filtered_by_engine(capsys):
+    assert main(["voices", "--engine", "piper"]) == 0
+    output = capsys.readouterr().out
+    assert "es_MX-ald-medium" in output
+    assert "es-MX-JorgeNeural" not in output
+
+
+def test_cli_piper_download(monkeypatch, tmp_path, capsys):
+    import audiol.cli as cli
+
+    model = tmp_path / "es_MX-ald-medium.onnx"
+    model.write_bytes(b"model")
+    calls: dict[str, object] = {}
+
+    def fake_download(voice, destination, force=False, on_progress=None):
+        calls.update(voice=voice, destination=destination, force=force)
+        if on_progress:
+            on_progress("descargando")
+        return model
+
+    monkeypatch.setattr(cli, "download_piper_voice", fake_download)
+
+    code = main(
+        [
+            "piper",
+            "download",
+            "--voice",
+            "es_MX-ald-medium",
+            "--dest",
+            str(tmp_path / "voices"),
+        ]
+    )
+
+    assert code == 0
+    assert calls["voice"] == "es_MX-ald-medium"
+    assert calls["destination"] == tmp_path / "voices"
+    output = capsys.readouterr().out
+    assert "Voz Piper" in output
+    assert "descargando" in output
+
+
+def test_cli_piper_status_without_install(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("VIBEBOOK_PIPER_BIN", str(tmp_path / "missing-piper"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_VOICES", str(tmp_path / "missing-voices"))
+
+    assert main(["piper", "status"]) == 0
+    output = capsys.readouterr().out
+    assert "no encontrado" in output
+    assert "no instalada" in output

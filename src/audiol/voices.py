@@ -37,6 +37,12 @@ _VOICE_LIST = (
         gender="female",
         engines=("edge",),
     ),
+    Voice(
+        id="es_MX-ald-medium",
+        locale="es-MX",
+        gender="male",
+        engines=("piper",),
+    ),
 )
 
 VOICES: dict[str, Voice] = {voice.id: voice for voice in _VOICE_LIST}
