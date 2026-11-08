@@ -250,6 +250,30 @@ export function useJob(jobId: string | null | undefined) {
   });
 }
 
+export function useAmbienceRenderJob(jobId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.job(jobId ?? ""),
+    queryFn: () => api.getJob(jobId as string),
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "completed" || status === "failed" || status === "cancelled"
+        ? false
+        : 1_000;
+    },
+  });
+}
+
+export function useStartAmbienceRender(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.startAmbienceRender(bookId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bookAmbience(bookId) });
+    },
+  });
+}
+
 export function useReaderManifest(bookId: string | undefined) {
   return useQuery({
     queryKey: queryKeys.readerManifest(bookId ?? ""),
