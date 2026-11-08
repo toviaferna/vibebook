@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+from audiol.assemble import probe_duration
 from audiol.manifest import load_manifest
 from audiol.timing import ChapterTiming, audio_duration_ms, read_chapter_timing
 
@@ -105,6 +107,7 @@ def analyze_chapter(
     return {
         "chapter_index": timing.chapter_index,
         "precision": timing.precision,
+        "timing_offset_ms": timing.timing_offset_ms,
         "timing_duration_ms": timing.duration_ms,
         "timing_segment_sum_ms": timing_sum_ms,
         "segment_audio_sum_ms": audio_sum_ms,
@@ -219,9 +222,12 @@ def _duration_or_none(path: Path | None) -> int | None:
     if path is None or not path.is_file():
         return None
     try:
-        return audio_duration_ms(path)
-    except (OSError, ValueError):
-        return None
+        return int(round(probe_duration(path) * 1000))
+    except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError):
+        try:
+            return audio_duration_ms(path)
+        except (OSError, ValueError):
+            return None
 
 
 def main(argv: list[str] | None = None) -> int:

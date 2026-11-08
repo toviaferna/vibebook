@@ -49,6 +49,12 @@ mínima está en
 [`examples/plugin-template`](examples/plugin-template/README.md) y el contrato
 en [docs/engines.md](docs/engines.md).
 
+Reparar la sincronización de un libro viejo que ya tiene segmentos:
+
+```bash
+uv run vibebook repair-sync out/libro
+```
+
 Convertir un EPUB (elige Piper o eSpeak NG automáticamente):
 
 ```bash

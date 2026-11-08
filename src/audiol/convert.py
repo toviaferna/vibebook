@@ -7,7 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from audiol.assemble import build_m4b, concat_pcm_to_mp3, probe_duration, require_ffmpeg
+from audiol.assemble import (
+    build_m4b,
+    calibrate_encoder_delay_ms,
+    concat_pcm_to_mp3,
+    probe_duration,
+    require_ffmpeg,
+)
 from audiol.chunk import chunk_text
 from audiol.clean import clean_paragraph_items
 from audiol.manifest import write_manifest
@@ -267,6 +273,7 @@ def _convert_core(
     cached_segments = 0
     chapter_files: list[Path] = []
     chapter_durations: list[int] = []
+    timing_offset_ms = calibrate_encoder_delay_ms() if capture_timings else 0
 
     def emit(event: ProgressEvent) -> None:
         if on_progress is not None:
@@ -381,6 +388,7 @@ def _convert_core(
                 assembly.durations_ms,
                 segment_words,
                 chapter_duration_ms=assembly.total_ms,
+                timing_offset_ms=timing_offset_ms,
             )
             write_chapter_timing(timings_dir / f"chapter_{chapter.index:03d}.json", timing)
 

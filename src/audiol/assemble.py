@@ -1,5 +1,7 @@
+import math
 import os
 import shutil
+import struct
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -9,6 +11,7 @@ from audiol.tools import require_ffmpeg
 
 PCM_SAMPLE_RATE = 24_000
 PCM_BYTES_PER_FRAME = 2
+_CALIBRATION_CACHE: dict[int, int] = {}
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,42 @@ def probe_duration(path: Path) -> float:
         return float(output.strip())
     except ValueError as exc:
         raise RuntimeError(f"Could not read duration from {path}") from exc
+
+
+def calibrate_encoder_delay_ms(sample_rate: int = PCM_SAMPLE_RATE) -> int:
+    if sample_rate in _CALIBRATION_CACHE:
+        return _CALIBRATION_CACHE[sample_rate]
+    ffmpeg, _ = require_ffmpeg()
+    burst_samples = int(0.02 * sample_rate)
+    impulse_at = int(0.4 * sample_rate)
+    total_samples = int(1.0 * sample_rate)
+    pcm = bytearray()
+    for index in range(total_samples):
+        value = 0
+        if impulse_at <= index < impulse_at + burst_samples:
+            value = int(8_000 * math.cos(2 * math.pi * 1_000 * (index - impulse_at) / sample_rate))
+        pcm += struct.pack("<h", value)
+
+    with tempfile.TemporaryDirectory(prefix="vibebook-calibration-") as temp:
+        root = Path(temp)
+        source = root / "source.pcm"
+        encoded = root / "encoded.mp3"
+        decoded = root / "decoded.pcm"
+        source.write_bytes(pcm)
+        _encode_pcm_to_mp3(ffmpeg, source, encoded, sample_rate)
+        _decode_pcm(ffmpeg, encoded, decoded, sample_rate)
+        decoded_bytes = decoded.read_bytes()
+
+    samples = struct.iter_unpack("<h", decoded_bytes)
+    first = next(
+        (index for index, (value,) in enumerate(samples) if abs(value) > 1_000),
+        None,
+    )
+    if first is None:
+        raise RuntimeError("Could not measure the MP3 encoder delay")
+    delay_ms = int(round((first - impulse_at) * 1000 / sample_rate))
+    _CALIBRATION_CACHE[sample_rate] = delay_ms
+    return delay_ms
 
 
 def concat_pcm_to_mp3(

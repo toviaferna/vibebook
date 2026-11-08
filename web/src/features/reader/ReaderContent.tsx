@@ -16,6 +16,7 @@ interface ReaderContentProps {
   alignments: Map<string, AlignedSegment>;
   activeSegmentId: string | null;
   activeWordIndex: number | null;
+  timingOffsetMs?: number;
   onSeek: (ms: number) => void;
   bookId?: string;
   images?: ManifestImage[];
@@ -33,7 +34,17 @@ function groupParagraphs(segments: ManifestSegment[]): ManifestSegment[][] {
 
 export const ReaderContent = memo(
   forwardRef<HTMLElement, ReaderContentProps>(function ReaderContent(
-    { chapter, timing, alignments, activeSegmentId, activeWordIndex, onSeek, bookId, images = [] },
+    {
+      chapter,
+      timing,
+      alignments,
+      activeSegmentId,
+      activeWordIndex,
+      timingOffsetMs = 0,
+      onSeek,
+      bookId,
+      images = [],
+    },
     ref,
   ) {
     const paragraphs = useMemo(() => groupParagraphs(chapter.segments), [chapter.segments]);
@@ -77,7 +88,7 @@ export const ReaderContent = memo(
         : timingById.get(segment.id)?.start_ms;
       if (target !== undefined) {
         event.stopPropagation();
-        onSeek(target);
+        onSeek(Math.max(0, target + timingOffsetMs));
       }
     };
 
