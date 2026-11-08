@@ -54,6 +54,9 @@ def _book_response(row: dict) -> BookResponse:
         progress=progress,
         last_position_ms=position,
         last_chapter_index=int(row.get("chapter_index") or 1),
+        reading_progress=float(row.get("reading_progress") or 0.0),
+        last_read_chapter_index=row.get("reading_chapter_index"),
+        last_read_at=row.get("reading_updated_at"),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
