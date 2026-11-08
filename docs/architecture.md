@@ -45,13 +45,17 @@ proveedores; `factory.py` mantiene la firma histórica.
 estar implementado todavía: en ese caso `implemented` y `available` son
 `false`, y la conversión falla con un error claro en lugar de intentar usarlo.
 Edge y Azure se conservan como legado externo; Piper y eSpeak NG corren local.
+Los plugins VEP se registran en `plugins.json`, sus tokens viven en
+`secrets.json` y sus voces se integran al catálogo y al Studio.
 
 Piper se ejecuta como proceso separado con `subprocess.run`, sin `shell=True` y
 con timeout. La voz se descarga explícitamente, se verifica por tamaño y MD5 y
 se resuelve desde `VIBEBOOK_PIPER_VOICES`, el directorio de datos o un bundle.
 eSpeak NG usa el mismo aislamiento y `--path` para encontrar sus datos. En
 Windows, las rutas no ASCII se convierten a rutas cortas 8.3 antes de invocar
-los binarios. Detalle en [engines.md](engines.md).
+los binarios. Los plugins VEP hablan HTTP/JSON, se validan por manifiesto,
+timeout y audio, y nunca exponen su token. Detalle en
+[engines.md](engines.md).
 
 ## Pipeline
 

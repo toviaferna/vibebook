@@ -13,12 +13,12 @@ from audiol.studio.db import Database
 from audiol.studio.errors import install_error_handlers
 from audiol.studio.jobs import JobManager
 from audiol.studio.library import Library
+from audiol.studio.plugins import PluginRegistry
 from audiol.studio.security import install_security_middleware
 from audiol.studio.settings import Settings
 from audiol.studio.static import mount_static
 from audiol.tools import find_binary
 from audiol.tts.base import TTSProvider
-from audiol.tts.factory import make_provider
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +29,16 @@ def create_app(
 ) -> FastAPI:
     library = Library(settings.library_dir)
     db = Database(settings.library_dir / ".vibebook.db")
+    plugins = PluginRegistry(settings.library_dir)
     resolved_factory = provider_factory or (
-        lambda engine: make_provider(engine, allow_fake=settings.allow_fake)
+        lambda engine: plugins.make_provider(engine, allow_fake=settings.allow_fake)
     )
     job_manager = JobManager(
         db,
         library,
         resolved_factory,
         allow_fake=settings.allow_fake,
+        plugins=plugins,
     )
 
     @asynccontextmanager
@@ -55,6 +57,7 @@ def create_app(
     app.state.library = library
     app.state.db = db
     app.state.jobs = job_manager
+    app.state.plugins = plugins
     app.state.provider_factory = resolved_factory
 
     app.add_middleware(

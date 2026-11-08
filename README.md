@@ -44,6 +44,11 @@ uv run vibebook piper download
 uv run vibebook piper status
 ```
 
+Plugins VEP: agregá un servidor HTTP/JSON desde Ajustes o por API; la plantilla
+mínima está en
+[`examples/plugin-template`](examples/plugin-template/README.md) y el contrato
+en [docs/engines.md](docs/engines.md).
+
 Convertir un EPUB (elige Piper o eSpeak NG automáticamente):
 
 ```bash

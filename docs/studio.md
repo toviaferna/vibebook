@@ -41,6 +41,9 @@ desarrollo se habilita el motor `Fake` para probar sin red.
   estado de configuración; Fake solo aparece cuando está habilitado.
 - Ajustes permite elegir el motor y la voz por defecto. El backend resuelve
   Piper → eSpeak NG → Edge como fallback legado.
+- Ajustes incluye plugins VEP: agregar por URL, token opcional, probar,
+  eliminar y ver licencia/fuente. Los plugins agregados aparecen como motores
+  y sus voces se suman al selector.
 - Progreso en vivo, cancelación y reanudación.
 - Ajustes de voz, tema, tipografía y reproducción.
 - Lector sincronizado con resaltado por palabra, índice, temas, tipografía,

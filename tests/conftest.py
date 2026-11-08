@@ -1,4 +1,12 @@
+import base64
 import io
+import json
+import math
+import struct
+import threading
+import time
+import wave
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -346,3 +354,166 @@ def image_epub(tmp_path: Path) -> Path:
     path = tmp_path / "illustrated.epub"
     epub.write_epub(str(path), book)
     return path
+
+
+class FakePluginServer:
+    def __init__(
+        self,
+        *,
+        require_token: str | None = None,
+        fail_synthesis: bool = False,
+        delay: float = 0.0,
+        invalid_audio: bool = False,
+        plugin_id: str = "fake-plugin",
+    ) -> None:
+        self.require_token = require_token
+        self.fail_synthesis = fail_synthesis
+        self.delay = delay
+        self.invalid_audio = invalid_audio
+        self.info = {
+            "protocol": "vep/1",
+            "id": plugin_id,
+            "name": "Fake VEP",
+            "version": "1.0.0",
+            "license": "MIT",
+            "source": "https://example.com/fake-vep",
+            "capabilities": {
+                "languages": ["es"],
+                "styles": [],
+                "timings": "segment",
+                "streaming": False,
+            },
+            "limits": {
+                "max_chars": 400,
+                "max_concurrency": 1,
+                "timeout_seconds": 10,
+            },
+            "voices": [
+                {
+                    "id": "fake-es",
+                    "locale": "es-MX",
+                    "gender": "female",
+                    "styles": [],
+                }
+            ],
+        }
+        self._server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+
+    @property
+    def url(self) -> str:
+        host, port = self._server.server_address
+        return f"http://{host}:{port}"
+
+    def start(self) -> None:
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._server.shutdown()
+        self._server.server_close()
+        self._thread.join(timeout=5)
+
+    def _handler(self):
+        outer = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args) -> None:
+                return None
+
+            def _send(self, status: int, payload: dict) -> None:
+                body = json.dumps(payload).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def _authorized(self) -> bool:
+                if outer.require_token is None:
+                    return True
+                if self.headers.get("X-Vibebook-Plugin-Token") == outer.require_token:
+                    return True
+                self._send(
+                    401,
+                    {"error": {"code": "unauthorized", "message": "Missing plugin token"}},
+                )
+                return False
+
+            def do_GET(self) -> None:
+                if not self._authorized():
+                    return
+                if self.path == "/v1/info":
+                    self._send(200, outer.info)
+                elif self.path == "/v1/health":
+                    self._send(200, {"ok": True})
+                elif self.path == "/v1/voices":
+                    self._send(200, {"voices": outer.info["voices"]})
+                else:
+                    self._send(404, {"error": {"code": "not_found", "message": "No"}})
+
+            def do_POST(self) -> None:
+                if not self._authorized():
+                    return
+                if self.path != "/v1/synthesize":
+                    self._send(404, {"error": {"code": "not_found", "message": "No"}})
+                    return
+                length = int(self.headers.get("Content-Length", "0"))
+                request = json.loads(self.rfile.read(length) or b"{}")
+                if outer.delay:
+                    time.sleep(outer.delay)
+                if outer.fail_synthesis:
+                    self._send(
+                        500,
+                        {"error": {"code": "boom", "message": "Synthesis exploded"}},
+                    )
+                    return
+                if outer.invalid_audio:
+                    audio = b"not a wav"
+                else:
+                    buffer = io.BytesIO()
+                    frames = 8820
+                    with wave.open(buffer, "wb") as wav:
+                        wav.setnchannels(1)
+                        wav.setsampwidth(2)
+                        wav.setframerate(22_050)
+                        samples = (
+                            int(8000 * math.sin(2 * math.pi * 220 * index / 22_050))
+                            for index in range(frames)
+                        )
+                        wav.writeframes(b"".join(struct.pack("<h", sample) for sample in samples))
+                    audio = buffer.getvalue()
+                self._send(
+                    200,
+                    {
+                        "audio_base64": base64.b64encode(audio).decode("ascii"),
+                        "format": "wav",
+                        "duration_ms": 100,
+                        "words": [],
+                        "voice": request.get("voice"),
+                    },
+                )
+
+        return Handler
+
+
+@pytest.fixture
+def plugin_server():
+    server = FakePluginServer()
+    server.start()
+    yield server
+    server.stop()
+
+
+@pytest.fixture
+def make_plugin_server():
+    servers: list[FakePluginServer] = []
+
+    def factory(**kwargs):
+        server = FakePluginServer(**kwargs)
+        server.start()
+        servers.append(server)
+        return server
+
+    yield factory
+    for server in servers:
+        server.stop()

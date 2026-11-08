@@ -18,6 +18,7 @@ export const queryKeys = {
   book: (id: string) => ["book", id] as const,
   job: (id: string) => ["job", id] as const,
   engines: ["engines"] as const,
+  plugins: ["plugins"] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
   readerManifest: (bookId: string) => ["reader-manifest", bookId] as const,
@@ -51,6 +52,47 @@ export function useEngines() {
     queryKey: queryKeys.engines,
     queryFn: api.getEngines,
     staleTime: 30_000,
+  });
+}
+
+export function usePlugins() {
+  return useQuery({
+    queryKey: queryKeys.plugins,
+    queryFn: api.getPlugins,
+    staleTime: 15_000,
+  });
+}
+
+function useInvalidateCatalog() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.plugins });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.settings });
+  };
+}
+
+export function useAddPlugin() {
+  const invalidate = useInvalidateCatalog();
+  return useMutation({
+    mutationFn: (input: { url: string; token: string | null }) =>
+      api.addPlugin(input.url, input.token),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeletePlugin() {
+  const invalidate = useInvalidateCatalog();
+  return useMutation({
+    mutationFn: (pluginId: string) => api.deletePlugin(pluginId),
+    onSuccess: invalidate,
+  });
+}
+
+export function useTestPlugin() {
+  return useMutation({
+    mutationFn: (pluginId: string) => api.testPlugin(pluginId),
   });
 }
 
