@@ -57,6 +57,28 @@ los binarios. Los plugins VEP hablan HTTP/JSON, se validan por manifiesto,
 timeout y audio, y nunca exponen su token. Detalle en
 [engines.md](engines.md).
 
+## Temas y apariencia
+
+La identidad visual es **Verdín**: papel frío, verde, latón y tipografía
+editorial. Hay dos luces separadas:
+
+- `theme_mode` (`system | light | dark`) controla toda la app. Se aplica como
+  `data-theme` en `<html>`, escucha `prefers-color-scheme` cuando está en
+  `system` y se persiste en settings + `localStorage`.
+- `reader_palette` (`paper | sepia | night`) controla solo la página del lector.
+  Se aplica como `data-reader-palette` en `.reader-shell`; no cambia el resto de
+  la app.
+
+`web/index.html` aplica el tema guardado antes del primer paint para evitar el
+flash. El ajuste viejo `reader_theme` se acepta como alias y se migra a
+`reader_palette` (`light → paper`). Los clientes viejos siguen recibiendo
+`reader_theme` en la respuesta.
+
+Las fuentes de producción son Spectral (display), Literata (lectura), Public
+Sans (UI), IBM Plex Mono (metadatos) y Atkinson Hyperlegible (opción de
+accesibilidad), servidas con Fontsource. El ruido de pantalla completa y los
+blur decorativos se eliminaron para cuidar el rendimiento.
+
 ## Pipeline
 
 ```text

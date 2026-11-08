@@ -173,17 +173,44 @@ def test_preview_rejects_fake_when_disabled(tmp_path: Path):
 def test_settings_roundtrip(client):
     initial = client.get("/api/settings")
     assert initial.status_code == 200
+    assert initial.json()["theme_mode"] == "system"
+    assert initial.json()["reader_palette"] == "paper"
     assert initial.json()["reader_theme"] == "light"
     assert initial.json()["default_engine"] == "edge"
     assert initial.json()["default_voice"] == "es-MX-JorgeNeural"
     assert initial.json()["azure_configured"] is False
 
-    updated = client.put("/api/settings", json={"reader_theme": "night"})
+    updated = client.put(
+        "/api/settings",
+        json={"theme_mode": "dark", "reader_palette": "night"},
+    )
     assert updated.status_code == 200
+    assert updated.json()["theme_mode"] == "dark"
+    assert updated.json()["reader_palette"] == "night"
     assert updated.json()["reader_theme"] == "night"
 
     fetched = client.get("/api/settings")
+    assert fetched.json()["theme_mode"] == "dark"
+    assert fetched.json()["reader_palette"] == "night"
     assert fetched.json()["reader_theme"] == "night"
+
+
+def test_settings_migrates_legacy_reader_theme(client):
+    client.app.state.db.set_setting("reader_theme", "sepia")
+
+    payload = client.get("/api/settings").json()
+
+    assert payload["theme_mode"] == "system"
+    assert payload["reader_palette"] == "sepia"
+    assert payload["reader_theme"] == "sepia"
+
+
+def test_settings_accepts_legacy_reader_theme(client):
+    updated = client.put("/api/settings", json={"reader_theme": "night"})
+
+    assert updated.status_code == 200
+    assert updated.json()["reader_palette"] == "night"
+    assert updated.json()["reader_theme"] == "night"
 
 
 def test_settings_rejects_unknown_key(client):

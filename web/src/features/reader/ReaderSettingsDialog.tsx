@@ -3,18 +3,18 @@ import { X } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { Field } from "../../components/Field";
+import type { ReaderPalette } from "../../lib/theme";
 
-type Theme = "light" | "sepia" | "night";
 type Font = "serif" | "sans" | "hyperlegible";
 
 interface ReaderSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  theme: Theme;
+  palette: ReaderPalette;
   font: Font;
   size: number;
   follow: boolean;
-  onTheme: (theme: Theme) => void;
+  onPalette: (palette: ReaderPalette) => void;
   onFont: (font: Font) => void;
   onSize: (size: number) => void;
   onFollow: (follow: boolean) => void;
@@ -23,11 +23,11 @@ interface ReaderSettingsDialogProps {
 export function ReaderSettingsDialog({
   open,
   onOpenChange,
-  theme,
+  palette,
   font,
   size,
   follow,
-  onTheme,
+  onPalette,
   onFont,
   onSize,
   onFollow,
@@ -52,23 +52,23 @@ export function ReaderSettingsDialog({
           </div>
 
           <div className="settings-section">
-            <Field label="Tema">
-              <div className="theme-options" role="radiogroup" aria-label="Tema de lectura">
+            <Field label="Paleta de lectura">
+              <div className="theme-options" role="radiogroup" aria-label="Paleta de lectura">
                 {[
-                  { value: "light", label: "Claro" },
+                  { value: "paper", label: "Papel" },
                   { value: "sepia", label: "Sepia" },
                   { value: "night", label: "Noche" },
                 ].map((option) => (
                   <label
                     key={option.value}
-                    className={`theme-option${theme === option.value ? " is-selected" : ""}`}
+                    className={`theme-option${palette === option.value ? " is-selected" : ""}`}
                   >
                     <input
                       type="radio"
-                      name="reader-theme"
+                      name="reader-palette"
                       value={option.value}
-                      checked={theme === option.value}
-                      onChange={() => onTheme(option.value as Theme)}
+                      checked={palette === option.value}
+                      onChange={() => onPalette(option.value as ReaderPalette)}
                     />
                     <span className="theme-swatch" data-theme-swatch={option.value} />
                     {option.label}

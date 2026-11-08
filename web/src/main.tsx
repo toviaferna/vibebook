@@ -1,6 +1,8 @@
-import "@fontsource-variable/fraunces";
+import "@fontsource-variable/literata";
 import "@fontsource-variable/public-sans";
-import "@fontsource-variable/source-serif-4";
+import "@fontsource/spectral/400.css";
+import "@fontsource/spectral/500.css";
+import "@fontsource/spectral/600.css";
 import "@fontsource/atkinson-hyperlegible/400.css";
 import "@fontsource/atkinson-hyperlegible/700.css";
 import "@fontsource/ibm-plex-mono/400.css";
@@ -10,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
+import { ThemeProvider } from "./components/ThemeProvider";
 import { initializeDesktopApi } from "./lib/tauri";
 import { router } from "./router";
 import "./styles/tokens.css";
@@ -44,7 +47,9 @@ async function bootstrap() {
   container.render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
       </QueryClientProvider>
     </StrictMode>,
   );

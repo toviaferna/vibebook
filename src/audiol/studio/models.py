@@ -2,6 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+ThemeMode = Literal["system", "light", "dark"]
+ReaderPalette = Literal["paper", "sepia", "night"]
+
 
 class ConvertRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -37,6 +40,9 @@ class SettingsUpdate(BaseModel):
     default_engine: str | None = None
     default_voice: str | None = None
     default_rate: str | None = None
+    theme_mode: ThemeMode | None = None
+    reader_palette: ReaderPalette | None = None
+    # Legacy alias for clients that still send reader_theme.
     reader_theme: Literal["light", "sepia", "night"] | None = None
     reader_font: Literal["serif", "sans", "hyperlegible"] | None = None
     reader_size: int | None = Field(default=None, ge=14, le=28)
@@ -112,7 +118,6 @@ class ChapterResponse(BaseModel):
 
 
 ReaderMode = Literal["book", "text", "original"]
-ReaderPalette = Literal["paper", "sepia", "night"]
 ReaderFont = Literal["serif", "sans", "hyperlegible"]
 
 
@@ -295,6 +300,9 @@ class SettingsResponse(BaseModel):
     default_engine: str | None
     default_voice: str
     default_rate: str
+    theme_mode: str
+    reader_palette: str
+    # Legacy alias derived from reader_palette.
     reader_theme: str
     reader_font: str
     reader_size: int

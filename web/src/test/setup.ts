@@ -9,6 +9,9 @@ beforeAll(() => server.listen());
 afterEach(() => {
   server.resetHandlers();
   cleanup();
+  window.localStorage.clear();
   delete document.body.dataset.theme;
+  delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.readerPalette;
 });
 afterAll(() => server.close());

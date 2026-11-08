@@ -1,7 +1,28 @@
 .reader-shell {
+  --paper: var(--reader-paper);
+  --paper-deep: var(--reader-paper-deep);
+  --surface: var(--reader-surface);
+  --surface-raised: var(--reader-surface);
+  --ink: var(--reader-ink);
+  --ink-soft: var(--reader-ink-soft);
+  --ink-faint: var(--reader-ink-faint);
+  --line: var(--reader-line);
+  --line-strong: var(--reader-line-strong);
+  --accent: var(--reader-accent);
+  --accent-strong: var(--reader-accent-strong);
+  --accent-soft: var(--reader-accent-soft);
+  --brass: var(--reader-brass);
+  --audio: var(--reader-audio);
+  --highlight: var(--reader-highlight);
+  --highlight-word: var(--reader-highlight-word);
+  --focus: var(--reader-focus);
+  --on-accent: var(--reader-on-accent);
+  --shadow-soft: var(--reader-shadow-soft);
+  --shadow-player: var(--reader-shadow-player);
   min-height: 100vh;
   padding-bottom: 152px;
   background: var(--paper);
+  color: var(--ink);
 }
 
 .reader-shell.reader-shell--no-audio {
@@ -19,8 +40,7 @@
   gap: var(--space-4);
   padding: var(--space-2) clamp(var(--space-3), 3vw, var(--space-6));
   border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 88%, var(--surface));
-  backdrop-filter: blur(10px);
+  background: var(--surface);
 }
 
 .reader-topbar-left,
@@ -56,7 +76,7 @@
 .reader-view-toggle button[aria-pressed="true"] {
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 1px 4px rgb(54 44 31 / 10%);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
 .reader-topbar-title {
@@ -217,7 +237,7 @@
   border: 0;
   border-radius: 0 0 3px 3px;
   background: var(--accent);
-  box-shadow: 0 2px 5px rgb(54 44 31 / 18%);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
 .book-ribbon:hover,
@@ -254,7 +274,9 @@
   inset: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: linear-gradient(90deg, rgb(54 44 31 / 8%), transparent 18%), var(--surface-raised);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 8%, transparent), transparent 18%),
+    var(--surface-raised);
   backface-visibility: hidden;
 }
 
@@ -548,7 +570,7 @@
   padding: var(--space-3) clamp(var(--space-3), 3vw, var(--space-6));
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--paper) 88%, var(--surface));
-  box-shadow: 0 -8px 30px rgb(54 44 31 / 6%);
+  box-shadow: 0 -8px 30px color-mix(in srgb, var(--ink) 9%, transparent);
   backdrop-filter: blur(12px);
 }
 
@@ -592,7 +614,7 @@
   border: 0;
   border-radius: 50%;
   background: var(--accent-strong);
-  color: #fff8f2;
+  color: var(--on-accent);
   transition:
     background var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);

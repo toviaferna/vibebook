@@ -20,6 +20,24 @@ llega con `timing: null` y el lector:
 
 Cuando la conversión termina, el mismo libro muestra el player y el karaoke.
 
+## Apariencia
+
+El tema de la app y la paleta del lector son independientes:
+
+- **App:** `theme_mode` (`system | light | dark`) en Ajustes → Apariencia.
+  Cambia el shell, la biblioteca, el detalle y el estudio.
+- **Lector:** `reader_palette` (`paper | sepia | night`) en el diálogo de
+  lectura o en Ajustes. Cambia solo la página, el índice, el player y el
+  karaoke; no altera el tema del resto de la app.
+
+La paleta se aplica como `data-reader-palette` en `.reader-shell`, así que una
+app clara puede tener un lector noche y una app oscura puede tener papel. La
+preferencia se guarda en settings y en `localStorage`; el tema de la app se
+resuelve antes del primer paint desde `index.html`.
+
+`reader_theme` quedó como alias de compatibilidad: `light → paper`,
+`sepia → sepia`, `night → night`.
+
 ## Ilustraciones
 
 Al importar, el manifiesto guarda `images` con:

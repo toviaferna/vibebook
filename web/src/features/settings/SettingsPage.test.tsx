@@ -9,14 +9,25 @@ import { renderWithProviders } from "../../test/utils";
 import { SettingsPage } from "./SettingsPage";
 
 describe("SettingsPage", () => {
-  it("muestra las preferencias y guarda un tema", async () => {
+  it("muestra las preferencias y cambia el tema de la app", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />);
 
     expect(await screen.findByText("Preferencias del taller")).toBeInTheDocument();
-    await user.click(screen.getByRole("radio", { name: /Noche/ }));
+    await user.click(screen.getByRole("radio", { name: "Oscuro" }));
 
-    expect(document.body.dataset.theme).toBe("night");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+
+  it("mantiene independiente la paleta del lector", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    await screen.findByText("Preferencias del taller");
+    await user.click(screen.getByRole("radio", { name: "Noche" }));
+
+    expect(screen.getByRole("radio", { name: "Noche" })).toBeChecked();
+    expect(document.documentElement.dataset.theme).not.toBe("night");
   });
 
   it("permite elegir Piper como motor por defecto", async () => {
