@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verdín — tablero de identidad · vibebook</title>
+    <meta
+      name="description"
+      content="Dirección Verdín: biblioteca serena, papel frío, verdín y latón. Mockups de Biblioteca, Detalle y Lector en claro y oscuro."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600&family=Literata:wght@400;500;600&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="board.css" />
+    <link rel="stylesheet" href="mock.css" />
+  </head>
+  <body class="board board--verdin">
+    <header class="topnav">
+      <a class="topnav-brand" href="index.html">
+        <span class="mini-mark">V</span>
+        vibebook · I1
+      </a>
+      <nav class="topnav-links" aria-label="Direcciones de identidad">
+        <a href="index.html">Resumen</a>
+        <a href="verdin.html" aria-current="page" class="recommended">Verdín · recomendada</a>
+        <a href="senal.html">Señal</a>
+        <a href="nocturno.html">Nocturno</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="kicker">Dirección 01 · recomendada</p>
+        <h1>Verdín</h1>
+        <p class="hero-lede">
+          Una biblioteca personal de día y de noche: papel frío, verdín, latón y lomo de tela.
+          Serena y erudita, con la precisión de una ficha de catálogo. El libro manda; el taller
+          queda alrededor.
+        </p>
+        <div class="hero-tags">
+          <span>serena</span>
+          <span>erudita</span>
+          <span>precisa</span>
+          <span>sin glassmorphism</span>
+          <span>sin WebGL</span>
+        </div>
+      </div>
+
+      <div class="hero-specimen">
+        <div class="hero-lockup">
+          <div class="hero-mark" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect x="7.5" y="5.5" width="25" height="29" rx="1.5" stroke="currentColor" />
+              <path d="M13 6v28" stroke="currentColor" stroke-width="1.2" />
+              <path
+                d="M17.5 15.5c2.2-2.4 4.1 2.4 6.3 0s4.1 2.4 6.3 0M17.5 20.5c2.2-2.4 4.1 2.4 6.3 0s4.1 2.4 6.3 0M17.5 25.5c2.2-2.4 4.1 2.4 6.3 0s4.1 2.4 6.3 0"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-width="1.3"
+              />
+            </svg>
+          </div>
+          <div class="hero-wordmark">
+            <strong>vibe<span>book</span></strong>
+            <small>lomo + onda · Spectral</small>
+          </div>
+        </div>
+
+        <div class="hero-shelf" aria-hidden="true">
+          <div class="mini-cover" style="--mini-bg: #1f6b57; --mini-ink: #f1f2ec">
+            <b>La isla de los nombres</b>
+            <small>Elena Márquez</small>
+          </div>
+          <div class="mini-cover" style="--mini-bg: #b07a24; --mini-ink: #1b2420">
+            <b>El archivo de la lluvia</b>
+            <small>Tomás Rivas</small>
+          </div>
+          <div class="mini-cover" style="--mini-bg: #7a2f2a; --mini-ink: #f7e9df">
+            <b>La casa de los relojes</b>
+            <small>Julián Paredes</small>
+          </div>
+        </div>
+
+        <div class="hero-note">
+          <span>Papel #F1F2EC</span>
+          <span>Verdín #1F6B57</span>
+          <span>Latón #A8771F</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="identity-grid" aria-label="Sistema de identidad">
+      <div class="panel panel--raised">
+        <div class="panel-label">
+          <span>Paleta</span>
+          <span>claro + oscuro</span>
+        </div>
+        <div class="swatches" aria-label="Paleta clara">
+          <div class="swatch" style="--swatch: #f1f2ec"><i></i><b>--paper</b><small>#F1F2EC</small></div>
+          <div class="swatch" style="--swatch: #f9faf5"><i></i><b>--surface</b><small>#F9FAF5</small></div>
+          <div class="swatch" style="--swatch: #1b2420"><i></i><b>--ink</b><small>#1B2420</small></div>
+          <div class="swatch" style="--swatch: #1f6b57"><i></i><b>--accent</b><small>#1F6B57</small></div>
+          <div class="swatch" style="--swatch: #a8771f"><i></i><b>--brass</b><small>#A8771F</small></div>
+          <div class="swatch" style="--swatch: #d8e8df"><i></i><b>--accent-soft</b><small>#D8E8DF</small></div>
+          <div class="swatch" style="--swatch: #e8d9a8"><i></i><b>--highlight</b><small>#E8D9A8</small></div>
+          <div class="swatch" style="--swatch: #2f5d8a"><i></i><b>--audio</b><small>#2F5D8A</small></div>
+        </div>
+        <div class="panel-label" style="margin-top: 16px">
+          <span>Oscuro</span>
+          <span>misma jerarquía</span>
+        </div>
+        <div class="swatches" aria-label="Paleta oscura">
+          <div class="swatch" style="--swatch: #101613"><i></i><b>--paper</b><small>#101613</small></div>
+          <div class="swatch" style="--swatch: #17201c"><i></i><b>--surface</b><small>#17201C</small></div>
+          <div class="swatch" style="--swatch: #e7ede6"><i></i><b>--ink</b><small>#E7EDE6</small></div>
+          <div class="swatch" style="--swatch: #6fbe9f"><i></i><b>--accent</b><small>#6FBE9F</small></div>
+          <div class="swatch" style="--swatch: #d9ae5c"><i></i><b>--brass</b><small>#D9AE5C</small></div>
+          <div class="swatch" style="--swatch: #1e3a30"><i></i><b>--accent-soft</b><small>#1E3A30</small></div>
+          <div class="swatch" style="--swatch: #3a3320"><i></i><b>--highlight</b><small>#3A3320</small></div>
+          <div class="swatch" style="--swatch: #8fb3d9"><i></i><b>--audio</b><small>#8FB3D9</small></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>Tipografía</span>
+          <span>4 familias OFL</span>
+        </div>
+        <div class="type-stack">
+          <div class="type-row">
+            <small>Display · Spectral 600</small>
+            <div class="type-display">Biblioteca</div>
+          </div>
+          <div class="type-row">
+            <small>Lectura · Literata 400</small>
+            <div class="type-reading">
+              La luz giraba cada noche sobre el agua, pero nadie subía la escalera.
+            </div>
+          </div>
+          <div class="type-row">
+            <small>UI · Public Sans 500</small>
+            <div class="type-ui">Importar EPUB · Continuar leyendo · Sin audio</div>
+          </div>
+          <div class="type-row">
+            <small>Metadatos · IBM Plex Mono 500</small>
+            <div class="type-mono">06 H 42 · ES_MX-ALD-MEDIUM · SYNC 0 MS</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>Forma y detalle</span>
+          <span>taller</span>
+        </div>
+        <div class="rule-list">
+          <div class="rule-item">
+            <div class="sample">4 px</div>
+            <div>
+              <strong>Radios 2–6 px</strong>
+              <p>Pills solo para estados y reproducción. Sin cards blandas.</p>
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="sample">1 px</div>
+            <div>
+              <strong>Reglas antes que sombras</strong>
+              <p>Líneas de estante, folios y separadores. Sombra estática y corta.</p>
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="sample">—</div>
+            <div>
+              <strong>Latón con moderación</strong>
+              <p>Cinta, sello y foco. Nunca como acento decorativo en cada bloque.</p>
+            </div>
+          </div>
+          <div class="rule-item">
+            <div class="sample">160 ms</div>
+            <div>
+              <strong>Movimiento quieto</strong>
+              <p>Transform y opacity. Page-turn en CSS, sin WebGL.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screens" aria-label="Mockups de Verdín">
+      <div class="screen-block">
+        <div class="screen-head">
+          <h2>Biblioteca</h2>
+          <p>
+            Estante 4:5 con lomo, cinta de progreso y una sola acción primaria. “Continuar
+            leyendo” es una franja de papel, no un dashboard.
+          </p>
+        </div>
+        <div class="screen-pair" data-mock="library"></div>
+      </div>
+
+      <div class="screen-block">
+        <div class="screen-head">
+          <h2>Detalle</h2>
+          <p>
+            Portada con perspectiva suave, colofón y ficha. “Leer” siempre primero; convertir y
+            descargar son acciones secundarias.
+          </p>
+        </div>
+        <div class="screen-pair" data-mock="detail"></div>
+      </div>
+
+      <div class="screen-block">
+        <div class="screen-head">
+          <h2>Lector</h2>
+          <p>
+            Doble página con gutter, folio, cinta de latón y karaoke en ámbar apagado. El player
+            es un estante bajo, no una barra de dashboard.
+          </p>
+        </div>
+        <div class="screen-pair" data-mock="reader"></div>
+      </div>
+    </section>
+
+    <section class="verdict" aria-label="Evaluación de la dirección">
+      <div class="panel">
+        <h2>Por qué funciona</h2>
+        <ul>
+          <li>Se distingue de “crema + terracota” sin volverse fría ni genérica.</li>
+          <li>El verde y el latón tienen función: estado, foco, cinta y sello.</li>
+          <li>La tipografía hace el trabajo editorial; el color no compite con el texto.</li>
+          <li>El modo oscuro es una biblioteca de noche, no un dark mode con neón.</li>
+          <li>Todo se puede construir con CSS, tokens y SVG; cero WebGL.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h2>Riesgos a vigilar</h2>
+        <ul>
+          <li>El latón puede volverse “vintage” si aparece en demasiados elementos.</li>
+          <li>Spectral + Literata exigen subsets y disciplina de carga.</li>
+          <li>El estante necesita portadas reales o CSS covers muy cuidados.</li>
+          <li>La doble página debe seguir funcionando en mobile y con texto largo.</li>
+          <li>El verde oscuro necesita contraste AA en botones y estados, no solo en títulos.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="approval" id="aprobar">
+      <div>
+        <strong>¿Aprobamos Verdín?</strong>
+        <p>
+          Si es la dirección elegida, I2 reemplaza los tokens actuales, separa
+          <code>theme_mode</code> de <code>reader_palette</code> y agrega el script anti-flash.
+          Nada de esto se toca hasta la aprobación.
+        </p>
+      </div>
+      <div class="approval-actions">
+        <a class="board-button board-button--primary" href="index.html#decision">Volver al resumen</a>
+        <a class="board-button" href="senal.html">Comparar con Señal</a>
+      </div>
+    </div>
+
+    <script src="mockups.js"></script>
+  </body>
+</html>
