@@ -236,6 +236,27 @@ export interface ReadingStateInput {
   cfi?: string | null;
 }
 
+export interface ReadingBookmark {
+  id: number;
+  book_id: string;
+  chapter_index: number;
+  char_offset: number;
+  page_index: number;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ReadingBookmarkInput {
+  chapter_index: number;
+  char_offset: number;
+  page_index: number;
+  note?: string | null;
+}
+
+export interface ReadingBookmarkList {
+  items: ReadingBookmark[];
+}
+
 export interface BookPreferences {
   book_id: string;
   reader_mode: "book" | "text" | "original" | null;

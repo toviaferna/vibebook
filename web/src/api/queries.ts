@@ -8,6 +8,7 @@ import type {
   BookPreferences,
   ConversionInput,
   Job,
+  ReadingBookmarkInput,
   ReadingStateInput,
   Settings,
 } from "./types";
@@ -23,6 +24,7 @@ export const queryKeys = {
     ["reader-chapter", bookId, chapterIndex] as const,
   readerState: (bookId: string) => ["reader-state", bookId] as const,
   readingState: (bookId: string) => ["reading-state", bookId] as const,
+  readingBookmarks: (bookId: string) => ["reading-bookmarks", bookId] as const,
   bookPreferences: (bookId: string) => ["book-preferences", bookId] as const,
   bookSearch: (bookId: string, query: string) => ["book-search", bookId, query] as const,
   bookmarks: (bookId: string) => ["bookmarks", bookId] as const,
@@ -243,6 +245,34 @@ export function useSaveReadingState(bookId: string) {
     mutationFn: (state: ReadingStateInput) => api.saveReadingState(bookId, state),
     onSuccess: (state) => {
       queryClient.setQueryData(queryKeys.readingState(bookId), state);
+    },
+  });
+}
+
+export function useReadingBookmarks(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.readingBookmarks(bookId ?? ""),
+    queryFn: () => api.listReadingBookmarks(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useCreateReadingBookmark(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ReadingBookmarkInput) => api.createReadingBookmark(bookId, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.readingBookmarks(bookId) });
+    },
+  });
+}
+
+export function useDeleteReadingBookmark(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bookmarkId: number) => api.deleteReadingBookmark(bookId, bookmarkId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.readingBookmarks(bookId) });
     },
   });
 }

@@ -15,6 +15,13 @@ test("ilustraciones en Libro, Álbum y Texto", async ({ page, playwright }) => {
   await expect(page.locator(".book-figure img")).toBeVisible();
   await expect(page.locator(".book-figure figcaption")).toHaveText("La casa del bosque");
 
+  await page.getByRole("button", { name: "Guardar esta página" }).click();
+  await page.getByRole("button", { name: "Marcadores de lectura" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByText("Sin nota").first()).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+
   await page.getByRole("button", { name: "Álbum" }).click();
   await expect(page.locator(".book-reader--album")).toBeVisible();
   await expect(page.locator(".book-figure img")).toBeVisible();

@@ -13,6 +13,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
 import {
+  useCreateReadingBookmark,
   useReaderChapter,
   useReaderManifest,
   useReaderState,
@@ -22,7 +23,7 @@ import {
   useSettings,
   useUpdateSettings,
 } from "../../api/queries";
-import type { ChapterTiming } from "../../api/types";
+import type { ChapterTiming, ReadingBookmark } from "../../api/types";
 import { Button } from "../../components/Button";
 import { alignSegment, findActive } from "./alignment";
 import { type BookPageState, BookReader } from "./book/BookReader";
@@ -31,6 +32,7 @@ import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderPlayer } from "./ReaderPlayer";
+import { ReaderReadingBookmarksDialog } from "./ReaderReadingBookmarksDialog";
 import { ReaderSearchDialog } from "./ReaderSearchDialog";
 import { ReaderSettingsDialog } from "./ReaderSettingsDialog";
 import { ReaderToc } from "./ReaderToc";
@@ -50,6 +52,7 @@ export function ReaderPage() {
   const settingsQuery = useSettings();
   const saveState = useSaveReaderState(id ?? "");
   const saveReadingState = useSaveReadingState(id ?? "");
+  const createReadingBookmark = useCreateReadingBookmark(id ?? "");
   const updateSettings = useUpdateSettings();
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
@@ -58,6 +61,14 @@ export function ReaderPage() {
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [readingBookmarksOpen, setReadingBookmarksOpen] = useState(false);
+  const [bookPage, setBookPage] = useState<BookPageState>({
+    pageIndex: 0,
+    pageCount: 1,
+    charOffset: 0,
+  });
+  const [bookOffsetOverride, setBookOffsetOverride] = useState<number | null>(null);
+  const [bookNonce, setBookNonce] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
@@ -100,13 +111,20 @@ export function ReaderPage() {
     [],
   );
 
-  const goToChapter = useCallback((index: number, positionMs = 0, autoplay = false) => {
-    pendingSeek.current = positionMs;
-    autoPlay.current = autoplay;
-    setChapterIndex(index);
-    setSeekNonce((current) => current + 1);
-    setTocOpen(false);
-  }, []);
+  const goToChapter = useCallback(
+    (index: number, positionMs = 0, autoplay = false, bookOffset: number | null = null) => {
+      setBookOffsetOverride(bookOffset);
+      if (bookOffset !== null) {
+        setBookNonce((current) => current + 1);
+      }
+      pendingSeek.current = positionMs;
+      autoPlay.current = autoplay;
+      setChapterIndex(index);
+      setSeekNonce((current) => current + 1);
+      setTocOpen(false);
+    },
+    [],
+  );
 
   const handleEnded = useCallback(() => {
     const chapters = manifest?.chapters ?? [];
@@ -141,7 +159,10 @@ export function ReaderPage() {
   const audioSrc = id && audioReady ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
   const chapters = manifest?.chapters ?? [];
   const bookInitialOffset =
-    readingStateQuery.data?.chapter_index === chapterIndex ? readingStateQuery.data.char_offset : 0;
+    bookOffsetOverride ??
+    (readingStateQuery.data?.chapter_index === chapterIndex
+      ? readingStateQuery.data.char_offset
+      : 0);
   const chapterPosition = chapters.findIndex((item) => item.index === chapterIndex);
   const previousChapter = chapterPosition > 0 ? chapters[chapterPosition - 1] : null;
   const nextChapter =
@@ -206,6 +227,7 @@ export function ReaderPage() {
 
   const handleBookPage = useCallback(
     (page: BookPageState) => {
+      setBookPage(page);
       const total = manifest?.chapters.length ?? 0;
       const position = manifest?.chapters.findIndex((item) => item.index === chapterIndex) ?? 0;
       const percent =
@@ -221,6 +243,18 @@ export function ReaderPage() {
       });
     },
     [chapterIndex, manifest?.chapters, saveReadingState.mutate],
+  );
+
+  const handleBookBookmark = useCallback(
+    (page: BookPageState) => {
+      createReadingBookmark.mutate({
+        chapter_index: chapterIndex,
+        char_offset: page.charOffset,
+        page_index: page.pageIndex,
+        note: null,
+      });
+    },
+    [chapterIndex, createReadingBookmark.mutate],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-attach pending seek when the chapter audio changes or the chapter is reselected
@@ -377,6 +411,15 @@ export function ReaderPage() {
       ) {
         return;
       }
+      if (
+        (view === "book" || view === "album") &&
+        (event.key === " " ||
+          event.code === "Space" ||
+          event.key === "ArrowLeft" ||
+          event.key === "ArrowRight")
+      ) {
+        return;
+      }
       if (event.key === " " || event.code === "Space") {
         event.preventDefault();
         toggle();
@@ -411,7 +454,17 @@ export function ReaderPage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [goNext, goPrevious, playbackRate, setRate, skip, skipSeconds, toggle, toggleFullscreen]);
+  }, [
+    goNext,
+    goPrevious,
+    playbackRate,
+    setRate,
+    skip,
+    skipSeconds,
+    toggle,
+    toggleFullscreen,
+    view,
+  ]);
 
   useMediaSession({
     title: manifest?.title ?? "Vibebook",
@@ -529,7 +582,17 @@ export function ReaderPage() {
           >
             <Search size={19} />
           </button>
-          {audioReady ? (
+          {view === "book" || view === "album" ? (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setReadingBookmarksOpen(true)}
+              aria-label="Marcadores de lectura"
+              title="Marcadores de lectura"
+            >
+              <Bookmark size={19} />
+            </button>
+          ) : audioReady ? (
             <button
               type="button"
               className="icon-button"
@@ -612,7 +675,7 @@ export function ReaderPage() {
               </div>
             ) : (
               <BookReader
-                key={`${chapter.index}-${view}`}
+                key={`${chapter.index}-${view}-${bookNonce}`}
                 bookId={manifest.id}
                 chapter={chapter}
                 images={manifest.images ?? []}
@@ -621,6 +684,7 @@ export function ReaderPage() {
                 size={size}
                 initialCharOffset={bookInitialOffset}
                 onPageChange={handleBookPage}
+                onBookmark={handleBookBookmark}
               />
             )
           ) : view === "original" ? (
@@ -705,6 +769,19 @@ export function ReaderPage() {
           currentChapter={chapterIndex}
           currentTimeMs={currentTimeMs}
           onSelect={(bookmark) => goToChapter(bookmark.chapter_index, bookmark.position_ms)}
+        />
+      ) : null}
+      {view === "book" || view === "album" ? (
+        <ReaderReadingBookmarksDialog
+          open={readingBookmarksOpen}
+          onOpenChange={setReadingBookmarksOpen}
+          bookId={manifest.id}
+          chapters={chapters}
+          currentChapter={chapterIndex}
+          page={bookPage}
+          onSelect={(bookmark: ReadingBookmark) =>
+            goToChapter(bookmark.chapter_index, 0, false, bookmark.char_offset)
+          }
         />
       ) : null}
       <ReaderSettingsDialog

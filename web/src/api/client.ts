@@ -13,6 +13,9 @@ import type {
   Manifest,
   Preview,
   ReaderState,
+  ReadingBookmark,
+  ReadingBookmarkInput,
+  ReadingBookmarkList,
   ReadingState,
   ReadingStateInput,
   SearchResponse,
@@ -177,6 +180,17 @@ export const api = {
     apiFetch<ReadingState>(`/books/${bookId}/reading-state`, {
       method: "PUT",
       body: JSON.stringify(state),
+    }),
+  listReadingBookmarks: (bookId: string) =>
+    apiFetch<ReadingBookmarkList>(`/books/${bookId}/reading-bookmarks`),
+  createReadingBookmark: (bookId: string, input: ReadingBookmarkInput) =>
+    apiFetch<ReadingBookmark>(`/books/${bookId}/reading-bookmarks`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  deleteReadingBookmark: (bookId: string, bookmarkId: number) =>
+    apiFetch<void>(`/books/${bookId}/reading-bookmarks/${bookmarkId}`, {
+      method: "DELETE",
     }),
   getBookPreferences: (bookId: string) => apiFetch<BookPreferences>(`/books/${bookId}/preferences`),
   updateBookPreferences: (bookId: string, input: Partial<BookPreferences>) =>
