@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+﻿import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { ManifestChapter } from "../../../api/types";
+import { apiUrl } from "../../../api/client";
+import type { ManifestChapter, ManifestImage } from "../../../api/types";
 import { chapterDisplayTitle } from "../chapterTitle";
-import { type BookPage, pageIndexForOffset, paginateChapter } from "./paginator";
+import { type BookPage, type PageBlock, pageIndexForOffset, paginateChapter } from "./paginator";
 
 export interface BookPageState {
   pageIndex: number;
@@ -12,7 +13,10 @@ export interface BookPageState {
 }
 
 interface BookReaderProps {
+  bookId: string;
   chapter: ManifestChapter;
+  images?: ManifestImage[];
+  album?: boolean;
   font: string;
   size: number;
   initialCharOffset?: number;
@@ -28,12 +32,34 @@ function cacheKey(
   height: number,
   font: string,
   size: number,
+  album: boolean,
 ) {
-  return `${chapter.index}:${Math.round(width)}:${Math.round(height)}:${font}:${size}`;
+  return `${chapter.index}:${Math.round(width)}:${Math.round(height)}:${font}:${size}:${album ? "album" : "book"}`;
+}
+
+function imageDisplaySize(
+  image: ManifestImage,
+  contentWidth: number,
+  pageHeight: number,
+  album: boolean,
+): { width: number; height: number } {
+  const naturalWidth = image.width && image.width > 0 ? image.width : contentWidth;
+  const naturalHeight = image.height && image.height > 0 ? image.height : contentWidth * 0.6;
+  let width = Math.min(naturalWidth, contentWidth);
+  let height = naturalWidth > 0 ? width * (naturalHeight / naturalWidth) : contentWidth * 0.6;
+  const maxHeight = pageHeight * (album ? 0.78 : 0.62);
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = naturalHeight > 0 ? height * (naturalWidth / naturalHeight) : contentWidth;
+  }
+  return { width, height };
 }
 
 export function BookReader({
+  bookId,
   chapter,
+  images = [],
+  album = false,
   font,
   size,
   initialCharOffset = 0,
@@ -44,6 +70,7 @@ export function BookReader({
   const [pages, setPages] = useState<BookPage[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [spread, setSpread] = useState(false);
+  const [pageHeight, setPageHeight] = useState(0);
 
   useLayoutEffect(() => {
     const element = spreadRef.current;
@@ -60,7 +87,7 @@ export function BookReader({
       const isSpread = width >= 820;
       const gap = isSpread ? 24 : 0;
       const pageWidth = isSpread ? (width - gap) / 2 : width;
-      const key = cacheKey(chapter, pageWidth, height, font, size);
+      const key = cacheKey(chapter, pageWidth, height, font, size, album);
       let nextPages = pageCache.get(key);
       if (!nextPages) {
         const measureElement = document.createElement("div");
@@ -68,9 +95,30 @@ export function BookReader({
         measureElement.style.width = `${pageWidth}px`;
         measureElement.style.height = `${height}px`;
         element.appendChild(measureElement);
-        const measure = (blocks: BookPage["blocks"]) => {
+        const styles = getComputedStyle(measureElement);
+        const contentWidth =
+          pageWidth -
+          (Number.parseFloat(styles.paddingLeft) || 0) -
+          (Number.parseFloat(styles.paddingRight) || 0);
+        const measure = (blocks: PageBlock[]) => {
           measureElement.replaceChildren(
             ...blocks.map((block) => {
+              if (block.kind === "image") {
+                const figure = document.createElement("figure");
+                figure.className = "book-figure";
+                const placeholder = document.createElement("div");
+                placeholder.className = "book-figure-placeholder";
+                const size = imageDisplaySize(block.image, contentWidth, height, album);
+                placeholder.style.width = `${size.width}px`;
+                placeholder.style.height = `${size.height}px`;
+                figure.appendChild(placeholder);
+                if (block.image.caption) {
+                  const caption = document.createElement("figcaption");
+                  caption.textContent = block.image.caption;
+                  figure.appendChild(caption);
+                }
+                return figure;
+              }
               const paragraph = document.createElement("p");
               paragraph.textContent = block.text;
               return paragraph;
@@ -78,7 +126,7 @@ export function BookReader({
           );
           return measureElement.scrollHeight;
         };
-        nextPages = paginateChapter(chapter, measure, height);
+        nextPages = paginateChapter(chapter, images, measure, height);
         measureElement.remove();
         pageCache.set(key, nextPages);
         if (pageCache.size > MAX_CACHE) {
@@ -89,6 +137,7 @@ export function BookReader({
         }
       }
       setSpread(isSpread);
+      setPageHeight(height);
       setPages(nextPages);
       const target = pageIndexForOffset(nextPages, initialOffsetRef.current);
       const aligned = isSpread ? Math.floor(target / 2) * 2 : target;
@@ -101,7 +150,7 @@ export function BookReader({
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => paginate());
     observer?.observe(element);
     return () => observer?.disconnect();
-  }, [chapter, font, size]);
+  }, [album, chapter, font, images, size]);
 
   useEffect(() => {
     if (pages.length === 0) {
@@ -139,7 +188,10 @@ export function BookReader({
   const pageLabel = pages.length > 0 ? `${pageIndex + 1} / ${pages.length}` : "—";
 
   return (
-    <section className="book-reader" aria-label={`Lectura de ${chapterDisplayTitle(chapter)}`}>
+    <section
+      className={`book-reader${album ? " book-reader--album" : ""}`}
+      aria-label={`Lectura de ${chapterDisplayTitle(chapter)}`}
+    >
       <header className="book-chapter-head">
         <p className="eyebrow">Capítulo {String(chapter.index).padStart(2, "0")}</p>
         <h1>{chapterDisplayTitle(chapter)}</h1>
@@ -153,14 +205,31 @@ export function BookReader({
             aria-label={`Página ${pageIndex + visible.indexOf(page) + 1}`}
           >
             <div className="book-page-body">
-              {page.blocks.map((block) => (
-                <p
-                  key={`${block.paragraphIndex}-${block.startOffset}`}
-                  className={block.continuation ? "is-continuation" : undefined}
-                >
-                  {block.text}
-                </p>
-              ))}
+              {page.blocks.map((block) =>
+                block.kind === "image" ? (
+                  <figure className="book-figure" key={block.image.id}>
+                    <img
+                      src={apiUrl(`/books/${bookId}/images/${block.image.id}`)}
+                      alt={block.image.alt}
+                      loading="lazy"
+                      decoding="async"
+                      style={{
+                        maxHeight: pageHeight
+                          ? `${pageHeight * (album ? 0.78 : 0.62)}px`
+                          : undefined,
+                      }}
+                    />
+                    {block.image.caption ? <figcaption>{block.image.caption}</figcaption> : null}
+                  </figure>
+                ) : (
+                  <p
+                    key={`${block.paragraphIndex}-${block.startOffset}`}
+                    className={block.continuation ? "is-continuation" : undefined}
+                  >
+                    {block.text}
+                  </p>
+                ),
+              )}
             </div>
             <footer className="book-page-number">
               <span>{String(pageIndex + visible.indexOf(page) + 1).padStart(2, "0")}</span>

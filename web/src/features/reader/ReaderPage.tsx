@@ -54,7 +54,7 @@ export function ReaderPage() {
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
-  const [view, setView] = useState<"book" | "text" | "original">("text");
+  const [view, setView] = useState<"book" | "album" | "text" | "original">("text");
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -491,6 +491,15 @@ export function ReaderPage() {
             <button type="button" aria-pressed={view === "book"} onClick={() => setView("book")}>
               Libro
             </button>
+            {manifest.images?.length ? (
+              <button
+                type="button"
+                aria-pressed={view === "album"}
+                onClick={() => setView("album")}
+              >
+                Álbum
+              </button>
+            ) : null}
             <button type="button" aria-pressed={view === "text"} onClick={() => setView("text")}>
               Texto
             </button>
@@ -593,7 +602,7 @@ export function ReaderPage() {
                 Reintentar
               </Button>
             </div>
-          ) : view === "book" ? (
+          ) : view === "book" || view === "album" ? (
             readingStateQuery.isLoading ? (
               <div className="reader-chapter-loading">
                 <span className="sr-only">Cargando posición de lectura</span>
@@ -603,8 +612,11 @@ export function ReaderPage() {
               </div>
             ) : (
               <BookReader
-                key={chapter.index}
+                key={`${chapter.index}-${view}`}
+                bookId={manifest.id}
                 chapter={chapter}
+                images={manifest.images ?? []}
+                album={view === "album"}
                 font={font}
                 size={size}
                 initialCharOffset={bookInitialOffset}
@@ -622,6 +634,8 @@ export function ReaderPage() {
               activeSegmentId={activeSegmentId}
               activeWordIndex={activeWordIndex}
               onSeek={seekAndPlay}
+              bookId={manifest.id}
+              images={manifest.images ?? []}
             />
           )}
 

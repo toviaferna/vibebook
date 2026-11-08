@@ -30,8 +30,10 @@ Al importar, el manifiesto guarda `images` con:
 - dimensiones y rol;
 - ruta optimizada dentro de la biblioteca.
 
-La imagen se sirve con `GET /api/books/{id}/images/{image_id}`. El render en el
-lector llega en S4; el modo Original ya conserva la maquetación del EPUB.
+La imagen se sirve con `GET /api/books/{id}/images/{image_id}`. En **Libro** se
+inserta como figura que no se parte entre páginas; en **Texto** aparece entre
+los párrafos; en **Original** se conserva la maquetación del EPUB. **Álbum** es
+una variante de Libro que da más altura a las figuras para libros ilustrados.
 
 ## Resaltado
 

@@ -253,6 +253,35 @@
   letter-spacing: 0.12em;
 }
 
+.book-figure {
+  margin: 0 0 0.9em;
+  text-align: center;
+}
+
+.book-page-body .book-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+.book-figure figcaption {
+  margin-top: var(--space-2);
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  text-indent: 0;
+}
+
+.book-figure-placeholder {
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--paper-deep);
+}
+
 .book-page--measure {
   position: absolute;
   z-index: -1;
@@ -337,6 +366,27 @@
 
 .reader-paragraph {
   margin: 0 0 1.4em;
+}
+
+.reader-figure {
+  margin: var(--space-4) 0 var(--space-5);
+  text-align: center;
+}
+
+.reader-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: var(--radius-sm);
+}
+
+.reader-figure figcaption {
+  margin-top: var(--space-2);
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 .reader-segment {

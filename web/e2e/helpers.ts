@@ -15,6 +15,33 @@ export function fixturePath(name: string): string {
   return path.join(fixturesDir, name);
 }
 
+export async function ensureImportedBook(
+  api: APIRequestContext,
+  fixtureName: string,
+  title: string,
+): Promise<Book> {
+  const listResponse = await api.get("/api/books?limit=100");
+  expect(listResponse.ok()).toBeTruthy();
+  const list = (await listResponse.json()) as { items: Book[] };
+  const existing = list.items.find((item) => item.title === title);
+  if (existing) {
+    return existing;
+  }
+
+  const buffer = await fs.readFile(fixturePath(fixtureName));
+  const importResponse = await api.post("/api/books/import", {
+    multipart: {
+      file: {
+        name: fixtureName,
+        mimeType: "application/epub+zip",
+        buffer,
+      },
+    },
+  });
+  expect(importResponse.ok()).toBeTruthy();
+  return (await importResponse.json()) as Book;
+}
+
 export async function ensureReadyBook(
   api: APIRequestContext,
   fixtureName: string,

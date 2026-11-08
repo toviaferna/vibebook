@@ -1,11 +1,24 @@
-﻿import type { ManifestChapter } from "../../../api/types";
+﻿import type { ManifestChapter, ManifestImage } from "../../../api/types";
 
-export interface PageBlock {
+export interface TextBlock {
+  kind: "text";
   text: string;
   paragraphIndex: number;
   startOffset: number;
   continuation: boolean;
 }
+
+export interface ImageBlock {
+  kind: "image";
+  image: ManifestImage;
+  text: "";
+  paragraphIndex: number;
+  startOffset: number;
+  continuation: false;
+}
+
+export type PageBlock = TextBlock | ImageBlock;
+export type BookItem = TextBlock | ImageBlock;
 
 export interface BookPage {
   blocks: PageBlock[];
@@ -40,12 +53,74 @@ export function chapterParagraphs(chapter: ManifestChapter): Paragraph[] {
   return paragraphs;
 }
 
+export function bookFlow(chapter: ManifestChapter, images: ManifestImage[]): BookItem[] {
+  const paragraphs = chapterParagraphs(chapter);
+  const byParagraph = new Map<number, ManifestImage[]>();
+  for (const image of images) {
+    if (image.chapter_index !== chapter.index) {
+      continue;
+    }
+    const group = byParagraph.get(image.paragraph_index) ?? [];
+    group.push(image);
+    byParagraph.set(image.paragraph_index, group);
+  }
+
+  const flow: BookItem[] = [];
+  const used = new Set<string>();
+  const pushImage = (image: ManifestImage, offset: number) => {
+    if (used.has(image.id)) {
+      return;
+    }
+    used.add(image.id);
+    flow.push({
+      kind: "image",
+      image,
+      text: "",
+      paragraphIndex: image.paragraph_index,
+      startOffset: offset,
+      continuation: false,
+    });
+  };
+
+  let offset = 0;
+  for (const image of byParagraph.get(0) ?? []) {
+    pushImage(image, offset);
+  }
+  for (const paragraph of paragraphs) {
+    for (const image of byParagraph.get(paragraph.paragraphIndex) ?? []) {
+      if (image.position === "before") {
+        pushImage(image, paragraph.startOffset);
+      }
+    }
+    flow.push({
+      kind: "text",
+      text: paragraph.text,
+      paragraphIndex: paragraph.paragraphIndex,
+      startOffset: paragraph.startOffset,
+      continuation: false,
+    });
+    offset = paragraph.startOffset + paragraph.text.length + 1;
+    for (const image of byParagraph.get(paragraph.paragraphIndex) ?? []) {
+      if (image.position !== "before") {
+        pushImage(image, offset);
+      }
+    }
+  }
+  for (const image of images) {
+    if (image.chapter_index === chapter.index) {
+      pushImage(image, offset);
+    }
+  }
+  return flow;
+}
+
 export function paginateChapter(
   chapter: ManifestChapter,
+  images: ManifestImage[],
   measure: MeasurePage,
   pageHeight: number,
 ): BookPage[] {
-  const paragraphs = chapterParagraphs(chapter);
+  const flow = bookFlow(chapter, images);
   const pages: BookPage[] = [];
   let current: PageBlock[] = [];
 
@@ -57,13 +132,21 @@ export function paginateChapter(
     current = [];
   };
 
-  for (const paragraph of paragraphs) {
-    let block: PageBlock = {
-      text: paragraph.text,
-      paragraphIndex: paragraph.paragraphIndex,
-      startOffset: paragraph.startOffset,
-      continuation: false,
-    };
+  for (const item of flow) {
+    if (item.kind === "image") {
+      if (measure([...current, item]) <= pageHeight) {
+        current.push(item);
+        continue;
+      }
+      flush();
+      current.push(item);
+      if (measure(current) > pageHeight) {
+        flush();
+      }
+      continue;
+    }
+
+    let block: TextBlock = { ...item };
     while (block.text) {
       const candidate = [...current, block];
       if (measure(candidate) <= pageHeight) {
@@ -89,10 +172,10 @@ export function paginateChapter(
 }
 
 function splitBlock(
-  block: PageBlock,
+  block: TextBlock,
   measure: MeasurePage,
   pageHeight: number,
-): { fitted: PageBlock; rest: PageBlock } {
+): { fitted: TextBlock; rest: TextBlock } {
   const words = block.text.split(/\s+/).filter(Boolean);
   let low = 1;
   let high = words.length;
