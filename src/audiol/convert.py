@@ -79,6 +79,10 @@ def prepare_book(book: Book, max_chars: int = 400) -> Book:
                     segments=segments,
                     source_href=chapter.source_href,
                     source_fragment=chapter.source_fragment,
+                    level=chapter.level,
+                    kind=chapter.kind,
+                    number=chapter.number,
+                    generated_title=chapter.generated_title,
                 )
             )
     return Book(
@@ -86,6 +90,7 @@ def prepare_book(book: Book, max_chars: int = 400) -> Book:
         author=book.author,
         language=book.language,
         chapters=chapters,
+        toc=book.toc if len(chapters) == len(book.chapters) else [],
     )
 
 
