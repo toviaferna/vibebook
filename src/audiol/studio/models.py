@@ -102,7 +102,69 @@ class BookListResponse(BaseModel):
 
 class ChapterResponse(BaseModel):
     chapter: dict
-    timing: dict
+    timing: dict | None = None
+    audio_ready: bool = False
+    duration_ms: int | None = None
+
+
+ReaderMode = Literal["book", "text", "original"]
+ReaderPalette = Literal["paper", "sepia", "night"]
+ReaderFont = Literal["serif", "sans", "hyperlegible"]
+
+
+class ReadingStateUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_index: int = Field(ge=1)
+    char_offset: int = Field(default=0, ge=0)
+    page_index: int = Field(default=0, ge=0)
+    page_count: int | None = Field(default=None, ge=0)
+    percent: float = Field(default=0.0, ge=0.0, le=1.0)
+    cfi: str | None = Field(default=None, max_length=2000)
+
+
+class ReadingStateResponse(ReadingStateUpdate):
+    book_id: str
+    updated_at: str | None = None
+
+
+class ReadingBookmarkCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_index: int = Field(ge=1)
+    char_offset: int = Field(default=0, ge=0)
+    page_index: int = Field(default=0, ge=0)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ReadingBookmarkResponse(BaseModel):
+    id: int
+    book_id: str
+    chapter_index: int
+    char_offset: int
+    page_index: int
+    note: str | None = None
+    created_at: str
+
+
+class ReadingBookmarkListResponse(BaseModel):
+    items: list[ReadingBookmarkResponse]
+
+
+class BookPreferencesUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reader_mode: ReaderMode | None = None
+    reader_palette: ReaderPalette | None = None
+    reader_font: ReaderFont | None = None
+    reader_size: int | None = Field(default=None, ge=14, le=28)
+    page_turn: bool | None = None
+    ambience_enabled: bool | None = None
+
+
+class BookPreferencesResponse(BookPreferencesUpdate):
+    book_id: str
+    updated_at: str | None = None
 
 
 class SearchResult(BaseModel):

@@ -69,6 +69,8 @@ def test_chapter_returns_text_and_timing(client, converted):
     assert payload["timing"]["chapter_index"] == 1
     assert payload["timing"]["segments"][0]["words"]
     assert payload["timing"]["precision"] == "exact"
+    assert payload["audio_ready"] is True
+    assert payload["duration_ms"] > 0
 
 
 @requires_ffmpeg
@@ -83,9 +85,109 @@ def test_audio_range_returns_206(client, converted):
     assert response.headers["content-type"].startswith("audio/mpeg")
 
 
-def test_missing_audio_returns_409(client, imported):
+def test_missing_audio_still_allows_reading(client, imported):
     assert client.get(f"/api/books/{imported['id']}/audio/1").status_code == 409
-    assert client.get(f"/api/books/{imported['id']}/chapters/1").status_code == 409
+
+    response = client.get(f"/api/books/{imported['id']}/chapters/1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["timing"] is None
+    assert payload["audio_ready"] is False
+    assert payload["chapter"]["segments"][0]["text"].startswith("Pues sepa")
+
+
+def test_reading_state_defaults_and_roundtrip(client, imported):
+    initial = client.get(f"/api/books/{imported['id']}/reading-state")
+
+    assert initial.status_code == 200
+    assert initial.json()["chapter_index"] == 1
+    assert initial.json()["char_offset"] == 0
+    assert initial.json()["percent"] == 0
+
+    updated = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={
+            "chapter_index": 1,
+            "char_offset": 12,
+            "page_index": 2,
+            "page_count": 8,
+            "percent": 0.25,
+            "cfi": None,
+        },
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["char_offset"] == 12
+    assert updated.json()["page_index"] == 2
+
+    fetched = client.get(f"/api/books/{imported['id']}/reading-state")
+    assert fetched.json()["char_offset"] == 12
+    assert fetched.json()["percent"] == 0.25
+
+
+def test_reading_state_rejects_unknown_chapter_and_offset(client, imported):
+    chapter = client.get(f"/api/books/{imported['id']}/chapters/1").json()["chapter"]
+    text_length = sum(len(segment["text"]) for segment in chapter["segments"])
+
+    unknown = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={"chapter_index": 99, "char_offset": 0, "percent": 0},
+    )
+    too_far = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={"chapter_index": 1, "char_offset": text_length + 1, "percent": 0},
+    )
+
+    assert unknown.status_code == 404
+    assert too_far.status_code == 422
+
+
+def test_reading_bookmarks_crud(client, imported):
+    created = client.post(
+        f"/api/books/{imported['id']}/reading-bookmarks",
+        json={"chapter_index": 1, "char_offset": 5, "page_index": 1, "note": "Volver"},
+    )
+
+    assert created.status_code == 201
+    bookmark = created.json()
+    assert bookmark["note"] == "Volver"
+
+    listed = client.get(f"/api/books/{imported['id']}/reading-bookmarks")
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()["items"]] == [bookmark["id"]]
+
+    deleted = client.delete(f"/api/books/{imported['id']}/reading-bookmarks/{bookmark['id']}")
+    assert deleted.status_code == 204
+    assert client.get(f"/api/books/{imported['id']}/reading-bookmarks").json()["items"] == []
+
+
+def test_book_preferences_defaults_and_roundtrip(client, imported):
+    initial = client.get(f"/api/books/{imported['id']}/preferences")
+
+    assert initial.status_code == 200
+    assert initial.json()["reader_mode"] is None
+
+    updated = client.put(
+        f"/api/books/{imported['id']}/preferences",
+        json={
+            "reader_mode": "book",
+            "reader_palette": "sepia",
+            "reader_font": "hyperlegible",
+            "reader_size": 21,
+            "page_turn": True,
+            "ambience_enabled": False,
+        },
+    )
+
+    assert updated.status_code == 200
+    assert updated.json()["reader_mode"] == "book"
+    assert updated.json()["reader_palette"] == "sepia"
+    assert updated.json()["page_turn"] is True
+
+    fetched = client.get(f"/api/books/{imported['id']}/preferences")
+    assert fetched.json()["reader_font"] == "hyperlegible"
+    assert fetched.json()["reader_size"] == 21
 
 
 def test_original_epub_download(client, imported):

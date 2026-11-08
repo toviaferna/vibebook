@@ -181,7 +181,9 @@ export interface ChapterTiming {
 
 export interface ChapterPayload {
   chapter: ManifestChapter;
-  timing: ChapterTiming;
+  timing: ChapterTiming | null;
+  audio_ready: boolean;
+  duration_ms: number | null;
 }
 
 export interface SearchResult {
