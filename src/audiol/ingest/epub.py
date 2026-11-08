@@ -6,6 +6,13 @@ import ebooklib
 from bs4 import BeautifulSoup
 from ebooklib import epub
 
+from audiol.ingest.images import (
+    MAX_IMAGES,
+    ImagePlacement,
+    assign_images,
+    extract_document_images,
+    image_items,
+)
 from audiol.ingest.structure import (
     HeadingSection,
     TocEntry,
@@ -35,13 +42,16 @@ class _SplitChapter:
     kind: str
 
 
-def read_epub(path: Path) -> Book:
+def read_epub(path: Path, image_dir: Path | None = None) -> Book:
     raw = epub.read_epub(str(path))
     title = _first_metadata(raw, "title") or path.stem
     author = _first_metadata(raw, "creator") or "Desconocido"
     language = _first_metadata(raw, "language") or "es"
     toc = build_toc(raw, title, author)
     by_document = entries_by_document(toc)
+    image_index = image_items(raw) if image_dir is not None else {}
+    seen_hashes: set[str] = set()
+    placements: list[ImagePlacement] = []
 
     chapters: list[Chapter] = []
     chapter_index = 0
@@ -57,6 +67,17 @@ def read_epub(path: Path) -> Book:
             continue
 
         soup = BeautifulSoup(item.get_content(), "lxml")
+        if image_dir is not None:
+            placements.extend(
+                extract_document_images(
+                    soup,
+                    item_name,
+                    image_dir,
+                    image_index,
+                    seen_hashes,
+                    MAX_IMAGES - len(placements),
+                )
+            )
         entries = by_document.get(item_name, [])
         fragment_entries = [entry for entry in entries if entry.fragment]
 
@@ -147,6 +168,7 @@ def read_epub(path: Path) -> Book:
         language=language,
         chapters=chapters,
         toc=manifest_toc,
+        images=assign_images(placements, chapters),
     )
 
 

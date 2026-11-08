@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from audiol.manifest import book_from_manifest, load_manifest, write_manifest
-from audiol.models import Book, Chapter, Segment, TocNode, make_segment_id
+from audiol.models import Book, BookImage, Chapter, Segment, TocNode, make_segment_id
 from audiol.timing import ensure_chapter_timing, read_chapter_timing, write_chapter_timing
 
 
@@ -246,6 +246,19 @@ def test_write_manifest_preserves_structure_and_toc(tmp_path: Path):
                 children=[TocNode(title="La casa", level=1, chapter_index=1)],
             )
         ],
+        images=[
+            BookImage(
+                id="img-123",
+                path="images/123.jpg",
+                alt="Una casa",
+                caption="La casa del bosque",
+                role="illustration",
+                chapter_index=1,
+                paragraph_index=1,
+                width=320,
+                height=200,
+            )
+        ],
     )
 
     write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
@@ -257,8 +270,12 @@ def test_write_manifest_preserves_structure_and_toc(tmp_path: Path):
     assert data["chapters"][0]["generated_title"] is False
     assert data["toc"][0]["title"] == "Parte I"
     assert data["toc"][0]["children"][0]["chapter_index"] == 1
+    assert data["images"][0]["id"] == "img-123"
+    assert data["images"][0]["caption"] == "La casa del bosque"
 
     loaded = book_from_manifest(data)
     assert loaded.chapters[0].number == 1
     assert loaded.toc[0].title == "Parte I"
     assert loaded.toc[0].children[0].title == "La casa"
+    assert loaded.images[0].alt == "Una casa"
+    assert loaded.images[0].width == 320

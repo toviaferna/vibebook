@@ -33,6 +33,20 @@ class TocNode:
 
 
 @dataclass
+class BookImage:
+    id: str
+    path: str | None = None
+    alt: str = ""
+    caption: str | None = None
+    role: str = "illustration"
+    chapter_index: int | None = None
+    paragraph_index: int = 0
+    position: str = "after"
+    width: int | None = None
+    height: int | None = None
+
+
+@dataclass
 class Chapter:
     index: int
     title: str
@@ -52,3 +66,4 @@ class Book:
     language: str = "es-419"
     chapters: list[Chapter] = field(default_factory=list)
     toc: list[TocNode] = field(default_factory=list)
+    images: list[BookImage] = field(default_factory=list)

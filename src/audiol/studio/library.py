@@ -63,24 +63,25 @@ class Library:
         source = Path(source)
         if not source.is_file():
             raise FileNotFoundError(source)
-        try:
-            book = prepare_book(read_epub(source))
-        except Exception as exc:
-            raise InvalidEpubError(f"Could not read EPUB {source}") from exc
-        if not book.chapters:
-            raise InvalidEpubError(f"EPUB has no readable chapters: {source}")
-
-        digest = _sha256(source)
-        book_id = f"{slugify(book.title)}-{digest[:8]}"
-        target = self.root / book_id
-        if target.exists():
-            if (target / "manifest.json").is_file():
-                return self._record_from_dir(target)
-            raise LibraryError(f"Library entry exists but is invalid: {target}")
-
         temporary = self.root / f".import-{uuid4().hex}"
         temporary.mkdir()
         try:
+            try:
+                book = prepare_book(read_epub(source, image_dir=temporary / "images"))
+            except Exception as exc:
+                raise InvalidEpubError(f"Could not read EPUB {source}") from exc
+            if not book.chapters:
+                raise InvalidEpubError(f"EPUB has no readable chapters: {source}")
+
+            digest = _sha256(source)
+            book_id = f"{slugify(book.title)}-{digest[:8]}"
+            target = self.root / book_id
+            if target.exists():
+                if (target / "manifest.json").is_file():
+                    shutil.rmtree(temporary, ignore_errors=True)
+                    return self._record_from_dir(target)
+                raise LibraryError(f"Library entry exists but is invalid: {target}")
+
             shutil.copyfile(source, temporary / "source.epub")
             (temporary / "book.md").write_text(render_markdown(book), encoding="utf-8")
             try:

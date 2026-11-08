@@ -20,6 +20,19 @@ llega con `timing: null` y el lector:
 
 Cuando la conversión termina, el mismo libro muestra el player y el karaoke.
 
+## Ilustraciones
+
+Al importar, el manifiesto guarda `images` con:
+
+- `alt` y `caption` del EPUB;
+- capítulo y párrafo de anclaje;
+- posición (`before`/`after`);
+- dimensiones y rol;
+- ruta optimizada dentro de la biblioteca.
+
+La imagen se sirve con `GET /api/books/{id}/images/{image_id}`. El render en el
+lector llega en S4; el modo Original ya conserva la maquetación del EPUB.
+
 ## Resaltado
 
 - El segmento activo se resalta siempre.

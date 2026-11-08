@@ -1,3 +1,4 @@
+import mimetypes
 import re
 import unicodedata
 from dataclasses import asdict
@@ -297,6 +298,39 @@ def get_epub(request: Request, book_id: str) -> FileResponse:
         media_type="application/epub+zip",
         filename=f"{record.id}.epub",
         content_disposition_type="inline",
+    )
+
+
+@router.get("/{book_id}/images/{image_id}")
+def get_image(request: Request, book_id: str, image_id: str) -> FileResponse:
+    record = _record(request, book_id)
+    manifest = _manifest(request, record)
+    image = next(
+        (
+            item
+            for item in manifest.get("images", [])
+            if isinstance(item, dict) and item.get("id") == image_id
+        ),
+        None,
+    )
+    if image is None:
+        raise ApiError(404, "image_not_found", "La imagen no existe.")
+    relative = image.get("path")
+    if not isinstance(relative, str):
+        raise ApiError(404, "image_not_found", "La imagen no existe.")
+    try:
+        path = request.app.state.library.asset_path(record.id, relative)
+    except LibraryError as exc:
+        raise ApiError(404, "image_not_found", "La imagen no existe.") from exc
+    if not path.is_file():
+        raise ApiError(404, "image_not_found", "La imagen no existe.")
+    media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=path.name,
+        content_disposition_type="inline",
+        headers={"Cache-Control": "private, max-age=3600"},
     )
 
 

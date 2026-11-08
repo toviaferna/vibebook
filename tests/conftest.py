@@ -1,7 +1,9 @@
+import io
 from pathlib import Path
 
 import pytest
 from ebooklib import epub
+from PIL import Image
 
 
 @pytest.fixture
@@ -305,5 +307,42 @@ def frontmatter_epub(tmp_path: Path) -> Path:
     book.spine = ["nav", content.id]
 
     path = tmp_path / "frontmatter.epub"
+    epub.write_epub(str(path), book)
+    return path
+
+
+@pytest.fixture
+def image_epub(tmp_path: Path) -> Path:
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-image-123")
+    book.set_title("Libro ilustrado")
+    book.set_language("es")
+    book.add_author("Autora")
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (320, 200), (40, 90, 70)).save(buffer, "PNG")
+    picture = epub.EpubImage(
+        uid="fig1",
+        file_name="images/fig.png",
+        media_type="image/png",
+        content=buffer.getvalue(),
+    )
+    book.add_item(picture)
+
+    chapter = epub.EpubHtml(title="La casa", file_name="illustrated.xhtml", lang="es")
+    chapter.content = (
+        "<h1>La casa</h1>"
+        "<p>Antes de la figura.</p>"
+        '<figure><img src="images/fig.png" alt="Una casa verde" />'
+        "<figcaption>La casa del bosque</figcaption></figure>"
+        "<p>Después de la figura.</p>"
+    )
+    book.add_item(chapter)
+    book.toc = (epub.Link("illustrated.xhtml", "La casa", "casa"),)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", chapter.id]
+
+    path = tmp_path / "illustrated.epub"
     epub.write_epub(str(path), book)
     return path
