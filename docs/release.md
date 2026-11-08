@@ -69,7 +69,9 @@ artefactos sin publicar el GitHub Release.
 
 ## Notas del release
 
-Incluir:
+El workflow publica el Release con `generate_release_notes: true`, así que
+GitHub arma las notas desde los PRs y commits del tag. Después conviene editarlas
+para incluir:
 
 - novedades: lector sincronizado, búsqueda, marcadores, vista EPUB original,
   app Tauri y Azure con word boundaries opcional;
@@ -77,6 +79,10 @@ Incluir:
 - limitaciones: sin DRM, sin auto-update, sin firma, Edge no oficial;
 - licencia AGPL-3.0-only y avisos de terceros;
 - checksums.
+
+Para reemplazar las notas automáticas por la sección correspondiente de
+`CHANGELOG.md`, editá el Release desde GitHub o usá `PATCH
+/repos/{owner}/{repo}/releases/{id}` con `body`.
 
 ## Rollback
 
