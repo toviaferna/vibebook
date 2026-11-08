@@ -6,6 +6,7 @@ import pytest
 from audiol.models import Chapter, Segment, WordTiming, make_segment_id
 from audiol.timing import (
     build_chapter_timing,
+    build_chapter_timing_from_offsets,
     ensure_chapter_timing,
     estimate_word_timings,
     read_chapter_timing,
@@ -197,6 +198,63 @@ def test_word_timing_roundtrip(tmp_path: Path):
     write_word_timings(path, words)
 
     assert read_word_timings(path) == words
+
+
+def test_timing_from_offsets_preserves_silence_and_absolute_time():
+    chapter = _chapter("Hola mundo", "Otra vez")
+    timing = build_chapter_timing_from_offsets(
+        chapter,
+        [0, 1_000],
+        [800, 500],
+        [
+            [WordTiming(text="Hola", start_ms=100, end_ms=400)],
+            [WordTiming(text="Otra", start_ms=0, end_ms=200)],
+        ],
+        chapter_duration_ms=1_500,
+    )
+
+    assert timing.segments[0].start_ms == 0
+    assert timing.segments[0].end_ms == 800
+    assert timing.segments[0].words[0].start_ms == 100
+    assert timing.segments[0].words[0].end_ms == 400
+    assert timing.segments[1].start_ms == 1_000
+    assert timing.segments[1].words[0].start_ms == 1_000
+    assert timing.duration_ms == 1_500
+
+
+def test_timing_from_offsets_normalizes_overlaps_without_drift():
+    chapter = _chapter("Uno dos tres")
+    timing = build_chapter_timing_from_offsets(
+        chapter,
+        [0],
+        [1_000],
+        [
+            [
+                WordTiming(text="Uno", start_ms=0, end_ms=500),
+                WordTiming(text="dos", start_ms=450, end_ms=700),
+                WordTiming(text="tres", start_ms=650, end_ms=900),
+            ]
+        ],
+    )
+
+    words = timing.segments[0].words
+    assert [word.start_ms for word in words] == [0, 500, 700]
+    assert words[-1].end_ms == 900
+    assert timing.precision == "exact"
+
+
+def test_timing_from_offsets_estimates_when_words_are_missing():
+    chapter = _chapter("Hola mundo")
+    timing = build_chapter_timing_from_offsets(
+        chapter,
+        [0],
+        [1_000],
+        [[]],
+    )
+
+    assert timing.precision == "estimated"
+    assert timing.segments[0].words
+    assert timing.segments[0].words[-1].end_ms == 1_000
 
 
 def test_timing_roundtrip_json(tmp_path: Path):

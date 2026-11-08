@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from audiol.assemble import build_m4b, concat_to_mp3, probe_duration
+from audiol.assemble import (
+    build_m4b,
+    concat_pcm_to_mp3,
+    concat_to_mp3,
+    probe_duration,
+)
 from audiol.tools import find_binary
 
 
@@ -54,6 +59,25 @@ def test_concat_to_mp3(tmp_path: Path):
 
     assert output.exists()
     assert abs(probe_duration(output) - 1.0) < 0.2
+
+
+def test_concat_pcm_to_mp3_tracks_exact_offsets(tmp_path: Path):
+    first = make_wav(tmp_path / "a.wav", 0.5)
+    second = make_wav(tmp_path / "b.wav", 0.25)
+    output = tmp_path / "pcm.mp3"
+
+    result = concat_pcm_to_mp3([first, second], output, tmp_path)
+
+    assert output.exists()
+    assert result.offsets_ms == [0, 500]
+    assert result.durations_ms == [500, 250]
+    assert result.total_ms == 750
+    assert abs(probe_duration(output) - 0.75) < 0.15
+
+
+def test_concat_pcm_to_mp3_rejects_empty(tmp_path: Path):
+    with pytest.raises(ValueError, match="No audio"):
+        concat_pcm_to_mp3([], tmp_path / "out.mp3", tmp_path)
 
 
 def test_concat_to_mp3_escapes_apostrophes_in_paths(tmp_path: Path):

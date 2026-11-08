@@ -96,7 +96,10 @@ romper audio ni timings existentes.
 - `tts/`: adaptadores con el contrato `TTSProvider` y `AudioResult`.
 - `convert.py`: prepara el libro, cachea segmentos, reintenta fallos
   transitorios y arma capítulos.
-- `assemble.py`: concatena, normaliza a -19 LUFS y crea el M4B AAC.
+- `assemble.py`: decodifica cada segmento a PCM mono 24 kHz, concatena por
+  frames, registra offsets exactos, codifica el capítulo una sola vez a MP3 con
+  loudnorm y crea el M4B AAC. El timing se construye desde esos offsets, sin
+  escalar dos veces las palabras.
 
 ## Contratos
 
