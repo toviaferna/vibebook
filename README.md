@@ -207,6 +207,17 @@ Hay un EPUB de muestra en
 [`samples/lector-de-prueba.epub`](samples/lector-de-prueba.epub) para probar el
 flujo completo con el motor `Fake`.
 
+### Identidad
+
+La dirección visual es **Verdín**: papel frío, verde, latón y tipografía
+editorial. La app y el lector tienen luces independientes.
+
+| Biblioteca | Lector sepia |
+|---|---|
+| ![Biblioteca en claro](docs/assets/identity/library-light.jpg) | ![Lector sepia](docs/assets/identity/reader-sepia.jpg) |
+
+Capturas, contraste, axe y límites en [docs/identity-qa.md](docs/identity-qa.md).
+
 ## App de escritorio
 
 La app de escritorio usa Tauri y empaqueta el backend Python y ffmpeg en un

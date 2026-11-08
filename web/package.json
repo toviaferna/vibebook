@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:bundle": "node scripts/check-bundle.mjs",
+    "capture:identity": "node scripts/capture-identity.mjs",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui"
   },
