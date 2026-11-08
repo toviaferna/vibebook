@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { sampleBookmarks } from "../../test/fixtures";
+import { sampleBookmarks, sampleChapter, sampleManifest } from "../../test/fixtures";
 import { server } from "../../test/server";
 import { renderRoute } from "../../test/utils";
 import { ReaderPage } from "./ReaderPage";
@@ -31,6 +31,28 @@ describe("ReaderPage", () => {
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getAllByText("Capítulo 1").length).toBeGreaterThan(0);
+  });
+
+  it("muestra un libro importado sin reproductor", async () => {
+    server.use(
+      http.get("*/api/books/:id/manifest", () =>
+        HttpResponse.json({ ...sampleManifest, status: "imported" }),
+      ),
+      http.get("*/api/books/:id/chapters/:index", () =>
+        HttpResponse.json({
+          ...sampleChapter,
+          audio_ready: false,
+          duration_ms: null,
+          timing: null,
+        }),
+      ),
+    );
+    renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
+
+    expect(await screen.findByRole("heading", { name: "Capítulo 1" })).toBeInTheDocument();
+    expect(screen.getByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reproducir" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Convertir a audiolibro" })).toBeInTheDocument();
   });
 
   it("permite cambiar el tema de lectura", async () => {

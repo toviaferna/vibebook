@@ -82,8 +82,8 @@ export function BookDetailPage() {
               </div>
               <p className="page-subtitle" style={{ marginTop: 0 }}>
                 {book.status === "ready"
-                  ? "El audio está listo. Abrí el lector para seguir el texto mientras escuchás."
-                  : "El libro está en tu biblioteca local. Prepará la voz para generar el audiolibro."}
+                  ? "El audio está listo. Podés leer y escuchar el libro con el texto sincronizado."
+                  : "El libro ya está en tu biblioteca. Podés leerlo ahora; el audiolibro es opcional."}
               </p>
 
               {book.progress > 0 ? (
@@ -99,35 +99,43 @@ export function BookDetailPage() {
                   <span>Capítulos</span>
                 </div>
                 <div className="fact">
-                  <strong>{formatDuration(book.duration_ms)}</strong>
+                  <strong>
+                    {book.status === "ready" ? formatDuration(book.duration_ms) : "—"}
+                  </strong>
                   <span>Duración</span>
                 </div>
                 <div className="fact">
-                  <strong>{formatRate(book.rate)}</strong>
+                  <strong>{book.status === "ready" ? formatRate(book.rate) : "—"}</strong>
                   <span>Velocidad</span>
                 </div>
                 <div className="fact">
-                  <strong>{book.engine === "azure" ? "Azure" : "Edge"}</strong>
+                  <strong>
+                    {book.status === "ready"
+                      ? book.engine === "azure"
+                        ? "Azure"
+                        : "Edge"
+                      : "Sin audio"}
+                  </strong>
                   <span>Motor</span>
                 </div>
               </div>
 
               <div className="continue-actions" style={{ marginTop: "var(--space-5)" }}>
-                {book.status === "ready" ? (
-                  <Link className="button button--primary" to={`/books/${book.id}/read`}>
-                    <BookOpen size={17} />
-                    Leer ahora
+                <Link className="button button--primary" to={`/books/${book.id}/read`}>
+                  <BookOpen size={17} />
+                  {book.status === "ready" ? "Leer y escuchar" : "Leer"}
+                </Link>
+                {book.status !== "ready" ? (
+                  <Link className="button" to={`/books/${book.id}/studio`}>
+                    <Headphones size={17} />
+                    Convertir a audiolibro
                   </Link>
                 ) : (
-                  <Link className="button button--primary" to={`/books/${book.id}/studio`}>
+                  <Link className="button" to={`/books/${book.id}/studio`}>
                     <Headphones size={17} />
-                    Preparar audiolibro
+                    Abrir estudio
                   </Link>
                 )}
-                <Link className="button" to={`/books/${book.id}/studio`}>
-                  <Headphones size={17} />
-                  Abrir estudio
-                </Link>
                 {book.status === "ready" ? (
                   <a
                     className="button button--ghost"

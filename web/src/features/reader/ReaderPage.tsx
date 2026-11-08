@@ -1,4 +1,13 @@
-import { ArrowLeft, Bookmark, Keyboard, List, Maximize, Search, Type } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  Headphones,
+  Keyboard,
+  List,
+  Maximize,
+  Search,
+  Type,
+} from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -14,6 +23,7 @@ import {
 import type { ChapterTiming } from "../../api/types";
 import { Button } from "../../components/Button";
 import { alignSegment, findActive } from "./alignment";
+import { chapterDisplayTitle } from "./chapterTitle";
 import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
 import { ReaderContent } from "./ReaderContent";
@@ -121,7 +131,8 @@ export function ReaderPage() {
   const chapterPayload = chapterQuery.data;
   const chapter = chapterPayload?.chapter;
   const timing = chapterPayload?.timing ?? null;
-  const audioSrc = id ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
+  const audioReady = chapterPayload?.audio_ready ?? manifest?.status === "ready";
+  const audioSrc = id && audioReady ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
   const chapters = manifest?.chapters ?? [];
   const chapterPosition = chapters.findIndex((item) => item.index === chapterIndex);
   const previousChapter = chapterPosition > 0 ? chapters[chapterPosition - 1] : null;
@@ -400,22 +411,9 @@ export function ReaderPage() {
     );
   }
 
-  if (manifest.status !== "ready") {
-    return (
-      <div className="reader-fallback">
-        <p className="eyebrow">Lector</p>
-        <h1>Este libro todavía no tiene audio.</h1>
-        <p className="muted">Prepará la conversión y volvé cuando esté listo.</p>
-        <Link className="button button--primary" to={`/books/${manifest.id}/studio`}>
-          Abrir estudio
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div
-      className="reader-shell"
+      className={`reader-shell${audioReady ? "" : " reader-shell--no-audio"}`}
       style={
         {
           "--reader-size": `${size}px`,
@@ -439,10 +437,20 @@ export function ReaderPage() {
           <div className="reader-topbar-title">
             <p className="eyebrow">Leyendo</p>
             <strong>{manifest.title}</strong>
-            {chapter ? <span>{chapter.title}</span> : null}
+            {chapter ? <span>{chapterDisplayTitle(chapter)}</span> : null}
           </div>
         </div>
         <div className="reader-topbar-actions">
+          {!audioReady ? (
+            <Link
+              className="icon-button"
+              to={`/books/${manifest.id}/studio`}
+              aria-label="Convertir a audiolibro"
+              title="Convertir a audiolibro"
+            >
+              <Headphones size={19} />
+            </Link>
+          ) : null}
           <fieldset className="reader-view-toggle">
             <legend className="sr-only">Vista de lectura</legend>
             <button type="button" aria-pressed={view === "text"} onClick={() => setView("text")}>
@@ -474,15 +482,17 @@ export function ReaderPage() {
           >
             <Search size={19} />
           </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => setBookmarksOpen(true)}
-            aria-label="Marcadores"
-            title="Marcadores"
-          >
-            <Bookmark size={19} />
-          </button>
+          {audioReady ? (
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setBookmarksOpen(true)}
+              aria-label="Marcadores"
+              title="Marcadores"
+            >
+              <Bookmark size={19} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="icon-button"
@@ -574,30 +584,33 @@ export function ReaderPage() {
         </main>
       </div>
 
-      {/* biome-ignore lint/a11y/useMediaCaption: the audiobook text is shown and synchronized on screen */}
-      <audio ref={setAudio} className="reader-audio" src={audioSrc} preload="metadata" />
-
-      <ReaderPlayer
-        chapterTitle={chapter?.title ?? ""}
-        isPlaying={isPlaying}
-        currentTimeMs={currentTimeMs}
-        durationMs={durationMs}
-        rate={playbackRate}
-        volume={volume}
-        skipSeconds={skipSeconds}
-        sleepMinutes={sleepMinutes}
-        follow={follow}
-        audioError={audioError}
-        onToggle={toggle}
-        onSkip={skip}
-        onPrevious={goPrevious}
-        onNext={goNext}
-        onSeek={seekMs}
-        onRate={setRate}
-        onVolume={setVolume}
-        onSleep={setSleepMinutes}
-        onFollow={() => setFollow((current) => !current)}
-      />
+      {audioReady ? (
+        <>
+          {/* biome-ignore lint/a11y/useMediaCaption: the audiobook text is shown and synchronized on screen */}
+          <audio ref={setAudio} className="reader-audio" src={audioSrc} preload="metadata" />
+          <ReaderPlayer
+            chapterTitle={chapter ? chapterDisplayTitle(chapter) : ""}
+            isPlaying={isPlaying}
+            currentTimeMs={currentTimeMs}
+            durationMs={durationMs}
+            rate={playbackRate}
+            volume={volume}
+            skipSeconds={skipSeconds}
+            sleepMinutes={sleepMinutes}
+            follow={follow}
+            audioError={audioError}
+            onToggle={toggle}
+            onSkip={skip}
+            onPrevious={goPrevious}
+            onNext={goNext}
+            onSeek={seekMs}
+            onRate={setRate}
+            onVolume={setVolume}
+            onSleep={setSleepMinutes}
+            onFollow={() => setFollow((current) => !current)}
+          />
+        </>
+      ) : null}
 
       <ReaderTocDialog
         open={tocOpen}
@@ -613,15 +626,17 @@ export function ReaderPage() {
         bookId={manifest.id}
         onSelect={goToChapter}
       />
-      <ReaderBookmarksDialog
-        open={bookmarksOpen}
-        onOpenChange={setBookmarksOpen}
-        bookId={manifest.id}
-        chapters={chapters}
-        currentChapter={chapterIndex}
-        currentTimeMs={currentTimeMs}
-        onSelect={(bookmark) => goToChapter(bookmark.chapter_index, bookmark.position_ms)}
-      />
+      {audioReady ? (
+        <ReaderBookmarksDialog
+          open={bookmarksOpen}
+          onOpenChange={setBookmarksOpen}
+          bookId={manifest.id}
+          chapters={chapters}
+          currentChapter={chapterIndex}
+          currentTimeMs={currentTimeMs}
+          onSelect={(bookmark) => goToChapter(bookmark.chapter_index, bookmark.position_ms)}
+        />
+      ) : null}
       <ReaderSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
