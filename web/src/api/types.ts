@@ -216,6 +216,37 @@ export interface ChapterPayload {
   duration_ms: number | null;
 }
 
+export interface ReadingState {
+  book_id: string;
+  chapter_index: number;
+  char_offset: number;
+  page_index: number;
+  page_count: number | null;
+  percent: number;
+  cfi: string | null;
+  updated_at: string | null;
+}
+
+export interface ReadingStateInput {
+  chapter_index: number;
+  char_offset: number;
+  page_index: number;
+  page_count: number | null;
+  percent: number;
+  cfi?: string | null;
+}
+
+export interface BookPreferences {
+  book_id: string;
+  reader_mode: "book" | "text" | "original" | null;
+  reader_palette: "paper" | "sepia" | "night" | null;
+  reader_font: "serif" | "sans" | "hyperlegible" | null;
+  reader_size: number | null;
+  page_turn: boolean | null;
+  ambience_enabled: boolean | null;
+  updated_at: string | null;
+}
+
 export interface SearchResult {
   chapter_index: number;
   chapter_title: string;

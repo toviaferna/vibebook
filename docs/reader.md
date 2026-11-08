@@ -64,12 +64,29 @@ lector llega en S4; el modo Original ya conserva la maquetación del EPUB.
 | `F` | Pantalla completa |
 | `?` | Mostrar la ayuda |
 
+## Modo Libro
+
+El toggle **Libro / Texto / Original** agrega una vista paginada:
+
+- doble página en escritorio y una página en mobile;
+- paginación medida contra el ancho/alto real y cacheada por capítulo,
+  tipografía y tamaño;
+- navegación por botones y número de página;
+- los libros importados abren en Libro por defecto; los que tienen audio abren
+  en Texto para conservar el karaoke.
+
+La posición de Libro se guarda en `reading-state` con capítulo, offset de
+carácter, página, total y porcentaje, independiente del estado de audio.
+
 ## Persistencia
 
 Se guardan `position_ms`, `chapter_index` y `playback_rate` en
 `PUT /api/books/<id>/state`. El guardado se hace con debounce al pausar o
 cambiar de posición y cada 5 s mientras reproduce. Al volver a abrir el libro se
 restaura la posición sin autoplay.
+
+La lectura usa `PUT /api/books/<id>/reading-state` y no pisa la posición del
+audio.
 
 ## Búsqueda y marcadores
 

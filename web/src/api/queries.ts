@@ -3,7 +3,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
-import type { BookmarkInput, ConversionInput, Job, Settings } from "./types";
+import type {
+  BookmarkInput,
+  BookPreferences,
+  ConversionInput,
+  Job,
+  ReadingStateInput,
+  Settings,
+} from "./types";
 
 export const queryKeys = {
   books: (params: { q?: string; sort?: string } = {}) => ["books", params] as const,
@@ -15,6 +22,8 @@ export const queryKeys = {
   readerChapter: (bookId: string, chapterIndex: number) =>
     ["reader-chapter", bookId, chapterIndex] as const,
   readerState: (bookId: string) => ["reader-state", bookId] as const,
+  readingState: (bookId: string) => ["reading-state", bookId] as const,
+  bookPreferences: (bookId: string) => ["book-preferences", bookId] as const,
   bookSearch: (bookId: string, query: string) => ["book-search", bookId, query] as const,
   bookmarks: (bookId: string) => ["bookmarks", bookId] as const,
 };
@@ -216,6 +225,42 @@ export function useSaveReaderState(bookId: string) {
       api.saveReaderState(bookId, state),
     onSuccess: (state) => {
       queryClient.setQueryData(queryKeys.readerState(bookId), state);
+    },
+  });
+}
+
+export function useReadingState(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.readingState(bookId ?? ""),
+    queryFn: () => api.getReadingState(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useSaveReadingState(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (state: ReadingStateInput) => api.saveReadingState(bookId, state),
+    onSuccess: (state) => {
+      queryClient.setQueryData(queryKeys.readingState(bookId), state);
+    },
+  });
+}
+
+export function useBookPreferences(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.bookPreferences(bookId ?? ""),
+    queryFn: () => api.getBookPreferences(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useUpdateBookPreferences(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Partial<BookPreferences>) => api.updateBookPreferences(bookId, input),
+    onSuccess: (preferences) => {
+      queryClient.setQueryData(queryKeys.bookPreferences(bookId), preferences);
     },
   });
 }

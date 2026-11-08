@@ -8,6 +8,7 @@ import {
   sampleChapter,
   sampleJob,
   sampleManifest,
+  sampleReadingState,
   sampleSearch,
   sampleSettings,
   sampleVoices,
@@ -56,6 +57,27 @@ export const server = setupServer(
   http.put("*/api/books/:id/state", async ({ request }) => {
     const patch = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...sampleBookDetail.state, ...patch });
+  }),
+  http.get("*/api/books/:id/reading-state", () => HttpResponse.json(sampleReadingState)),
+  http.put("*/api/books/:id/reading-state", async ({ request }) => {
+    const patch = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...sampleReadingState, ...patch });
+  }),
+  http.get("*/api/books/:id/preferences", () =>
+    HttpResponse.json({
+      book_id: sampleBook.id,
+      reader_mode: null,
+      reader_palette: null,
+      reader_font: null,
+      reader_size: null,
+      page_turn: null,
+      ambience_enabled: null,
+      updated_at: null,
+    }),
+  ),
+  http.put("*/api/books/:id/preferences", async ({ request }) => {
+    const patch = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ book_id: sampleBook.id, ...patch, updated_at: null });
   }),
   http.get("*/api/settings", () => HttpResponse.json(sampleSettings)),
   http.put("*/api/settings", async ({ request }) => {
