@@ -2,6 +2,7 @@ import { forwardRef, type MouseEvent, useMemo } from "react";
 
 import type { ChapterTiming, ManifestChapter, ManifestSegment } from "../../api/types";
 import type { AlignedSegment } from "./alignment";
+import { chapterDisplayTitle } from "./chapterTitle";
 
 interface ReaderContentProps {
   chapter: ManifestChapter;
@@ -50,7 +51,7 @@ export const ReaderContent = forwardRef<HTMLElement, ReaderContentProps>(functio
     <article className="reader-article" lang="es" ref={ref}>
       <header className="reader-chapter-head">
         <p className="eyebrow">Capítulo {String(chapter.index).padStart(2, "0")}</p>
-        <h1>{chapter.title}</h1>
+        <h1>{chapterDisplayTitle(chapter)}</h1>
       </header>
 
       {paragraphs.map((paragraph) => (

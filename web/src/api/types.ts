@@ -135,10 +135,22 @@ export interface ManifestSegment {
 export interface ManifestChapter {
   index: number;
   title: string;
+  level?: number;
+  kind?: string;
+  number?: number | null;
+  generated_title?: boolean;
   duration_ms: number | null;
   audio: string | null;
   timing: string | null;
   segments: ManifestSegment[];
+}
+
+export interface TocNode {
+  title: string;
+  level: number;
+  chapter_index: number | null;
+  kind: string;
+  children: TocNode[];
 }
 
 export interface Manifest {
@@ -154,6 +166,7 @@ export interface Manifest {
   style: string | null;
   rate: string | null;
   epub?: string | null;
+  toc?: TocNode[];
   chapters: ManifestChapter[];
 }
 

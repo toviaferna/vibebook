@@ -88,6 +88,23 @@ export const sampleManifest: Manifest = {
   engine: "edge",
   style: "neutral",
   rate: "-10%",
+  toc: [
+    {
+      title: "Parte I",
+      level: 0,
+      chapter_index: null,
+      kind: "part",
+      children: [
+        {
+          title: "Capítulo 1",
+          level: 1,
+          chapter_index: 1,
+          kind: "chapter",
+          children: [],
+        },
+      ],
+    },
+  ],
   chapters: [
     {
       index: 1,
