@@ -6,12 +6,15 @@ import type {
   Bookmark,
   BookmarkInput,
   BookmarkList,
+  BookPreferences,
   ChapterPayload,
   ConversionInput,
   Job,
   Manifest,
   Preview,
   ReaderState,
+  ReadingState,
+  ReadingStateInput,
   SearchResponse,
   Settings,
   Voice,
@@ -168,6 +171,18 @@ export const api = {
     apiFetch<ReaderState>(`/books/${bookId}/state`, {
       method: "PUT",
       body: JSON.stringify(state),
+    }),
+  getReadingState: (bookId: string) => apiFetch<ReadingState>(`/books/${bookId}/reading-state`),
+  saveReadingState: (bookId: string, state: ReadingStateInput) =>
+    apiFetch<ReadingState>(`/books/${bookId}/reading-state`, {
+      method: "PUT",
+      body: JSON.stringify(state),
+    }),
+  getBookPreferences: (bookId: string) => apiFetch<BookPreferences>(`/books/${bookId}/preferences`),
+  updateBookPreferences: (bookId: string, input: Partial<BookPreferences>) =>
+    apiFetch<BookPreferences>(`/books/${bookId}/preferences`, {
+      method: "PUT",
+      body: JSON.stringify(input),
     }),
   searchBook: (bookId: string, query: string) =>
     apiFetch<SearchResponse>(`/books/${bookId}/search?q=${encodeURIComponent(query)}`),

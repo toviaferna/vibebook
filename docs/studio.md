@@ -40,7 +40,7 @@ desarrollo se habilita el motor `Fake` para probar sin red.
 - Progreso en vivo, cancelación y reanudación.
 - Ajustes de voz, tema, tipografía y reproducción.
 - Lector sincronizado con resaltado por palabra, índice, temas, tipografía,
-  temporizador y atajos de teclado.
+  temporizador, atajos de teclado y modo Libro paginado.
 
 ### Lector
 

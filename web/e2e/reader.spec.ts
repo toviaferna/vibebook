@@ -23,6 +23,12 @@ test("reproduce, resalta y persiste la posición", async ({ page, playwright }) 
   await page.getByRole("button", { name: "Texto" }).click();
   await expect(original).toBeHidden();
 
+  await page.getByRole("button", { name: "Libro", exact: true }).click();
+  await expect(page.getByRole("region", { name: /Lectura de/ })).toBeVisible();
+  await expect(page.getByText(/Página \d+ \/ \d+/)).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegación de páginas" })).toBeVisible();
+  await page.getByRole("button", { name: "Texto" }).click();
+
   await page.getByRole("button", { name: "Reproducir" }).click();
   const activeWord = page.locator(".reader-word.is-active");
   await expect(activeWord).toBeVisible();

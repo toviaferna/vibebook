@@ -5,6 +5,7 @@ import type {
   ChapterPayload,
   Job,
   Manifest,
+  ReadingState,
   SearchResponse,
   Settings,
   Voice,
@@ -154,6 +155,17 @@ export const sampleChapter: ChapterPayload = {
       },
     ],
   },
+};
+
+export const sampleReadingState: ReadingState = {
+  book_id: sampleBook.id,
+  chapter_index: 1,
+  char_offset: 0,
+  page_index: 0,
+  page_count: 1,
+  percent: 0,
+  cfi: null,
+  updated_at: null,
 };
 
 export const sampleSearch: SearchResponse = {

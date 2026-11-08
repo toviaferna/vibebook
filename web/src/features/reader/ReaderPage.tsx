@@ -16,13 +16,16 @@ import {
   useReaderChapter,
   useReaderManifest,
   useReaderState,
+  useReadingState,
   useSaveReaderState,
+  useSaveReadingState,
   useSettings,
   useUpdateSettings,
 } from "../../api/queries";
 import type { ChapterTiming } from "../../api/types";
 import { Button } from "../../components/Button";
 import { alignSegment, findActive } from "./alignment";
+import { type BookPageState, BookReader } from "./book/BookReader";
 import { chapterDisplayTitle } from "./chapterTitle";
 import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
@@ -43,13 +46,15 @@ export function ReaderPage() {
   const { id } = useParams<{ id: string }>();
   const manifestQuery = useReaderManifest(id);
   const stateQuery = useReaderState(id);
+  const readingStateQuery = useReadingState(id);
   const settingsQuery = useSettings();
   const saveState = useSaveReaderState(id ?? "");
+  const saveReadingState = useSaveReadingState(id ?? "");
   const updateSettings = useUpdateSettings();
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
-  const [view, setView] = useState<"text" | "original">("text");
+  const [view, setView] = useState<"book" | "text" | "original">("text");
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -64,6 +69,7 @@ export function ReaderPage() {
   const [sleepMinutes, setSleepMinutes] = useState(0);
   const [seekNonce, setSeekNonce] = useState(0);
   const initialized = useRef(false);
+  const viewInitialized = useRef(false);
   const prefsSeeded = useRef(false);
   const pendingSeek = useRef<number | null>(null);
   const autoPlay = useRef(false);
@@ -134,6 +140,8 @@ export function ReaderPage() {
   const audioReady = chapterPayload?.audio_ready ?? manifest?.status === "ready";
   const audioSrc = id && audioReady ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
   const chapters = manifest?.chapters ?? [];
+  const bookInitialOffset =
+    readingStateQuery.data?.chapter_index === chapterIndex ? readingStateQuery.data.char_offset : 0;
   const chapterPosition = chapters.findIndex((item) => item.index === chapterIndex);
   const previousChapter = chapterPosition > 0 ? chapters[chapterPosition - 1] : null;
   const nextChapter =
@@ -187,6 +195,33 @@ export function ReaderPage() {
     setRate(stateQuery.data.playback_rate);
     initialized.current = true;
   }, [manifest, setRate, stateQuery.data]);
+
+  useEffect(() => {
+    if (viewInitialized.current || !manifest || !chapterPayload) {
+      return;
+    }
+    setView(chapterPayload.audio_ready ? "text" : "book");
+    viewInitialized.current = true;
+  }, [chapterPayload, manifest]);
+
+  const handleBookPage = useCallback(
+    (page: BookPageState) => {
+      const total = manifest?.chapters.length ?? 0;
+      const position = manifest?.chapters.findIndex((item) => item.index === chapterIndex) ?? 0;
+      const percent =
+        total > 0
+          ? Math.min(1, (Math.max(0, position) + page.pageIndex / page.pageCount) / total)
+          : 0;
+      saveReadingState.mutate({
+        chapter_index: chapterIndex,
+        char_offset: page.charOffset,
+        page_index: page.pageIndex,
+        page_count: page.pageCount,
+        percent,
+      });
+    },
+    [chapterIndex, manifest?.chapters, saveReadingState.mutate],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-attach pending seek when the chapter audio changes or the chapter is reselected
   useEffect(() => {
@@ -453,6 +488,9 @@ export function ReaderPage() {
           ) : null}
           <fieldset className="reader-view-toggle">
             <legend className="sr-only">Vista de lectura</legend>
+            <button type="button" aria-pressed={view === "book"} onClick={() => setView("book")}>
+              Libro
+            </button>
             <button type="button" aria-pressed={view === "text"} onClick={() => setView("text")}>
               Texto
             </button>
@@ -555,6 +593,24 @@ export function ReaderPage() {
                 Reintentar
               </Button>
             </div>
+          ) : view === "book" ? (
+            readingStateQuery.isLoading ? (
+              <div className="reader-chapter-loading">
+                <span className="sr-only">Cargando posición de lectura</span>
+                <div className="skeleton skeleton--title" />
+                <div className="skeleton" />
+                <div className="skeleton" />
+              </div>
+            ) : (
+              <BookReader
+                key={chapter.index}
+                chapter={chapter}
+                font={font}
+                size={size}
+                initialCharOffset={bookInitialOffset}
+                onPageChange={handleBookPage}
+              />
+            )
           ) : view === "original" ? (
             <OriginalEpubView bookId={manifest.id} chapter={chapter} />
           ) : (

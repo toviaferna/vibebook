@@ -47,12 +47,19 @@ describe("ReaderPage", () => {
         }),
       ),
     );
+    const user = userEvent.setup();
     renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
 
     expect(await screen.findByRole("heading", { name: "Capítulo 1" })).toBeInTheDocument();
-    expect(screen.getByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "Lectura de Capítulo 1" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Navegación de páginas" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reproducir" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Convertir a audiolibro" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Texto" }));
+    expect(screen.getByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
   });
 
   it("permite cambiar el tema de lectura", async () => {
