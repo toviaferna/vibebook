@@ -25,6 +25,7 @@
     "@tanstack/react-query": "^5.107.1",
     "@tauri-apps/api": "^2.12.4",
     "clsx": "^2.1.1",
+    "epubjs": "^0.3.93",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -47,5 +48,8 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "^0.8.13"
   }
 }

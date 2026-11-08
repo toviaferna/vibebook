@@ -88,6 +88,24 @@ def test_missing_audio_returns_409(client, imported):
     assert client.get(f"/api/books/{imported['id']}/chapters/1").status_code == 409
 
 
+def test_original_epub_download(client, imported):
+    response = client.get(f"/api/books/{imported['id']}/epub")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/epub+zip")
+    assert response.content.startswith(b"PK")
+
+
+def test_original_epub_missing_returns_404(client, imported):
+    path = client.app.state.library.root / imported["id"] / "source.epub"
+    path.unlink()
+
+    response = client.get(f"/api/books/{imported['id']}/epub")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "epub_not_found"
+
+
 def test_audio_key_with_missing_file_returns_404(client, imported):
     import json
 

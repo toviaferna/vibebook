@@ -153,6 +153,7 @@ export interface Manifest {
   engine: string | null;
   style: string | null;
   rate: string | null;
+  epub?: string | null;
   chapters: ManifestChapter[];
 }
 

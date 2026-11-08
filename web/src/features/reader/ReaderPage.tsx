@@ -14,6 +14,7 @@ import {
 import type { ChapterTiming } from "../../api/types";
 import { Button } from "../../components/Button";
 import { alignSegment, findActive } from "./alignment";
+import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
 import { ReaderContent } from "./ReaderContent";
 import { ReaderPlayer } from "./ReaderPlayer";
@@ -38,6 +39,7 @@ export function ReaderPage() {
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
+  const [view, setView] = useState<"text" | "original">("text");
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -268,7 +270,7 @@ export function ReaderPage() {
   }, [chapter, timing]);
 
   useEffect(() => {
-    if (!follow || followSuspended || !activeSegmentId || !contentRef.current) {
+    if (view !== "text" || !follow || followSuspended || !activeSegmentId || !contentRef.current) {
       return;
     }
     const target = contentRef.current.querySelector(`[data-segment-id="${activeSegmentId}"]`);
@@ -278,7 +280,7 @@ export function ReaderPage() {
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       target.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     }
-  }, [activeSegmentId, follow, followSuspended]);
+  }, [activeSegmentId, follow, followSuspended, view]);
 
   const goPrevious = useCallback(() => {
     if (previousChapter) {
@@ -441,6 +443,19 @@ export function ReaderPage() {
           </div>
         </div>
         <div className="reader-topbar-actions">
+          <fieldset className="reader-view-toggle">
+            <legend className="sr-only">Vista de lectura</legend>
+            <button type="button" aria-pressed={view === "text"} onClick={() => setView("text")}>
+              Texto
+            </button>
+            <button
+              type="button"
+              aria-pressed={view === "original"}
+              onClick={() => setView("original")}
+            >
+              Original
+            </button>
+          </fieldset>
           <button
             type="button"
             className="icon-button"
@@ -479,7 +494,7 @@ export function ReaderPage() {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className="icon-button reader-optional"
             onClick={toggleFullscreen}
             aria-label="Pantalla completa"
             title="Pantalla completa (F)"
@@ -488,7 +503,7 @@ export function ReaderPage() {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className="icon-button reader-optional"
             onClick={() => setShortcutsOpen(true)}
             aria-label="Atajos de teclado"
             title="Atajos (?)"
@@ -525,6 +540,8 @@ export function ReaderPage() {
                 Reintentar
               </Button>
             </div>
+          ) : view === "original" ? (
+            <OriginalEpubView bookId={manifest.id} chapter={chapter} />
           ) : (
             <ReaderContent
               ref={contentRef}
@@ -537,7 +554,7 @@ export function ReaderPage() {
             />
           )}
 
-          {activeSegmentId && (followSuspended || !follow) ? (
+          {view === "text" && activeSegmentId && (followSuspended || !follow) ? (
             <button
               type="button"
               className="reader-follow-float"

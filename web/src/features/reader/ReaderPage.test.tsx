@@ -6,6 +6,10 @@ import { server } from "../../test/server";
 import { renderRoute } from "../../test/utils";
 import { ReaderPage } from "./ReaderPage";
 
+vi.mock("./original/OriginalEpubView", () => ({
+  OriginalEpubView: () => <div data-testid="original-epub-mock" />,
+}));
+
 describe("ReaderPage", () => {
   it("muestra el capítulo, el índice y el reproductor", async () => {
     renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
@@ -37,6 +41,18 @@ describe("ReaderPage", () => {
     await user.click(screen.getByRole("radio", { name: "Noche" }));
 
     expect(document.body.dataset.theme).toBe("night");
+  });
+
+  it("permite alternar entre texto y EPUB original", async () => {
+    const user = userEvent.setup();
+    renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
+
+    await screen.findByRole("heading", { name: "Capítulo 1" });
+    await user.click(screen.getByRole("button", { name: "Original" }));
+
+    expect(screen.getByTestId("original-epub-mock")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Texto" }));
+    expect(screen.queryByTestId("original-epub-mock")).not.toBeInTheDocument();
   });
 
   it("busca dentro del libro y abre el resultado", async () => {
