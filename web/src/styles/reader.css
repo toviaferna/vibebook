@@ -989,6 +989,30 @@
   line-height: 1.4;
 }
 
+.sync-debug {
+  position: fixed;
+  right: 16px;
+  bottom: 104px;
+  z-index: 50;
+  display: grid;
+  gap: 2px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.sync-debug strong {
+  color: var(--ink);
+}
+
 @media (max-width: 640px) {
   .bookmark-form {
     flex-direction: column;
@@ -997,5 +1021,12 @@
   .bookmark-form .button {
     width: 100%;
     justify-content: center;
+  }
+
+  .sync-debug {
+    right: 12px;
+    bottom: 84px;
+    left: 12px;
+    max-width: none;
   }
 }

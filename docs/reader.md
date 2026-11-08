@@ -123,6 +123,27 @@ Tema claro/sepia/noche, tipografía editorial/sans/Atkinson Hyperlegible, tamañ
 de texto y seguimiento automático. Los ajustes se comparten con la API de
 settings del Studio.
 
+## Diagnóstico de sincronización
+
+Antes de tocar offsets, medí el libro:
+
+```bash
+uv run python scripts/sync_report.py out/libro
+uv run python scripts/sync_report.py out/libro --json
+uv run python scripts/sync_report.py out/libro --strict --max-drift-ms 100
+```
+
+El reporte compara:
+
+- duración del timing contra el audio del capítulo;
+- suma de segmentos contra el audio concatenado;
+- huecos, solapes, palabras inválidas y palabras fuera del segmento;
+- silencio inicial/final y delta de audio por segmento.
+
+En desarrollo, abrí el lector con `?sync=1` para ver un overlay con tiempo
+actual, segmento, palabra, precisión, FPS de render y velocidad. El overlay no
+se muestra en producción ni afecta la reproducción.
+
 ## Limitaciones
 
 - La vista original no resalta palabras ni párrafos; solo sincroniza capítulo y

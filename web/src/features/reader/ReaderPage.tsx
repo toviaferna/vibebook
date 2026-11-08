@@ -9,7 +9,7 @@ import {
   Type,
 } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { apiUrl, errorMessage } from "../../api/client";
 import {
@@ -46,6 +46,9 @@ type ReaderFont = "serif" | "sans" | "hyperlegible";
 
 export function ReaderPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const syncDebug = searchParams.get("sync") === "1";
+  const [syncFps, setSyncFps] = useState(0);
   const manifestQuery = useReaderManifest(id);
   const stateQuery = useReaderState(id);
   const readingStateQuery = useReadingState(id);
@@ -331,8 +334,30 @@ export function ReaderPage() {
   }, [isPlaying, pause, sleepMinutes]);
 
   const active = useMemo(() => findActive(timing, currentTimeMs), [currentTimeMs, timing]);
-  const activeSegmentId = timing?.segments[active.segmentIndex]?.id ?? null;
-  const activeWordIndex = active.wordIndex;
+  const activeSegment = timing?.segments[active.segmentIndex];
+  const activeSegmentId = activeSegment?.id ?? null;
+  const activeWordIndex = active.wordIndex ?? -1;
+  const activeWord = activeSegment?.words[activeWordIndex];
+
+  useEffect(() => {
+    if (!syncDebug) {
+      return;
+    }
+    let frames = 0;
+    let last = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      frames += 1;
+      if (now - last >= 1_000) {
+        setSyncFps(frames);
+        frames = 0;
+        last = now;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [syncDebug]);
 
   const alignments = useMemo(() => {
     const result = new Map<string, ReturnType<typeof alignSegment>>();
@@ -744,6 +769,29 @@ export function ReaderPage() {
             onFollow={() => setFollow((current) => !current)}
           />
         </>
+      ) : null}
+
+      {syncDebug ? (
+        <aside
+          className="sync-debug"
+          data-testid="sync-debug"
+          aria-label="Diagnóstico de sincronización"
+        >
+          <strong>Sync debug</strong>
+          <span>
+            t={currentTimeMs} ms / {durationMs} ms
+          </span>
+          <span>
+            cap {chapterIndex} · seg {activeSegmentId ?? "—"}
+          </span>
+          <span>
+            word {activeWordIndex >= 0 ? activeWordIndex : "—"}
+            {activeWord ? ` “${activeWord.text}” ${activeWord.start_ms}-${activeWord.end_ms}` : ""}
+          </span>
+          <span>
+            precision {timing?.precision ?? "—"} · fps {syncFps} · rate {playbackRate}
+          </span>
+        </aside>
       ) : null}
 
       <ReaderTocDialog
