@@ -56,8 +56,10 @@ uv run vibebook repair-sync out/libro
 ```
 
 Ambientación open source: biblioteca de sonidos CC0/importados, camas
-procedurales con ffmpeg, plan por capítulo y análisis heurístico. Sin APIs pagas
-ni IA obligatoria. Detalle y endpoints en [docs/ambience.md](docs/ambience.md).
+procedurales con ffmpeg, plan por capítulo, análisis heurístico y export M4B
+ambientado. Sin APIs pagas ni IA obligatoria. Freesound y los plugins locales de
+sonido son opcionales y explícitos. Detalle y endpoints en
+[docs/ambience.md](docs/ambience.md).
 
 Convertir un EPUB (elige Piper o eSpeak NG automáticamente):
 

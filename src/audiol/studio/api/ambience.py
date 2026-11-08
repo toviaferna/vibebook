@@ -13,12 +13,18 @@ from audiol.ambience.models import (
     AmbienceGenerateRequest,
     AmbiencePlanUpdate,
     AmbienceResponse,
+    FreesoundImportRequest,
+    PluginImportRequest,
+    ProviderList,
+    ProviderStatus,
     SoundAssetCreate,
     SoundAssetList,
     SoundAssetResponse,
     SoundKind,
 )
 from audiol.ambience.plan import AmbiencePlanError, load_ambience, save_ambience, validate_plan
+from audiol.ambience.providers.freesound import FreesoundError, FreesoundProvider
+from audiol.ambience.providers.plugin import PluginSoundError, PluginSoundProvider
 from audiol.studio.ambience_jobs import AmbienceRenderError
 from audiol.studio.errors import ApiError
 
@@ -156,6 +162,78 @@ def delete_asset(request: Request, asset_id: str) -> Response:
     except AmbienceError as exc:
         raise ApiError(409, "asset_in_use", str(exc)) from exc
     return Response(status_code=204)
+
+
+@router.get("/ambience/providers", response_model=ProviderList)
+def list_providers() -> ProviderList:
+    freesound = FreesoundProvider.from_env()
+    plugin = PluginSoundProvider.from_env()
+    return ProviderList(
+        items=[
+            ProviderStatus(
+                id="freesound",
+                label="Freesound",
+                configured=freesound.configured,
+                description="Búsqueda CC0 opcional; requiere FREESOUND_API_KEY.",
+            ),
+            ProviderStatus(
+                id="plugin",
+                label="Plugin local de ambiente",
+                configured=plugin.configured,
+                description="Protocolo vep-sound/1 opcional; nunca se instala solo.",
+            ),
+        ]
+    )
+
+
+@router.post(
+    "/ambience/providers/freesound/import",
+    response_model=SoundAssetResponse,
+    status_code=201,
+)
+def import_from_freesound(
+    request: Request,
+    payload: FreesoundImportRequest,
+) -> SoundAssetResponse:
+    provider = FreesoundProvider.from_env()
+    if not provider.configured:
+        raise ApiError(422, "provider_unavailable", "FREESOUND_API_KEY no está configurada.")
+    try:
+        results = provider.search(payload.query, payload.limit, payload.license_filter)
+        if not results:
+            raise ApiError(404, "not_found", "No encontramos sonidos con esa licencia.")
+        asset = provider.import_asset(results[0], _library(request), prompt=payload.query)
+    except FreesoundError as exc:
+        raise ApiError(502, "provider_error", str(exc)) from exc
+    return _asset_response(asset)
+
+
+@router.post(
+    "/ambience/providers/plugin/import",
+    response_model=SoundAssetResponse,
+    status_code=201,
+)
+def import_from_plugin(
+    request: Request,
+    payload: PluginImportRequest,
+) -> SoundAssetResponse:
+    provider = PluginSoundProvider.from_env()
+    if not provider.configured:
+        raise ApiError(
+            422,
+            "provider_unavailable",
+            "VIBEBOOK_AMBIENCE_PLUGIN_URL no está configurada.",
+        )
+    try:
+        asset = provider.import_asset(
+            payload.prompt,
+            _library(request),
+            kind=payload.kind,
+            duration_ms=payload.duration_ms,
+        )
+    except PluginSoundError as exc:
+        raise ApiError(502, "provider_error", str(exc)) from exc
+    return _asset_response(asset)
 
 
 @router.get("/ambience/assets/{asset_id}/audio")
