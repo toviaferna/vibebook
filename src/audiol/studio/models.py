@@ -7,7 +7,7 @@ class ConvertRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     voice: str
-    engine: Literal["edge", "azure", "fake"] = "edge"
+    engine: str = "edge"
     style: str = "neutral"
     rate: str = "-10%"
     force: bool = False
@@ -25,7 +25,7 @@ class PreviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     voice: str
-    engine: Literal["edge", "azure", "fake"] = "edge"
+    engine: str = "edge"
     style: str = "neutral"
     rate: str = "-10%"
     text: str = Field(min_length=1, max_length=120)
@@ -210,6 +210,31 @@ class VoiceResponse(BaseModel):
     gender: str
     engines: list[str]
     styles: list[str]
+
+
+class EngineResponse(BaseModel):
+    id: str
+    label: str
+    kind: Literal["builtin", "plugin"]
+    transport: Literal["local", "http", "command"]
+    requires_network: bool
+    requires_key: bool
+    supports_styles: bool
+    timing: Literal["native_word", "estimated_word", "segment"]
+    max_chars: int
+    audio_suffix: str
+    license: str
+    source_url: str
+    description: str
+    config_schema: dict[str, str]
+    legacy: bool
+    implemented: bool
+    test_only: bool
+    available: bool
+
+
+class EngineListResponse(BaseModel):
+    items: list[EngineResponse]
 
 
 class PreviewResponse(BaseModel):

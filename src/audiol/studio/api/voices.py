@@ -5,12 +5,13 @@ import os
 import re
 from uuid import uuid4
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse
 
 from audiol.studio.errors import ApiError
 from audiol.studio.models import PreviewRequest, PreviewResponse, VoiceResponse
 from audiol.tts.base import validate_rate
+from audiol.tts.registry import get_engine
 from audiol.voices import get_voice, list_voices
 
 router = APIRouter(tags=["voices"])
@@ -20,7 +21,12 @@ PREVIEW_KEY = re.compile(r"^[a-f0-9]{16}\.(mp3|wav)$")
 
 
 @router.get("/voices", response_model=list[VoiceResponse])
-def get_voices() -> list[VoiceResponse]:
+def get_voices(engine: str | None = Query(default=None)) -> list[VoiceResponse]:
+    if engine is not None:
+        try:
+            get_engine(engine)
+        except ValueError as exc:
+            raise ApiError(422, "invalid_options", str(exc)) from exc
     return [
         VoiceResponse(
             id=voice.id,
@@ -29,7 +35,7 @@ def get_voices() -> list[VoiceResponse]:
             engines=list(voice.engines),
             styles=list(voice.styles),
         )
-        for voice in list_voices()
+        for voice in list_voices(engine=engine)
     ]
 
 
@@ -37,10 +43,20 @@ def get_voices() -> list[VoiceResponse]:
 def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse:
     settings = request.app.state.settings
     try:
+        spec = get_engine(payload.engine)
+    except ValueError as exc:
+        raise ApiError(422, "invalid_options", str(exc)) from exc
+    if not spec.implemented:
+        raise ApiError(
+            422,
+            "invalid_options",
+            f"El motor {payload.engine} todavía no está disponible.",
+        )
+    try:
         voice = get_voice(payload.voice)
     except ValueError as exc:
         raise ApiError(422, "invalid_options", str(exc)) from exc
-    if payload.engine == "fake":
+    if spec.test_only:
         if not settings.allow_fake:
             raise ApiError(422, "invalid_options", "El motor fake está deshabilitado.")
     elif payload.engine not in voice.engines:
@@ -50,8 +66,12 @@ def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse
             f"{voice.id} no soporta el motor {payload.engine}.",
         )
     if payload.style != "neutral":
-        if payload.engine != "azure":
-            raise ApiError(422, "invalid_options", "Los estilos requieren Azure.")
+        if not spec.supports_styles:
+            raise ApiError(
+                422,
+                "invalid_options",
+                f"El motor {payload.engine} no soporta estilos.",
+            )
         if payload.style not in voice.styles:
             raise ApiError(
                 422,

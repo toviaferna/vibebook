@@ -30,6 +30,20 @@ alias `audiol`.
 La voz por defecto es `es-MX-JorgeNeural` con Edge. El rate por defecto es
 `-10%`.
 
+### Registro de motores
+
+`tts/spec.py` declara cada motor con capacidades explícitas: tipo
+(`builtin`/`plugin`), transporte (`local`/`http`/`command`), red, clave,
+estilos, calidad de timing, tamaño máximo, formato, licencia y fuente.
+`tts/registry.py` centraliza el catálogo, la disponibilidad y la creación de
+proveedores; `factory.py` mantiene la firma histórica.
+
+`GET /api/engines` expone el catálogo. Un motor puede estar en el catálogo y no
+estar implementado todavía: en ese caso `implemented` y `available` son
+`false`, y la conversión falla con un error claro en lugar de intentar usarlo.
+Edge y Azure se conservan como legado externo; el catálogo ya reserva Piper y
+eSpeak NG para el camino local.
+
 ## Pipeline
 
 ```text
@@ -37,7 +51,7 @@ EPUB
   -> ingest (estructura + texto)
   -> clean
   -> chunk
-  -> synthesize (Edge, Azure o Fake)
+  -> synthesize (motor resuelto por el registro)
   -> assemble (ffmpeg)
   -> book.m4b + manifest.json + book.md
 ```

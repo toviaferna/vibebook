@@ -13,6 +13,7 @@ from audiol.manifest import book_from_manifest, load_manifest
 from audiol.studio.db import Database
 from audiol.studio.library import BookRecord, Library
 from audiol.tts.base import TTSProvider, validate_rate
+from audiol.tts.registry import get_engine
 from audiol.voices import get_voice
 
 logger = logging.getLogger(__name__)
@@ -140,15 +141,18 @@ class JobManager:
             self._cancel_event = None
 
     def _validate_options(self, options: JobOptions) -> None:
+        spec = get_engine(options.engine)
+        if not spec.implemented:
+            raise ValueError(f"TTS engine is not implemented yet: {options.engine}")
         voice = get_voice(options.voice)
-        if options.engine == "fake":
+        if spec.test_only:
             if not self.allow_fake:
                 raise ValueError("The fake engine is disabled")
         elif options.engine not in voice.engines:
             raise ValueError(f"{options.voice} does not support engine {options.engine}")
         if options.style != "neutral":
-            if options.engine != "azure":
-                raise ValueError("Styles require the azure engine")
+            if not spec.supports_styles:
+                raise ValueError(f"Styles are not supported by the {options.engine} engine")
             if options.style not in voice.styles:
                 raise ValueError(f"{options.voice} does not support style {options.style}")
         validate_rate(options.rate)

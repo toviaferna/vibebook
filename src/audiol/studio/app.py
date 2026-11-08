@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from audiol.studio.api import books, jobs, reader, voices
+from audiol.studio.api import books, engines, jobs, reader, voices
 from audiol.studio.api import settings as settings_api
 from audiol.studio.db import Database
 from audiol.studio.errors import install_error_handlers
@@ -78,6 +78,7 @@ def create_app(
     install_security_middleware(app, settings)
 
     app.include_router(books.router, prefix="/api")
+    app.include_router(engines.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")
     app.include_router(reader.router, prefix="/api")
     app.include_router(voices.router, prefix="/api")

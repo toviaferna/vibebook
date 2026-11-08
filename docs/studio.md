@@ -98,7 +98,8 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET/PUT /api/books/{id}/preferences`
 - `GET /api/books/{id}/search?q=`
 - `GET/POST /api/books/{id}/bookmarks`, `DELETE /api/books/{id}/bookmarks/{bookmark_id}`
-- `GET /api/voices`, `POST /api/voices/preview`, `GET /api/previews/{key}`
+- `GET /api/engines`
+- `GET /api/voices?engine=`, `POST /api/voices/preview`, `GET /api/previews/{key}`
 - `GET/PUT /api/settings`
 
 Más detalle en `/docs` (OpenAPI) mientras el servidor está corriendo.

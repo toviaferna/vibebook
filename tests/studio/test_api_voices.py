@@ -16,6 +16,43 @@ def test_list_voices(client):
     assert all("engines" in voice and "styles" in voice for voice in voices)
 
 
+def test_filter_voices_by_engine(client):
+    response = client.get("/api/voices", params={"engine": "azure"})
+
+    assert response.status_code == 200
+    ids = [voice["id"] for voice in response.json()]
+    assert ids == ["es-MX-DaliaNeural", "es-MX-JorgeNeural"]
+
+
+def test_filter_voices_by_fake_keeps_catalog(client):
+    response = client.get("/api/voices", params={"engine": "fake"})
+
+    assert response.status_code == 200
+    assert len(response.json()) == len(client.get("/api/voices").json())
+
+
+def test_filter_voices_rejects_unknown_engine(client):
+    response = client.get("/api/voices", params={"engine": "nope"})
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"
+
+
+def test_preview_rejects_unimplemented_engine(client):
+    response = client.post(
+        "/api/voices/preview",
+        json={
+            "voice": "es-MX-JorgeNeural",
+            "engine": "piper",
+            "text": "Hola",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_options"
+    assert "todavía no está disponible" in response.json()["error"]["message"]
+
+
 def test_preview_with_fake_is_cached(client):
     payload = {
         "voice": "es-MX-JorgeNeural",

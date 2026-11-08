@@ -1,14 +1,6 @@
-from audiol.tts.azure import AzureProvider
 from audiol.tts.base import TTSProvider
-from audiol.tts.edge import EdgeProvider
-from audiol.tts.fake import FakeProvider
+from audiol.tts.registry import make_provider as _make_provider
 
 
 def make_provider(engine: str, allow_fake: bool = False) -> TTSProvider:
-    if engine == "edge":
-        return EdgeProvider()
-    if engine == "azure":
-        return AzureProvider()
-    if engine == "fake" and allow_fake:
-        return FakeProvider()
-    raise ValueError(f"Unknown or disabled TTS engine: {engine}")
+    return _make_provider(engine, allow_fake=allow_fake)
