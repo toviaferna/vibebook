@@ -33,6 +33,13 @@ describe("ReaderPage", () => {
     expect(screen.getAllByText("Capítulo 1").length).toBeGreaterThan(0);
   });
 
+  it("muestra el diagnóstico de sync con ?sync=1", async () => {
+    renderRoute("/books/lazarillo-1234/read?sync=1", "/books/:id/read", <ReaderPage />);
+
+    expect(await screen.findByTestId("sync-debug")).toHaveTextContent("Sync debug");
+    expect(screen.getByTestId("sync-debug")).toHaveTextContent("precision exact");
+  });
+
   it("muestra un libro importado sin reproductor", async () => {
     server.use(
       http.get("*/api/books/:id/manifest", () =>
