@@ -70,8 +70,12 @@ export function BookDetailPage() {
               {book.cover_url ? (
                 <img src={apiUrl(book.cover_url)} alt={`Portada de ${book.title}`} />
               ) : (
-                <div className="cover-placeholder" aria-hidden="true">
-                  {book.title.slice(0, 2).toUpperCase()}
+                <div className="cover-placeholder cover-placeholder--detail" aria-hidden="true">
+                  <span className="cover-placeholder-mark">
+                    VB · {book.title.slice(0, 2).toUpperCase()}
+                  </span>
+                  <strong>{book.title}</strong>
+                  <span className="cover-placeholder-author">{book.author}</span>
                 </div>
               )}
             </div>
@@ -90,6 +94,12 @@ export function BookDetailPage() {
                 <div className="book-progress" style={{ maxWidth: 360 }}>
                   <ProgressBar value={book.progress} label="Progreso de escucha" />
                   <span className="mono muted">{formatPercent(book.progress)} escuchado</span>
+                </div>
+              ) : null}
+              {book.reading_progress > 0 ? (
+                <div className="book-progress" style={{ maxWidth: 360 }}>
+                  <ProgressBar value={book.reading_progress} label="Progreso de lectura" />
+                  <span className="mono muted">{formatPercent(book.reading_progress)} leído</span>
                 </div>
               ) : null}
 
@@ -150,6 +160,22 @@ export function BookDetailPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="colophon" aria-label="Colofón del libro">
+        <div className="colophon-copy">
+          <p className="eyebrow">Colofón</p>
+          <p>
+            Edición local · {book.chapter_count} capítulos ·{" "}
+            {book.status === "ready"
+              ? `${book.engine === "azure" ? "Azure" : "Edge"} · ${book.voice ?? "voz local"} · ${formatRate(book.rate)}`
+              : "sin audio · lectura directa del EPUB"}
+          </p>
+        </div>
+        <span className="colophon-mark" aria-hidden="true">
+          VB
+          <small>{book.id.slice(-3).toUpperCase()}</small>
+        </span>
       </section>
 
       {book.last_job ? (

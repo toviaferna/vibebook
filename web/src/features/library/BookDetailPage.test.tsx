@@ -11,7 +11,9 @@ describe("BookDetailPage", () => {
   it("muestra metadata y acciones", async () => {
     renderRoute("/books/lazarillo-1234", "/books/:id", <BookDetailPage />);
 
-    expect(await screen.findByText("El Lazarillo de Tormes")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "El Lazarillo de Tormes" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Leer y escuchar")).toBeInTheDocument();
     expect(screen.getByText("Abrir estudio")).toBeInTheDocument();
     expect(screen.getByText("Descargar M4B")).toBeInTheDocument();

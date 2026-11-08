@@ -25,7 +25,9 @@ export function BookCard({ book }: { book: Book }) {
           <img src={apiUrl(book.cover_url)} alt={`Portada de ${book.title}`} loading="lazy" />
         ) : (
           <div className="cover-placeholder" aria-hidden="true">
-            {initials || "VB"}
+            <span className="cover-placeholder-mark">VB · {initials || "LIBRO"}</span>
+            <strong>{book.title}</strong>
+            <span className="cover-placeholder-author">{book.author}</span>
           </div>
         )}
       </div>

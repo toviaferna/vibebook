@@ -2,7 +2,7 @@ import { AlertTriangle, Plus, RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { errorMessage } from "../../api/client";
+import { apiUrl, errorMessage } from "../../api/client";
 import { useBooks, useRescan } from "../../api/queries";
 import type { Book } from "../../api/types";
 import { BookCard } from "../../components/BookCard";
@@ -194,12 +194,27 @@ function ContinueBook({ book }: { book: Book }) {
   const chapter =
     reading && book.last_read_chapter_index ? ` · Capítulo ${book.last_read_chapter_index}` : "";
 
+  const initials = book.title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <section
       className="continue-strip"
       aria-label={reading ? "Continuar leyendo" : "Continuar escuchando"}
     >
-      <div>
+      <div className="continue-cover" aria-hidden="true">
+        {book.cover_url ? (
+          <img src={apiUrl(book.cover_url)} alt="" />
+        ) : (
+          <span>{initials || "VB"}</span>
+        )}
+      </div>
+      <div className="continue-copy">
         <p className="eyebrow">Continuar</p>
         <h2>{book.title}</h2>
         <p>

@@ -568,10 +568,9 @@
   left: 0;
   z-index: 30;
   padding: var(--space-3) clamp(var(--space-3), 3vw, var(--space-6));
-  border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--paper) 88%, var(--surface));
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface);
   box-shadow: 0 -8px 30px color-mix(in srgb, var(--ink) 9%, transparent);
-  backdrop-filter: blur(12px);
 }
 
 .reader-player-main {
