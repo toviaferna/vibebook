@@ -5,10 +5,11 @@ impacto en la escucha, no por dificultad.
 
 ## Estado actual
 
-- Core, Studio, lector sincronizado y app Tauri están implementados.
-- Quedan el release público, la revisión de licencias, la firma de binarios y
-  las mejoras opcionales de v0.4 (EPUB original, búsqueda, marcadores, Azure con
-  word boundaries).
+- Core, Studio, lector sincronizado, búsqueda, marcadores, EPUB original y app
+  Tauri están implementados.
+- Licencia definida: AGPL-3.0-only.
+- Quedan el release público, la firma de binarios, las capturas finales y las
+  mejoras opcionales de rendimiento.
 
 ## Decisión de voz
 

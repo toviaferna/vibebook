@@ -1,5 +1,8 @@
 # Third-party notices
 
+Vibebook se distribuye bajo GNU Affero General Public License v3.0 only
+(`AGPL-3.0-only`). Ver `LICENSE`.
+
 Vibebook usa y empaqueta componentes de terceros. Esta lista es un inventario
 inicial, no asesoramiento legal. Antes de publicar binarios hay que revisar las
 licencias exactas de cada versión distribuida y cumplir sus obligaciones,
@@ -13,6 +16,8 @@ especialmente las de los componentes copyleft.
 | Serde | MIT / Apache-2.0 | Serialización en Rust |
 | getrandom | MIT / Apache-2.0 | Token local del sidecar |
 | tauri-plugin-single-instance | MIT / Apache-2.0 | Instancia única |
+| Epub.js | BSD-2-Clause | Vista EPUB original |
+| @xmldom/xmldom | MIT | Parser XML de Epub.js |
 | FastAPI | MIT | API local |
 | Uvicorn | BSD-3-Clause | Servidor ASGI |
 | Pydantic | MIT | Modelos de la API |

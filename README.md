@@ -149,6 +149,8 @@ npm run e2e
 
 ### Lector
 
+![Lector sincronizado con karaoke](docs/assets/reader.gif)
+
 Cuando un libro está listo, abrí su detalle y elegí **Leer ahora**. El lector
 resalta el segmento y la palabra actuales, permite tocar el texto para saltar,
 busca dentro del libro, guarda marcadores con nota opcional, recuerda posición y
@@ -158,6 +160,10 @@ sistema vía Media Session.
 Atajos: `Espacio` reproduce o pausa, `←`/`→` retroceden o adelantan, `J`/`K`
 cambian de capítulo, `+`/`-` ajustan la velocidad, `T` abre el índice, `F`
 pantalla completa y `?` muestra la ayuda.
+
+Hay un EPUB de muestra en
+[`samples/lector-de-prueba.epub`](samples/lector-de-prueba.epub) para probar el
+flujo completo con el motor `Fake`.
 
 ## App de escritorio
 
@@ -241,6 +247,23 @@ Documentación:
 
 - [Arquitectura](docs/architecture.md)
 - [Desarrollo](docs/development.md)
+- [Release](docs/release.md)
+- [Changelog](CHANGELOG.md)
 - [Roadmap](docs/roadmap.md)
 - [Bake-off histórico](docs/archive/bakeoff-2026-10.md)
 - [Scorecard de escucha](results/listening-scorecard.md)
+
+## Licencia
+
+Vibebook se distribuye bajo **GNU Affero General Public License v3.0 only**
+(`AGPL-3.0-only`). Ver [LICENSE](LICENSE).
+
+Las dependencias de terceros conservan sus propias licencias. Revisá
+[packaging/THIRD_PARTY_NOTICES.md](packaging/THIRD_PARTY_NOTICES.md) antes de
+redistribuir binarios, especialmente por FFmpeg y los componentes copyleft.
+
+## Contribuir y seguridad
+
+- [Guía de contribución](CONTRIBUTING.md)
+- [Política de seguridad](SECURITY.md)
+- [Checklist de release](docs/release.md)

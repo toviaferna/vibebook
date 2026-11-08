@@ -4,6 +4,7 @@ version = "0.3.0"
 description = "Vibebook desktop shell"
 edition = "2021"
 rust-version = "1.77.2"
+license = "AGPL-3.0-only"
 
 [lib]
 name = "vibebook_desktop_lib"

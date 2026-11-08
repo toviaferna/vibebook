@@ -26,3 +26,4 @@ htmlcov/
 *.flac
 samples/*.epub
 samples/*.txt
+!samples/lector-de-prueba.epub
