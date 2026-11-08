@@ -74,6 +74,11 @@ El toggle **Libro / Texto / Original** agrega una vista paginada:
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
   tipografía y tamaño;
 - navegación por botones y número de página;
+- page-turn CSS 3D con una sola hoja;
+- flechas y PageUp/PageDown para pasar página;
+- cinta lateral para guardar la página actual;
+- marcadores de lectura con nota, listado y salto a capítulo/página;
+- `prefers-reduced-motion` desactiva la animación;
 - los libros importados abren en Libro por defecto; los que tienen audio abren
   en Texto para conservar el karaoke.
 

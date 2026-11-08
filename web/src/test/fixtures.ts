@@ -5,6 +5,7 @@ import type {
   ChapterPayload,
   Job,
   Manifest,
+  ReadingBookmarkList,
   ReadingState,
   SearchResponse,
   Settings,
@@ -166,6 +167,20 @@ export const sampleReadingState: ReadingState = {
   percent: 0,
   cfi: null,
   updated_at: null,
+};
+
+export const sampleReadingBookmarks: ReadingBookmarkList = {
+  items: [
+    {
+      id: 1,
+      book_id: sampleBook.id,
+      chapter_index: 1,
+      char_offset: 0,
+      page_index: 0,
+      note: "Marcador de lectura",
+      created_at: "2026-11-07T10:00:00+00:00",
+    },
+  ],
 };
 
 export const sampleSearch: SearchResponse = {

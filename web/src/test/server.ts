@@ -8,6 +8,7 @@ import {
   sampleChapter,
   sampleJob,
   sampleManifest,
+  sampleReadingBookmarks,
   sampleReadingState,
   sampleSearch,
   sampleSettings,
@@ -63,6 +64,31 @@ export const server = setupServer(
     const patch = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...sampleReadingState, ...patch });
   }),
+  http.get("*/api/books/:id/reading-bookmarks", () => HttpResponse.json(sampleReadingBookmarks)),
+  http.post("*/api/books/:id/reading-bookmarks", async ({ request }) => {
+    const input = (await request.json()) as {
+      chapter_index: number;
+      char_offset: number;
+      page_index: number;
+      note?: string | null;
+    };
+    return HttpResponse.json(
+      {
+        id: 2,
+        book_id: sampleBook.id,
+        chapter_index: input.chapter_index,
+        char_offset: input.char_offset,
+        page_index: input.page_index,
+        note: input.note ?? null,
+        created_at: "2026-11-07T10:00:00+00:00",
+      },
+      { status: 201 },
+    );
+  }),
+  http.delete(
+    "*/api/books/:id/reading-bookmarks/:bookmarkId",
+    () => new HttpResponse(null, { status: 204 }),
+  ),
   http.get("*/api/books/:id/preferences", () =>
     HttpResponse.json({
       book_id: sampleBook.id,

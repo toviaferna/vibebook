@@ -58,6 +58,10 @@ describe("ReaderPage", () => {
     expect(screen.queryByRole("button", { name: "Reproducir" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Convertir a audiolibro" })).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Marcadores de lectura" }));
+    expect(await screen.findByText("Marcador de lectura")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cerrar marcadores" }));
+
     await user.click(screen.getByRole("button", { name: "Texto" }));
     expect(screen.getByText("Hola, mundo. Esta es una prueba.")).toBeInTheDocument();
   });

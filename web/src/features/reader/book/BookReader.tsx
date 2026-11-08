@@ -21,6 +21,7 @@ interface BookReaderProps {
   size: number;
   initialCharOffset?: number;
   onPageChange?: (state: BookPageState) => void;
+  onBookmark?: (state: BookPageState) => void;
 }
 
 const pageCache = new Map<string, BookPage[]>();
@@ -64,13 +65,16 @@ export function BookReader({
   size,
   initialCharOffset = 0,
   onPageChange,
+  onBookmark,
 }: BookReaderProps) {
   const spreadRef = useRef<HTMLDivElement>(null);
   const initialOffsetRef = useRef(initialCharOffset);
+  const turnTimer = useRef<number | null>(null);
   const [pages, setPages] = useState<BookPage[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [spread, setSpread] = useState(false);
   const [pageHeight, setPageHeight] = useState(0);
+  const [turn, setTurn] = useState<{ direction: "next" | "prev"; id: number } | null>(null);
 
   useLayoutEffect(() => {
     const element = spreadRef.current;
@@ -172,20 +176,77 @@ export function BookReader({
     });
   }, [onPageChange, pageIndex, pages]);
 
-  const previous = useCallback(() => {
-    setPageIndex((current) => Math.max(0, current - (spread ? 2 : 1)));
-  }, [spread]);
+  const changePage = useCallback(
+    (direction: "next" | "prev") => {
+      if (turn) {
+        return;
+      }
+      const step = spread ? 2 : 1;
+      const target =
+        direction === "next"
+          ? Math.min(pages.length - step, pageIndex + step)
+          : Math.max(0, pageIndex - step);
+      if (target === pageIndex) {
+        return;
+      }
+      const reduce =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) {
+        setPageIndex(target);
+        return;
+      }
+      setTurn({ direction, id: Date.now() });
+      turnTimer.current = window.setTimeout(() => {
+        setPageIndex(target);
+        setTurn(null);
+        turnTimer.current = null;
+      }, 380);
+    },
+    [pageIndex, pages.length, spread, turn],
+  );
 
-  const next = useCallback(() => {
-    setPageIndex((current) =>
-      Math.min(pages.length - (spread ? 2 : 1), current + (spread ? 2 : 1)),
-    );
-  }, [pages.length, spread]);
+  useEffect(
+    () => () => {
+      if (turnTimer.current !== null) {
+        window.clearTimeout(turnTimer.current);
+      }
+    },
+    [],
+  );
+
+  const previous = useCallback(() => changePage("prev"), [changePage]);
+  const next = useCallback(() => changePage("next"), [changePage]);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (event.key === "ArrowRight" || event.key === "PageDown") {
+        event.preventDefault();
+        next();
+      } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        previous();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [next, previous]);
 
   const visible = spread
     ? pages.slice(pageIndex, pageIndex + 2)
     : pages.slice(pageIndex, pageIndex + 1);
   const pageLabel = pages.length > 0 ? `${pageIndex + 1} / ${pages.length}` : "—";
+  const progress = pages.length > 0 ? Math.min(1, (pageIndex + 1) / pages.length) : 0;
 
   return (
     <section
@@ -198,6 +259,22 @@ export function BookReader({
       </header>
 
       <div className={`book-spread${spread ? "" : " book-spread--single"}`} ref={spreadRef}>
+        <button
+          type="button"
+          className="book-ribbon"
+          style={{ height: `${52 + progress * 44}px` }}
+          onClick={() =>
+            onBookmark?.({
+              pageIndex,
+              pageCount: pages.length,
+              charOffset: pages[pageIndex]?.startOffset ?? 0,
+            })
+          }
+          aria-label="Guardar esta página"
+          title="Guardar esta página"
+        >
+          <span className="sr-only">Guardar esta página</span>
+        </button>
         {visible.map((page) => (
           <article
             className="book-page"
@@ -236,6 +313,16 @@ export function BookReader({
             </footer>
           </article>
         ))}
+        {turn ? (
+          <div
+            className={`book-leaf book-leaf--${turn.direction}`}
+            key={turn.id}
+            aria-hidden="true"
+          >
+            <div className="book-leaf-face book-leaf-front" />
+            <div className="book-leaf-face book-leaf-back" />
+          </div>
+        ) : null}
       </div>
 
       <nav className="book-nav" aria-label="Navegación de páginas">
@@ -243,7 +330,7 @@ export function BookReader({
           type="button"
           className="button button--ghost"
           onClick={previous}
-          disabled={pageIndex === 0}
+          disabled={pageIndex === 0 || turn !== null}
           aria-label="Página anterior"
         >
           <ChevronLeft size={17} />
@@ -256,7 +343,9 @@ export function BookReader({
           type="button"
           className="button button--ghost"
           onClick={next}
-          disabled={pages.length === 0 || pageIndex >= pages.length - (spread ? 2 : 1)}
+          disabled={
+            turn !== null || pages.length === 0 || pageIndex >= pages.length - (spread ? 2 : 1)
+          }
           aria-label="Página siguiente"
         >
           Siguiente

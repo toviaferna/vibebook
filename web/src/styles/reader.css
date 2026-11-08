@@ -203,6 +203,88 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
   height: clamp(420px, 68vh, 760px);
+  position: relative;
+  perspective: 2000px;
+}
+
+.book-ribbon {
+  position: absolute;
+  top: 0;
+  right: 28px;
+  z-index: 6;
+  width: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+  box-shadow: 0 2px 5px rgb(54 44 31 / 18%);
+}
+
+.book-ribbon:hover,
+.book-ribbon:focus-visible {
+  background: var(--accent-strong);
+}
+
+.book-leaf {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  width: calc(50% - 12px);
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: book-turn-next 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.book-leaf--prev {
+  right: auto;
+  left: 0;
+  animation-name: book-turn-prev;
+  transform-origin: right center;
+}
+
+.book-spread--single .book-leaf {
+  width: 100%;
+}
+
+.book-leaf-face {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, rgb(54 44 31 / 8%), transparent 18%), var(--surface-raised);
+  backface-visibility: hidden;
+}
+
+.book-leaf-back {
+  transform: rotateY(180deg);
+  background: var(--surface-raised);
+}
+
+@keyframes book-turn-next {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(-180deg);
+  }
+}
+
+@keyframes book-turn-prev {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-leaf {
+    display: none;
+  }
 }
 
 .book-spread--single {
