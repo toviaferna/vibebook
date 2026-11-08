@@ -25,7 +25,7 @@ import {
 } from "../../api/queries";
 import type { ChapterTiming, ReadingBookmark } from "../../api/types";
 import { Button } from "../../components/Button";
-import { alignSegment, findActive } from "./alignment";
+import { alignSegment, findActive, findActiveWord } from "./alignment";
 import { type BookPageState, BookReader } from "./book/BookReader";
 import { chapterDisplayTitle } from "./chapterTitle";
 import { OriginalEpubView } from "./original/OriginalEpubView";
@@ -333,11 +333,29 @@ export function ReaderPage() {
     return () => window.clearTimeout(timer);
   }, [isPlaying, pause, sleepMinutes]);
 
+  const alignments = useMemo(() => {
+    const result = new Map<string, ReturnType<typeof alignSegment>>();
+    if (!chapter || !timing) {
+      return result;
+    }
+    const byId = new Map(timing.segments.map((segment) => [segment.id, segment]));
+    for (const segment of chapter.segments) {
+      const aligned = alignSegment(segment, byId.get(segment.id));
+      if (aligned.words.length > 0) {
+        result.set(segment.id, aligned);
+      }
+    }
+    return result;
+  }, [chapter, timing]);
+
   const active = useMemo(() => findActive(timing, currentTimeMs), [currentTimeMs, timing]);
   const activeSegment = timing?.segments[active.segmentIndex];
   const activeSegmentId = activeSegment?.id ?? null;
-  const activeWordIndex = active.wordIndex ?? -1;
-  const activeWord = activeSegment?.words[activeWordIndex];
+  const activeAligned = activeSegmentId ? alignments.get(activeSegmentId) : undefined;
+  const activeWordIndex = activeAligned
+    ? (findActiveWord(activeAligned.words, currentTimeMs) ?? -1)
+    : -1;
+  const activeWord = activeAligned?.words[activeWordIndex];
 
   useEffect(() => {
     if (!syncDebug) {
@@ -358,21 +376,6 @@ export function ReaderPage() {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [syncDebug]);
-
-  const alignments = useMemo(() => {
-    const result = new Map<string, ReturnType<typeof alignSegment>>();
-    if (!chapter || !timing) {
-      return result;
-    }
-    const byId = new Map(timing.segments.map((segment) => [segment.id, segment]));
-    for (const segment of chapter.segments) {
-      const aligned = alignSegment(segment, byId.get(segment.id));
-      if (aligned.words.length > 0) {
-        result.set(segment.id, aligned);
-      }
-    }
-    return result;
-  }, [chapter, timing]);
 
   useEffect(() => {
     if (view !== "text" || !follow || followSuspended || !activeSegmentId || !contentRef.current) {
@@ -786,7 +789,7 @@ export function ReaderPage() {
           </span>
           <span>
             word {activeWordIndex >= 0 ? activeWordIndex : "—"}
-            {activeWord ? ` “${activeWord.text}” ${activeWord.start_ms}-${activeWord.end_ms}` : ""}
+            {activeWord ? ` "${activeWord.text}" ${activeWord.startMs}-${activeWord.endMs}` : ""}
           </span>
           <span>
             precision {timing?.precision ?? "—"} · fps {syncFps} · rate {playbackRate}

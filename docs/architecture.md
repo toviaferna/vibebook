@@ -100,6 +100,9 @@ romper audio ni timings existentes.
   frames, registra offsets exactos, codifica el capítulo una sola vez a MP3 con
   loudnorm y crea el M4B AAC. El timing se construye desde esos offsets, sin
   escalar dos veces las palabras.
+- Lector: el tiempo se actualiza con RAF, el seek sincroniza al instante y el
+  resaltado conserva la palabra anterior en huecos cortos; `ReaderContent` está
+  memoizado para evitar renders completos por frame.
 
 ## Contratos
 

@@ -1,5 +1,5 @@
 import type { ChapterTiming, ManifestSegment, TimingSegment } from "../../api/types";
-import { alignSegment, findActive, normalizeToken, tokenize } from "./alignment";
+import { alignSegment, findActive, findActiveWord, normalizeToken, tokenize } from "./alignment";
 
 const segment: ManifestSegment = {
   id: "c001p0001s00",
@@ -93,13 +93,45 @@ describe("alignment", () => {
 
     expect(findActive(chapterTiming, 0)).toEqual({ segmentIndex: 0, wordIndex: 0 });
     expect(findActive(chapterTiming, 700)).toEqual({ segmentIndex: 0, wordIndex: 1 });
-    expect(findActive(chapterTiming, 1050)).toEqual({ segmentIndex: 0, wordIndex: null });
+    expect(findActive(chapterTiming, 1050)).toEqual({ segmentIndex: 0, wordIndex: 1 });
     expect(findActive(chapterTiming, 2200)).toEqual({ segmentIndex: 1, wordIndex: 0 });
-    expect(findActive(chapterTiming, 2900)).toEqual({ segmentIndex: 1, wordIndex: null });
+    expect(findActive(chapterTiming, 2900)).toEqual({ segmentIndex: 1, wordIndex: 0 });
+    expect(findActive(chapterTiming, 3600)).toEqual({ segmentIndex: 1, wordIndex: null });
     expect(findActive(null, 100)).toEqual({ segmentIndex: -1, wordIndex: null });
     expect(findActive({ ...chapterTiming, precision: "estimated" }, 700)).toEqual({
       segmentIndex: 0,
       wordIndex: null,
     });
+  });
+
+  it("mantiene la palabra anterior durante huecos cortos y la quita en silencios largos", () => {
+    const words = alignSegment(
+      { ...segment, text: "Hola, mundo." },
+      {
+        ...timing,
+        words: [
+          { text: "Hola,", start_ms: 0, end_ms: 500 },
+          { text: "mundo.", start_ms: 1_200, end_ms: 1_500 },
+        ],
+      },
+    ).words;
+
+    expect(findActiveWord(words, 600)).toBe(0);
+    expect(findActiveWord(words, 1_100)).toBe(0);
+    expect(findActiveWord(words, 1_600)).toBe(1);
+    expect(findActiveWord(words, 2_700)).toBeNull();
+  });
+
+  it("no resalta una palabra antes de su primer inicio", () => {
+    const words = alignSegment(
+      { ...segment, text: "Hola," },
+      {
+        ...timing,
+        words: [{ text: "Hola,", start_ms: 500, end_ms: 900 }],
+      },
+    ).words;
+
+    expect(findActiveWord(words, 100)).toBeNull();
+    expect(findActiveWord(words, 600)).toBe(0);
   });
 });

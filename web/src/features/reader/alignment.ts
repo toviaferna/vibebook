@@ -20,6 +20,7 @@ export interface AlignedSegment {
 
 const TOKEN_PATTERN = /\S+/g;
 const TRIM_PUNCTUATION = /^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu;
+const MAX_HIGHLIGHT_GAP_MS = 1_000;
 
 export function tokenize(text: string): TextToken[] {
   return [...text.matchAll(TOKEN_PATTERN)].map((match) => ({
@@ -142,6 +143,37 @@ export interface ActiveTiming {
   wordIndex: number | null;
 }
 
+export function findActiveWord(words: AlignedWord[], timeMs: number): number | null {
+  if (words.length === 0 || timeMs < 0) {
+    return null;
+  }
+  let low = 0;
+  let high = words.length - 1;
+  let found = -1;
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    if (words[middle].startMs <= timeMs) {
+      found = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  if (found < 0) {
+    return null;
+  }
+  const word = words[found];
+  if (timeMs < word.endMs) {
+    return found;
+  }
+  const next = words[found + 1];
+  const gapEnd = next ? next.startMs : word.endMs + MAX_HIGHLIGHT_GAP_MS;
+  if (gapEnd - word.endMs <= MAX_HIGHLIGHT_GAP_MS && timeMs < gapEnd) {
+    return found;
+  }
+  return null;
+}
+
 export function findActive(timing: ChapterTiming | null, timeMs: number): ActiveTiming {
   if (!timing || timing.segments.length === 0 || timeMs < 0) {
     return { segmentIndex: -1, wordIndex: null };
@@ -185,6 +217,11 @@ export function findActive(timing: ChapterTiming | null, timeMs: number): Active
   }
   const word = segment.words[wordFound];
   if (timeMs >= word.end_ms) {
+    const next = segment.words[wordFound + 1];
+    const gapEnd = next ? next.start_ms : word.end_ms + MAX_HIGHLIGHT_GAP_MS;
+    if (gapEnd - word.end_ms <= MAX_HIGHLIGHT_GAP_MS && timeMs < gapEnd) {
+      return { segmentIndex: found, wordIndex: wordFound };
+    }
     return { segmentIndex: found, wordIndex: null };
   }
   return { segmentIndex: found, wordIndex: wordFound };

@@ -29,6 +29,9 @@ function makeAudio() {
   return {
     audio,
     currentTime: () => currentTime,
+    setCurrentTime: (value: number) => {
+      currentTime = value;
+    },
   };
 }
 
@@ -60,6 +63,31 @@ describe("useAudioPlayer", () => {
 
     act(() => result.current.seekMs(-5_000));
     expect(currentTime()).toBe(0);
+  });
+
+  it("sincroniza al instante después de un seek", () => {
+    const { audio, setCurrentTime } = makeAudio();
+    const { result } = renderHook(() => useAudioPlayer(audio));
+
+    act(() => {
+      setCurrentTime(4.2);
+      audio.dispatchEvent(new Event("seeked"));
+    });
+
+    expect(result.current.currentTimeMs).toBe(4_200);
+  });
+
+  it("cambiar la velocidad no reescala el tiempo actual", () => {
+    const { audio, setCurrentTime } = makeAudio();
+    const { result } = renderHook(() => useAudioPlayer(audio));
+
+    act(() => {
+      setCurrentTime(3);
+      audio.dispatchEvent(new Event("seeked"));
+      result.current.setRate(1.5);
+    });
+
+    expect(result.current.currentTimeMs).toBe(3_000);
   });
 
   it("aplica velocidad y volumen al elemento de audio", () => {
