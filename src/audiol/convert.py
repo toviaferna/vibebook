@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from audiol.assemble import build_m4b, concat_to_mp3, probe_duration, require_ffmpeg
+from audiol.assemble import build_m4b, concat_pcm_to_mp3, probe_duration, require_ffmpeg
 from audiol.chunk import chunk_text
 from audiol.clean import clean_paragraph_items
 from audiol.manifest import write_manifest
@@ -15,7 +15,7 @@ from audiol.models import Book, Chapter, Segment, WordTiming, make_segment_id
 from audiol.naming import slugify
 from audiol.timing import (
     audio_duration_ms,
-    build_chapter_timing,
+    build_chapter_timing_from_offsets,
     read_word_timings,
     segment_timing_path,
     write_chapter_timing,
@@ -285,7 +285,6 @@ def _convert_core(
 
     for chapter in book.chapters:
         segment_files: list[Path] = []
-        segment_durations: list[int] = []
         segment_words: list[list[WordTiming]] = []
 
         for segment in chapter.segments:
@@ -347,7 +346,6 @@ def _convert_core(
                 raise RuntimeError(f"Could not determine duration for segment {segment.id}")
 
             segment_files.append(path)
-            segment_durations.append(duration_ms)
             segment_words.append(
                 read_word_timings(segment_timing_path(path)) if capture_timings else []
             )
@@ -371,17 +369,18 @@ def _convert_core(
             raise ConversionCancelled()
 
         chapter_path = chapters_dir / f"chapter_{chapter.index:03d}.mp3"
-        concat_to_mp3(segment_files, chapter_path, audio_dir)
+        assembly = concat_pcm_to_mp3(segment_files, chapter_path, audio_dir)
         chapter_duration = measure_duration_ms(chapter_path)
         chapter_files.append(chapter_path)
         chapter_durations.append(chapter_duration)
 
         if capture_timings:
-            timing = build_chapter_timing(
+            timing = build_chapter_timing_from_offsets(
                 chapter,
-                segment_durations,
+                assembly.offsets_ms,
+                assembly.durations_ms,
                 segment_words,
-                chapter_duration_ms=chapter_duration,
+                chapter_duration_ms=assembly.total_ms,
             )
             write_chapter_timing(timings_dir / f"chapter_{chapter.index:03d}.json", timing)
 

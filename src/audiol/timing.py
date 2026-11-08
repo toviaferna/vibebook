@@ -85,6 +85,87 @@ def scale_words(words: list[WordTiming], duration_ms: int) -> list[WordTiming]:
     return scaled
 
 
+def build_chapter_timing_from_offsets(
+    chapter: Chapter,
+    segment_offsets_ms: list[int],
+    segment_durations_ms: list[int],
+    segment_words: list[list[WordTiming]],
+    chapter_duration_ms: int | None = None,
+) -> ChapterTiming:
+    if not (
+        len(segment_offsets_ms)
+        == len(segment_durations_ms)
+        == len(segment_words)
+        == len(chapter.segments)
+    ):
+        raise ValueError("segment offsets, durations, words and segments must have the same length")
+    if chapter_duration_ms is not None and chapter_duration_ms <= 0:
+        raise ValueError("chapter_duration_ms must be positive")
+
+    segments: list[SegmentTiming] = []
+    for segment, offset_ms, duration_ms, words in zip(
+        chapter.segments,
+        segment_offsets_ms,
+        segment_durations_ms,
+        segment_words,
+        strict=True,
+    ):
+        if offset_ms < 0:
+            raise ValueError(f"segment {segment.id} has a negative offset")
+        if duration_ms <= 0:
+            raise ValueError(f"segment {segment.id} must have a positive duration")
+        exact = bool(words)
+        relative_words = (
+            _normalize_words(words, duration_ms)
+            if exact
+            else estimate_word_timings(segment.text, duration_ms)
+        )
+        segments.append(
+            SegmentTiming(
+                id=segment.id,
+                start_ms=offset_ms,
+                end_ms=offset_ms + duration_ms,
+                precision="exact" if exact else "estimated",
+                words=[
+                    WordTiming(
+                        text=word.text,
+                        start_ms=offset_ms + word.start_ms,
+                        end_ms=offset_ms + word.end_ms,
+                    )
+                    for word in relative_words
+                ],
+            )
+        )
+
+    total_ms = chapter_duration_ms if chapter_duration_ms is not None else 0
+    if segments:
+        total_ms = max(total_ms, segments[-1].end_ms)
+    precision: Precision = (
+        "exact" if segments and all(item.precision == "exact" for item in segments) else "estimated"
+    )
+    return ChapterTiming(
+        chapter_index=chapter.index,
+        duration_ms=total_ms,
+        precision=precision,
+        segments=segments,
+    )
+
+
+def _normalize_words(words: list[WordTiming], duration_ms: int) -> list[WordTiming]:
+    if not words:
+        return []
+    if duration_ms < len(words):
+        raise ValueError("duration_ms is too short for the number of words")
+    normalized: list[WordTiming] = []
+    cursor = 0
+    for word in words:
+        start = max(cursor, min(duration_ms - 1, max(0, word.start_ms)))
+        end = min(duration_ms, max(start + 1, word.end_ms))
+        normalized.append(WordTiming(text=word.text, start_ms=start, end_ms=end))
+        cursor = end
+    return normalized
+
+
 def build_chapter_timing(
     chapter: Chapter,
     segment_durations_ms: list[int],

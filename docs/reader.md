@@ -133,6 +133,11 @@ uv run python scripts/sync_report.py out/libro --json
 uv run python scripts/sync_report.py out/libro --strict --max-drift-ms 100
 ```
 
+El pipeline arma cada capítulo desde PCM: decodifica los segmentos a mono
+24 kHz, mide frames exactos, concatena y codifica una sola vez. El timing usa
+los offsets de frames; no se vuelve a escalar el capítulo entero. El delay del
+encoder final se mide aparte y queda para la calibración de Y4.
+
 El reporte compara:
 
 - duración del timing contra el audio del capítulo;
