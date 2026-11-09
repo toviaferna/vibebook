@@ -59,8 +59,8 @@ timeout y audio, y nunca exponen su token. Detalle en
 
 ## Temas y apariencia
 
-La identidad visual es **Verdín**: papel frío, verde, latón y tipografía
-editorial. Hay dos luces separadas:
+La identidad visual es **Biblioteca**: pergamino, tinta, oxblood, latón y
+pizarra. Hay dos luces separadas:
 
 - `theme_mode` (`system | light | dark`) controla toda la app. Se aplica como
   `data-theme` en `<html>`, escucha `prefers-color-scheme` cuando está en

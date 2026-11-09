@@ -222,8 +222,8 @@ flujo completo con el motor `Fake`.
 
 ### Identidad
 
-La dirección visual es **Verdín**: papel frío, verde, latón y tipografía
-editorial. La app y el lector tienen luces independientes.
+La dirección visual es **Biblioteca**: pergamino cálido, tinta, oxblood, latón
+y pizarra. La app y el lector tienen luces independientes.
 
 | Biblioteca | Lector sepia |
 |---|---|

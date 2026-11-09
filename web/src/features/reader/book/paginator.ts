@@ -209,16 +209,17 @@ export function pageIndexForOffset(pages: BookPage[], offset: number): number {
     return 0;
   }
   let low = 0;
-  let high = pages.length - 1;
-  let found = 0;
-  while (low <= high) {
+  let high = pages.length;
+  while (low < high) {
     const middle = Math.floor((low + high) / 2);
-    if (pages[middle].startOffset <= offset) {
-      found = middle;
+    if (pages[middle].startOffset < offset) {
       low = middle + 1;
     } else {
-      high = middle - 1;
+      high = middle;
     }
   }
-  return found;
+  if (low < pages.length && pages[low].startOffset === offset) {
+    return low;
+  }
+  return Math.max(0, low - 1);
 }

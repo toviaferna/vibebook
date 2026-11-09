@@ -22,7 +22,7 @@ La app de escritorio sigue siendo el lugar para convertir, ambientar y exportar.
 web/mobile.html                  entrada del lector
 web/src/mobile/MobileReaderApp   biblioteca + lector
 web/src/mobile/storage.ts        IndexedDB
-web/src/mobile/mobile.css        shell Verdín
+web/src/mobile/mobile.css        shell Biblioteca
 web/vite.mobile.config.ts        build separado
 src-tauri/tauri.android.conf.json frontendDist = web/dist-mobile
 src-tauri/src/lib.rs             sidecar desactivado con #[cfg(not(mobile))]

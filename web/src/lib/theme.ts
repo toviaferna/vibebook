@@ -49,7 +49,7 @@ export function applyTheme(mode: ThemeMode): ResolvedTheme {
     document.documentElement.style.colorScheme = resolved;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     if (meta) {
-      meta.content = resolved === "dark" ? "#101613" : "#f1f2ec";
+      meta.content = resolved === "dark" ? "#14110f" : "#f2ebdd";
     }
   }
   return resolved;
