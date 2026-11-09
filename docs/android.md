@@ -50,7 +50,21 @@ npx tauri android build --apk --target aarch64 --ci
 ```
 
 El APK queda en `src-tauri/gen/android/app/build/outputs/apk/`.
-El workflow manual `.github/workflows/android.yml` ejecuta este flujo en CI.
+El workflow manual `.github/workflows/android.yml` ejecuta este flujo en CI,
+alinea el APK con `zipalign`, lo firma con una keystore de prueba generada en el
+runner (`vibebook-ci`) y lo verifica con `apksigner`. El artefacto `android-apk`
+incluye el APK firmado y `checksums-android.txt`.
+
+## Estado validado
+
+Build `aarch64` del 2026-11-09 en GitHub Actions:
+
+- APK firmado: **11,17 MB**, 676 entradas.
+- Incluye `AndroidManifest.xml`, `classes.dex`,
+  `lib/arm64-v8a/libvibebook_desktop_lib.so` y `assets/tauri.conf.json`.
+- `apksigner verify` pasa y el checksum del artefacto coincide con el digest de
+  GitHub.
+- Queda pendiente la prueba en dispositivo y el cierre de SAF/SQLite/audio.
 
 ## Rendimiento
 
@@ -65,9 +79,11 @@ El workflow manual `.github/workflows/android.yml` ejecuta este flujo en CI.
 - IndexedDB en vez de SQLite/SAF; la importación usa el file picker del WebView.
 - No hay sincronización con desktop ni export de biblioteca.
 - No hay audio local todavía; el lector es texto/EPUB.
-- No hay Play Store: APK self-signed y sideload.
-- No se probó en un dispositivo físico en este entorno; el workflow manual es
-  la validación pendiente.
+- No hay Play Store: el APK de CI se firma con una keystore efímera de prueba.
+  Para actualizar sobre una instalación previa hay que desinstalar o usar una
+  keystore estable.
+- El CI valida build, firma y contenido del APK, pero no se probó en un
+  dispositivo físico en este entorno.
 - Si el rendimiento de Tauri mobile no alcanza, el plan permite evaluar
   Kotlin/Compose nativo con benchmark.
 

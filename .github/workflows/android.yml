@@ -51,8 +51,32 @@ jobs:
       - run: npm --prefix web run build:android
       - run: npx tauri android init --ci
       - run: npx tauri android build --apk --target aarch64 --ci
+      - name: Sign the APK for sideloading
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0"
+          APK="$(find src-tauri/gen/android/app/build/outputs/apk -name '*-unsigned.apk' -type f | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "No unsigned APK found" >&2
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/vibebook-ci.keystore"
+          keytool -genkeypair -keystore "$KEYSTORE" -storepass android -keypass android \
+            -alias vibebook-ci -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Vibebook CI,O=Vibebook,C=US"
+          "$BUILD_TOOLS/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/vibebook-aligned.apk"
+          VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          mkdir -p artifacts
+          "$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-pass pass:android \
+            --key-pass pass:android \
+            --out "artifacts/Vibebook-$VERSION-android-arm64.apk" \
+            "$RUNNER_TEMP/vibebook-aligned.apk"
+          "$BUILD_TOOLS/apksigner" verify --verbose "artifacts/Vibebook-$VERSION-android-arm64.apk"
+          sha256sum artifacts/*.apk > artifacts/checksums-android.txt
+          cat artifacts/checksums-android.txt
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
           if-no-files-found: error
-          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          path: |
+            artifacts/*.apk
+            artifacts/checksums-android.txt
