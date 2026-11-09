@@ -143,6 +143,39 @@ El original no se sobrescribe. El resultado se descarga con
 Desde el detalle, “Exportar ambientado” inicia el job y el botón de descarga
 aparece al completarse.
 
+## Fuentes opcionales (A6)
+
+### Freesound
+
+Requiere una API key gratuita en `FREESOUND_API_KEY` (no hay cuenta paga ni
+créditos). El flujo es explícito:
+
+```text
+GET  /api/ambience/providers
+POST /api/ambience/providers/freesound/import
+     { "query": "rain", "license_filter": "license:Creative Commons 0" }
+```
+
+El backend busca, descarga el preview, exige licencia y atribución, y lo importa
+como asset `provider=freesound` con `source_url`. Nunca se llama a Freesound de
+forma automática.
+
+### Plugin local de ambiente
+
+Protocolo `vep-sound/1`, configurado con:
+
+- `VIBEBOOK_AMBIENCE_PLUGIN_URL`
+- `VIBEBOOK_AMBIENCE_PLUGIN_TOKEN` (opcional)
+
+```text
+POST /api/ambience/providers/plugin/import
+     { "prompt": "rain on a tin roof", "kind": "ambience", "duration_ms": 30000 }
+```
+
+El plugin puede devolver `audio_base64` + metadata JSON o un cuerpo `audio/*`.
+Debe declarar `license`; si falta, el asset se rechaza. Nunca se instala ni se
+ejecuta solo, y el texto solo se envía cuando el usuario pide generar.
+
 ## Pruebas
 
 ```bash
@@ -158,9 +191,9 @@ Cubren import, dedupe por checksum, licencia obligatoria, reconstrucción del
 anchors inválidos, límites, analyzer, endpoints, scheduler de cues y el toggle
 del lector.
 
-## Pendiente
+## Estado
 
-- A6: Freesound y plugin IA local opcionales.
+A1–A6 completas. No hay proveedores cloud obligatorios ni IA por default.
 
 Limitaciones actuales:
 

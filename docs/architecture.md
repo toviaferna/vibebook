@@ -94,6 +94,8 @@ blur decorativos se eliminaron para cuidar el rendimiento.
   loop, ducking y cues; solo arranca con un gesto del usuario.
 - `mix.py` y `studio/ambience_jobs.py`: render de un M4B ambientado en un job
   separado, con sidechain, límites de duración y atribuciones CC-BY.
+- `providers/`: Freesound opcional (`FREESOUND_API_KEY`) y plugin local
+  `vep-sound/1`; nunca se llaman sin una acción explícita del usuario.
 
 Los assets importados quedan sin aprobar hasta que el usuario los escucha. El
 flujo base no requiere red, cuenta ni API paga.

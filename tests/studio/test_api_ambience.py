@@ -103,6 +103,30 @@ def test_import_rejects_unknown_license(client, tmp_path):
     assert response.json()["error"]["code"] == "invalid_asset"
 
 
+def test_provider_status_and_unconfigured_imports(client, monkeypatch):
+    monkeypatch.delenv("FREESOUND_API_KEY", raising=False)
+    monkeypatch.delenv("VIBEBOOK_AMBIENCE_PLUGIN_URL", raising=False)
+
+    providers = client.get("/api/ambience/providers")
+    assert providers.status_code == 200
+    assert {item["id"] for item in providers.json()["items"]} == {"freesound", "plugin"}
+    assert all(item["configured"] is False for item in providers.json()["items"])
+
+    freesound = client.post(
+        "/api/ambience/providers/freesound/import",
+        json={"query": "rain"},
+    )
+    assert freesound.status_code == 422
+    assert freesound.json()["error"]["code"] == "provider_unavailable"
+
+    plugin = client.post(
+        "/api/ambience/providers/plugin/import",
+        json={"prompt": "rain"},
+    )
+    assert plugin.status_code == 422
+    assert plugin.json()["error"]["code"] == "provider_unavailable"
+
+
 def test_book_ambience_roundtrip(client, imported):
     book_id = imported["id"]
 

@@ -138,3 +138,30 @@ class AmbienceGenerateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     preset: Literal["rain", "wind", "sea", "room", "fire", "night"] | None = None
+
+
+class FreesoundImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=2, max_length=200)
+    license_filter: str = Field(default="license:Creative Commons 0", max_length=100)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class PluginImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    prompt: str = Field(min_length=1, max_length=500)
+    kind: SoundKind = "ambience"
+    duration_ms: int = Field(default=30_000, ge=1_000, le=120_000)
+
+
+class ProviderStatus(BaseModel):
+    id: str
+    label: str
+    configured: bool
+    description: str
+
+
+class ProviderList(BaseModel):
+    items: list[ProviderStatus]
