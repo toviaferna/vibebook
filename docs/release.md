@@ -8,7 +8,7 @@ para P4.
 
 - [ ] Todos los PRs de la ola están mergeados en `main`.
 - [ ] CI en verde: `test`, `web`, `desktop`, `desktop-linux`, `e2e`.
-- [ ] Release workflow verificado: macOS arm64/x64 se construyen en el tag.
+- [ ] Release workflow verificado: macOS arm64/x64 se construyen en el tag con macos-15/macos-15-intel.
 - [ ] `LICENSE` AGPL-3.0-only presente y referenciado en README.
 - [ ] `packaging/THIRD_PARTY_NOTICES.md` revisado.
 - [ ] Versiones consistentes: `pyproject.toml`, `package.json`,
