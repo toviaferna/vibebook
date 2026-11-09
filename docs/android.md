@@ -57,13 +57,14 @@ incluye el APK firmado y `checksums-android.txt`.
 
 ## Estado validado
 
-Build `aarch64` del 2026-11-09 en GitHub Actions:
+Build `aarch64` de v0.4.1 en GitHub Actions:
 
-- APK firmado: **11,17 MB**, 676 entradas.
+- APK firmado: **11,23 MB**, 679 entradas.
 - Incluye `AndroidManifest.xml`, `classes.dex`,
   `lib/arm64-v8a/libvibebook_desktop_lib.so` y `assets/tauri.conf.json`.
-- `apksigner verify` pasa y el checksum del artefacto coincide con el digest de
-  GitHub.
+- `apksigner verify` pasa con firma v1+v2+v3; el checksum del artefacto
+  coincide con el digest de GitHub.
+- `checksums-android.txt` usa el nombre del APK, sin el prefijo `artifacts/`.
 - Queda pendiente la prueba en dispositivo y el cierre de SAF/SQLite/audio.
 
 ## Rendimiento
