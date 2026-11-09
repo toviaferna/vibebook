@@ -2,7 +2,24 @@
 
 ## Unreleased
 
+### Cambiado
+
+- Nueva identidad **Biblioteca**: pergamino cálido, tinta, oxblood, latón y
+  pizarra; reemplaza la paleta verde anterior en app, lector y capturas.
+- Lector: página más editorial (medida, interlineado, folios con filetes,
+  ornamento de capítulo, lomo con sombra) y paletas papel, sepia y noche
+  alineadas con la identidad.
+- Responsive: el alto de la página se calcula con `100dvh` menos el chrome del
+  lector; a 720p y 768p la página, la navegación y el player no se solapan.
+- Mobile: la topbar pasa a dos filas y el toggle de vista ya no tapa acciones.
+
 ### Corregido
+
+- Lector: la página con una imagen ya no se salta al restaurar la posición
+  cuando dos páginas comparten offset.
+- Lector: se ignora el eco de `saveReadingState` que coincide con la página
+  actual, evitando saltos al navegar.
+- E2E: el test ilustrado reinicia la posición antes de buscar la figura.
 
 - Segmentación TTS: palabras cortadas por guiones de línea, soft hyphens, spans
   inline y bloques separados ya no llegan al motor como dos fragmentos.
