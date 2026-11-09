@@ -234,8 +234,9 @@ Capturas, contraste, axe y límites en [docs/identity-qa.md](docs/identity-qa.md
 La app de escritorio usa Tauri y empaqueta el backend Python y ffmpeg en un
 sidecar. No necesita Python ni Node instalados para ejecutarse.
 
-Requisitos: Windows 10/11 x64, WebView2 (incluido en Windows 11) e internet para
-Edge TTS. Piper es opcional y funciona sin internet.
+Plataformas: Windows 10/11 x64 (WebView2), Linux x64 (WebKitGTK 4.1/GTK3) y
+macOS arm64/x64 unsigned. Android será lector-only. Piper es opcional y funciona
+sin internet.
 
 Para desarrollo:
 
@@ -243,21 +244,22 @@ Para desarrollo:
 npm ci
 npm ci --prefix web
 uv sync
-make sidecar
+npm run sidecar
 npm run desktop:dev
 ```
 
 Para generar instaladores y una carpeta portable:
 
 ```powershell
-make sidecar
+npm run sidecar
 npm run desktop:build
 ```
 
-El modo portable se activa creando un archivo `portable.flag` junto a
-`Vibebook.exe`; la biblioteca se guarda en `data/library` al lado del ejecutable.
-Los logs del sidecar quedan en
-`%LOCALAPPDATA%\com.vibebook.desktop\logs\vibebook-sidecar.log`.
+En Linux usar `--bundles appimage,deb`; en macOS `--bundles dmg` y el target
+correspondiente. El modo portable se activa creando `portable.flag` junto al
+ejecutable; la biblioteca se guarda en `data/library` al lado del ejecutable.
+Los logs del sidecar quedan en el directorio de logs de la app
+(`%LOCALAPPDATA%\com.vibebook.desktop\logs` en Windows).
 
 Más detalle en [docs/desktop.md](docs/desktop.md) y
 [docs/engines.md](docs/engines.md).

@@ -1,132 +1,95 @@
-# App de escritorio
+# App de escritorio por plataforma
 
-Vibebook Desktop es un shell Tauri que envuelve la misma API y la misma interfaz
-web del Studio. El backend Python corre como sidecar local, con ffmpeg incluido
-en el ejecutable, y la ventana carga la SPA empaquetada.
+Vibebook empaqueta la SPA, el sidecar Python y ffmpeg/Piper en una app Tauri.
+La conversión es local; no hay cuenta ni servicio pago.
 
-## Requisitos
+## Matriz
 
-- Windows 10/11 x64.
-- WebView2. Windows 11 lo incluye; en Windows 10 el instalador de Tauri puede
-  descargarlo o usar el bootstrapper incluido.
-- Internet para Edge TTS. Azure es opcional.
-- Piper y eSpeak NG son opcionales y funcionan offline; ver
-  [engines.md](engines.md).
-- Los plugins VEP pueden ser locales por HTTP o remotos por HTTPS; el token se
-  guarda en `secrets.json`.
-- Para compilar: Rust, Visual Studio Build Tools con el workload C++, Node 22,
-  `uv` y `npm`.
+| Plataforma | Arquitectura | App | Sidecar | Conversión | Estado |
+|---|---|---|---|---|---|
+| Windows 10/11 | x64 | Tauri | Sí | Sí | Actual |
+| Linux | x64 | Tauri | Sí | Sí | P1 |
+| macOS | arm64 / x64 | Tauri | Sí | Sí | P2, unsigned |
+| Android | arm64 | Tauri mobile | No | No | P4, lector |
 
-## Uso
+## Windows
 
-En un release, descargá una de estas opciones:
+- Instaladores NSIS/MSI y ZIP portable.
+- Sin firma: SmartScreen puede advertir. “Más información → Ejecutar de todas
+  formas”.
+- WebView2 viene con Windows 11; en Windows 10 puede requerir el runtime.
+- Datos en `%LOCALAPPDATA%\Vibebook`; el ZIP portable usa `portable.flag` y
+  guarda la biblioteca junto al ejecutable.
+- El ZIP incluye `LEEME.md`, `THIRD_PARTY_NOTICES.md` y `sidecar/`.
 
-- Instalador NSIS (`Vibebook_<versión>_x64-setup.exe`).
-- Instalador MSI (`Vibebook_<versión>_x64_en-US.msi`).
-- ZIP portable (`Vibebook-<versión>-windows-x64.zip`).
+## Linux
 
-El ZIP portable no requiere instalación. Descomprimilo y ejecutá `Vibebook.exe`.
-Si querés que la biblioteca quede dentro de la carpeta portable, creá un archivo
-vacío llamado `portable.flag` al lado del ejecutable. En ese modo los datos van a
-`data/library`; si no existe el flag, se usa la carpeta de datos del usuario.
+Requisitos:
 
-La biblioteca y el audio nunca salen de la máquina. El sidecar escucha solo en
-`127.0.0.1` y exige un token efímero que genera el shell al arrancar.
+- Ubuntu 22.04/24.04 o Debian 12;
+- WebKitGTK 4.1 y GTK3;
+- `ffmpeg`/`ffprobe` (el sidecar también puede usar su copia empaquetada);
+- FUSE 2 para ejecutar AppImage.
 
-## Desarrollo
+```bash
+sudo apt-get install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+  librsvg2-dev patchelf libfuse2
+```
 
-Desde la raíz del repositorio:
+Build:
 
-```powershell
+```bash
 npm ci
 npm ci --prefix web
-uv sync
-make sidecar
-npm run desktop:dev
+uv sync --frozen
+npm --prefix web run build
+uv run pyinstaller packaging/pyinstaller/vibebook-sidecar.spec --noconfirm
+npm run desktop:build -- --bundles appimage,deb
 ```
 
-`make sidecar` construye `web/dist` y `dist/vibebook-sidecar.exe`. Tauri lo copia
-como recurso y lo lanza al abrir la ventana. En desarrollo, Vite corre en
-`http://127.0.0.1:5173` y el sidecar se inicia con `--dev` para permitir CORS de
-ese origen.
+Salidas en `src-tauri/target/release/bundle/appimage` y `bundle/deb`.
+Datos en `~/.local/share/vibebook` (o `data/library` si hay `portable.flag`).
+Sin firma; verificar checksums.
 
-Si querés incluir Azure con word boundaries en el binario, instalá el extra antes
-de empaquetar:
+## macOS
 
-```powershell
-uv sync --extra azure-sdk
-make sidecar
+- arm64 (macOS 14+) y x64, `.dmg` sin firma/notarización.
+- Gatekeeper bloquea el primer doble clic. Documentar:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Vibebook.app
 ```
 
-Para incluir Piper en el sidecar, dejá el binario y la voz en
-`packaging/piper/bin` y `packaging/piper/voices` antes de `make sidecar`:
+o clic derecho → Abrir. No prometer una experiencia “doble clic” perfecta.
+- Datos en `~/Library/Application Support/com.vibebook.desktop`.
+- Sidecar y ffmpeg dentro del `.app`; Piper opcional.
+- Build:
 
-```powershell
-uv run vibebook piper download --dest packaging/piper/voices
-make sidecar
+```bash
+brew install ffmpeg
+npm ci && npm ci --prefix web
+uv sync --frozen
+npm --prefix web run build
+uv run pyinstaller packaging/pyinstaller/vibebook-sidecar.spec --noconfirm
+npm run desktop:build -- --target aarch64-apple-darwin --bundles dmg
 ```
 
-El spec de PyInstaller copia esas carpetas si existen. Sin ellas, la app sigue
-funcionando y Piper aparece como no instalado.
+Para x64 usar un runner x64 y `--target x86_64-apple-darwin`.
 
-eSpeak NG se puede incluir de la misma forma en `packaging/espeak/bin`; el spec
-también copia esa carpeta si existe. Sin Piper ni eSpeak, la app pide elegir un
-motor legado explícitamente.
+## Android
 
-Comandos útiles:
+P4 es lector-only: importa EPUB, guarda posición y reproduce audio existente. No
+incluye Python, ffmpeg ni conversión. Ver `docs/android.md`.
 
-```powershell
-npm run desktop:check
-npm run desktop:build
-cargo fmt --manifest-path src-tauri/Cargo.toml
-cargo check --manifest-path src-tauri/Cargo.toml
-```
+## Sidecar y logs
 
-`npm run desktop:build` genera NSIS y MSI en
-`src-tauri/target/release/bundle/`. El ejecutable queda en
-`src-tauri/target/release/`.
-
-## Ciclo de vida
-
-1. La app genera un token de 32 bytes y elige un puerto libre (`--port 0`).
-2. Lanza `vibebook-sidecar serve --json-ready --token ...`.
-3. Lee la línea JSON `{"event":"ready","port":...,"token":"..."}`.
-4. Expone `api_config` a la SPA con `baseUrl` y `token`.
-5. La SPA usa ese `baseUrl` para las llamadas y agrega el token a las URLs de
-   audio, portadas y M4B, que no pueden enviar headers personalizados.
-6. Al cerrar la ventana, mata el árbol de procesos del sidecar.
-
-Si el sidecar no arranca, la ventana muestra un diagnóstico con el mensaje y la
-ruta del log.
-
-## Logs y diagnóstico
-
-- Sidecar: `%LOCALAPPDATA%\com.vibebook.desktop\logs\vibebook-sidecar.log`.
-- WebView2: `%LOCALAPPDATA%\com.vibebook.desktop\EBWebView\`.
-- En desarrollo, el firewall de Windows puede pedir permiso para Node/Vite. Es
-  solo para el servidor de desarrollo local.
-
-## Limitaciones conocidas
-
-- Solo Windows x64 por ahora.
-- Edge TTS es un servicio no oficial y puede limitar peticiones.
-- Piper y eSpeak NG requieren binario; el release actual no los incluye todavía.
-- Azure no entrega word boundaries por REST; esos capítulos usan resaltado por
-  segmento.
-- No hay auto-update ni firma de código todavía. Windows SmartScreen puede
-  mostrar una advertencia con binarios sin firmar.
-- La licencia del proyecto y la revisión de licencias de terceros siguen
-  pendientes antes del release público. Ver
-  [`packaging/THIRD_PARTY_NOTICES.md`](../packaging/THIRD_PARTY_NOTICES.md).
+El shell arranca `vibebook-sidecar serve --json-ready` con token y puerto libre.
+En Windows el log queda en `%LOCALAPPDATA%\Vibebook\logs\vibebook-sidecar.log`;
+en Linux/macOS en el directorio de logs de la app. Si el motor local no inicia,
+la UI muestra el error y la ruta del log.
 
 ## Release
 
-El workflow `.github/workflows/release-desktop.yml` compila en Windows al pushear
-un tag `v*` o manualmente con `workflow_dispatch`. Genera:
-
-- ZIP portable.
-- Instalador NSIS.
-- Instalador MSI.
-- `checksums.txt` con SHA-256.
-
-Los artefactos se adjuntan al GitHub Release cuando el disparador es un tag.
+Los tags `v*` disparan `.github/workflows/release.yml`. El workflow construye
+Windows, Linux, macOS arm64/x64 y publica un único Release con checksums. No se
+publica si un job falla.
