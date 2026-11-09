@@ -90,4 +90,16 @@ describe("paginator", () => {
     expect(pageIndexForOffset(pages, 100)).toBe(1);
     expect(pageIndexForOffset(pages, 999)).toBe(2);
   });
+
+  it("prefiere la primera página cuando dos comparten offset", () => {
+    const pages = [
+      { blocks: [], startOffset: 0 },
+      { blocks: [], startOffset: 100 },
+      { blocks: [], startOffset: 100 },
+      { blocks: [], startOffset: 200 },
+    ];
+
+    expect(pageIndexForOffset(pages, 100)).toBe(1);
+    expect(pageIndexForOffset(pages, 150)).toBe(2);
+  });
 });

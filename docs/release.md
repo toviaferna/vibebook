@@ -82,7 +82,7 @@ sin publicar si no es un tag.
 El body del Release describe requisitos, artefactos y limitaciones. Después de
 publicarlo, revisar:
 
-- novedades: Verdín, lector, ambientación, M4B, sync, Linux/macOS;
+- novedades: Biblioteca, lector, ambientación, M4B, sync, Linux/macOS;
 - requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
 - limitaciones: sin firma, sin Android todavía, sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;

@@ -206,11 +206,15 @@ export function BookReader({
     if (pages.length === 0) {
       return;
     }
+    const currentPage = pages[pageIndex];
+    if (currentPage && initialCharOffset === currentPage.startOffset) {
+      return;
+    }
     const target = pageIndexForOffset(pages, initialCharOffset);
     const aligned = spread ? Math.floor(target / 2) * 2 : target;
     const max = spread ? Math.max(0, pages.length - 2) : pages.length - 1;
     setPageIndex(Math.max(0, Math.min(aligned, max)));
-  }, [initialCharOffset, pages, spread]);
+  }, [initialCharOffset, pageIndex, pages, spread]);
 
   useEffect(() => {
     const page = pages[pageIndex];
