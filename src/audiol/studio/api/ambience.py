@@ -27,6 +27,7 @@ from audiol.ambience.providers.freesound import FreesoundError, FreesoundProvide
 from audiol.ambience.providers.plugin import PluginSoundError, PluginSoundProvider
 from audiol.studio.ambience_jobs import AmbienceRenderError
 from audiol.studio.errors import ApiError
+from audiol.studio.library import BookNotFound
 
 router = APIRouter(tags=["ambience"])
 
@@ -333,5 +334,5 @@ def _known_assets(request: Request) -> set[str]:
 def _record(request: Request, book_id: str):
     try:
         return request.app.state.library.get(book_id)
-    except KeyError as exc:
+    except (BookNotFound, KeyError) as exc:
         raise ApiError(404, "book_not_found", "El libro no existe.") from exc

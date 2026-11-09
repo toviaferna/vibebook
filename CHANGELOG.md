@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Agregado
+
+- Reparación incremental de segmentación: detecta libros convertidos con texto
+  viejo, vuelve a leer el EPUB fuente y regenera solo los segmentos afectados.
+- Copias de seguridad por reparación en `backups/`, restaurables desde el
+  detalle del libro, la API y `vibebook repair-restore`.
+- CLI `vibebook repair-segments --dry-run` para revisar el impacto antes de
+  tocar el audio.
+- Los manifiestos nuevos guardan `segmentation_version` y `max_chars`.
+
 ### Cambiado
 
 - Nueva identidad **Biblioteca**: pergamino cálido, tinta, oxblood, latón y
@@ -15,12 +25,17 @@
 
 ### Corregido
 
+- Ambientación: consultar un libro inexistente devuelve 404 en lugar de 500.
+- Reparación: se rechaza un `epub` del manifiesto que apunte fuera del libro y
+  los errores internos ya no filtran rutas del servidor.
+- Conversión: los libros importados con segmentación vieja se actualizan antes
+  de generar el audio, sin esperar a que el usuario pulse “Reparar”.
+- Reparación: `book.md` se regenera con el texto corregido.
 - Lector: la página con una imagen ya no se salta al restaurar la posición
   cuando dos páginas comparten offset.
 - Lector: se ignora el eco de `saveReadingState` que coincide con la página
   actual, evitando saltos al navegar.
 - E2E: el test ilustrado reinicia la posición antes de buscar la figura.
-
 - Segmentación TTS: palabras cortadas por guiones de línea, soft hyphens, spans
   inline y bloques separados ya no llegan al motor como dos fragmentos.
 - Extracción de texto por bloque sin espacios artificiales entre etiquetas

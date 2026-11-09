@@ -9,7 +9,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from audiol.convert import ConversionCancelled, convert
-from audiol.manifest import book_from_manifest, load_manifest
+from audiol.manifest import SEGMENTATION_VERSION, book_from_manifest, load_manifest
+from audiol.resegment import repair_segments
 from audiol.studio.db import Database
 from audiol.studio.library import BookRecord, Library
 from audiol.studio.plugins import PluginRegistry
@@ -71,6 +72,7 @@ class JobManager:
                 raise JobInProgress(self._active_job_id)
 
             record = self.library.get(book_id)
+            self._refresh_imported_segments(record)
             manifest = load_manifest(record.path / "manifest.json")
             book = book_from_manifest(manifest)
             if not book.chapters:
@@ -142,6 +144,22 @@ class JobManager:
         with self._lock:
             self._active_job_id = None
             self._cancel_event = None
+
+    def _refresh_imported_segments(self, record: BookRecord) -> None:
+        """Upgrade old imports before conversion so new audio uses current text."""
+        try:
+            manifest = load_manifest(record.path / "manifest.json")
+        except ValueError:
+            return
+        if manifest.get("status") != "imported":
+            return
+        current = manifest.get("segmentation_version")
+        if isinstance(current, int) and current >= SEGMENTATION_VERSION:
+            return
+        try:
+            repair_segments(record.path)
+        except (ValueError, RuntimeError):
+            logger.exception("Could not refresh imported segments for %s", record.id)
 
     def _validate_options(self, options: JobOptions) -> None:
         if self.plugins is not None and self.plugins.has(options.engine):

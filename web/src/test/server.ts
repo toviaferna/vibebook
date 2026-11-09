@@ -13,6 +13,7 @@ import {
   samplePlugins,
   sampleReadingBookmarks,
   sampleReadingState,
+  sampleResegmentPlan,
   sampleSearch,
   sampleSettings,
   sampleVoices,
@@ -28,6 +29,25 @@ export const server = setupServer(
     }),
   ),
   http.get("*/api/books/:id", () => HttpResponse.json(sampleBookDetail)),
+  http.get("*/api/books/:id/resegment", () => HttpResponse.json(sampleResegmentPlan)),
+  http.get("*/api/books/:id/resegment/backups", () => HttpResponse.json([])),
+  http.post("*/api/books/:id/resegment", () =>
+    HttpResponse.json({
+      ...sampleResegmentPlan,
+      changed: true,
+      dry_run: false,
+      backup_id: "segments-20261109-000000-abcdef",
+      synthesized_segments: 1,
+      reused_segments: 119,
+      rebuilt_chapters: [1],
+    }),
+  ),
+  http.post("*/api/books/:id/resegment/restore", () =>
+    HttpResponse.json({
+      backup_id: "segments-20261109-000000-abcdef",
+      restored: ["manifest.json"],
+    }),
+  ),
   http.get("*/api/books/:id/manifest", () => HttpResponse.json(sampleManifest)),
   http.get("*/api/books/:id/chapters/:index", () => HttpResponse.json(sampleChapter)),
   http.get("*/api/books/:id/search", ({ request }) => {

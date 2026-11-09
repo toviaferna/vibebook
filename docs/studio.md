@@ -96,6 +96,8 @@ curl http://127.0.0.1:8765/api/jobs/<job_id> \
 - `GET /api/books`, `POST /api/books/import`, `POST /api/books/rescan`
 - `GET/DELETE /api/books/{id}`, `GET /api/books/{id}/cover`
 - `POST /api/books/{id}/convert`
+- `GET/POST /api/books/{id}/resegment`, `GET /api/books/{id}/resegment/backups`,
+  `POST /api/books/{id}/resegment/restore`
 - `GET /api/jobs/{id}`, `GET /api/jobs/{id}/events`, `POST /api/jobs/{id}/cancel`, `POST /api/jobs/{id}/resume`
 - `GET /api/books/{id}/manifest`, `/chapters/{n}`, `/audio/{n}`, `/m4b`, `/epub`
 - `GET /api/books/{id}/images/{image_id}`

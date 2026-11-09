@@ -7,6 +7,8 @@ from pathlib import Path
 from audiol.models import Book, BookImage, Chapter, Segment, TocNode, make_segment_id
 
 SCHEMA_VERSION = 2
+SEGMENTATION_VERSION = 2
+DEFAULT_MAX_CHARS = 400
 
 
 def load_manifest(path: Path) -> dict:
@@ -139,6 +141,8 @@ def write_manifest(
     cover: str | None = None,
     source_epub: str | None = None,
     timings_available: bool = True,
+    max_chars: int = DEFAULT_MAX_CHARS,
+    segmentation_version: int = SEGMENTATION_VERSION,
 ) -> Path:
     if chapter_durations_ms is not None and len(chapter_durations_ms) != len(book.chapters):
         raise ValueError("chapter_durations_ms must have one duration per chapter")
@@ -159,6 +163,8 @@ def write_manifest(
         "engine": engine,
         "style": style,
         "rate": rate,
+        "segmentation_version": segmentation_version,
+        "max_chars": max_chars,
         "duration_ms": total_duration_ms,
         "cover": cover,
         "epub": source_epub,

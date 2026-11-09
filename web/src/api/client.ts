@@ -24,6 +24,9 @@ import type {
   ReadingBookmarkList,
   ReadingState,
   ReadingStateInput,
+  ResegmentBackup,
+  ResegmentPlan,
+  ResegmentResult,
   SearchResponse,
   Settings,
   SoundAssetList,
@@ -130,6 +133,19 @@ export const api = {
     return apiFetch<BookList>(`/books${suffix ? `?${suffix}` : ""}`);
   },
   getBook: (bookId: string) => apiFetch<BookDetail>(`/books/${bookId}`),
+  getResegmentPlan: (bookId: string) => apiFetch<ResegmentPlan>(`/books/${bookId}/resegment`),
+  repairSegments: (bookId: string, dryRun = false) =>
+    apiFetch<ResegmentResult>(`/books/${bookId}/resegment`, {
+      method: "POST",
+      body: JSON.stringify({ dry_run: dryRun }),
+    }),
+  getResegmentBackups: (bookId: string) =>
+    apiFetch<ResegmentBackup[]>(`/books/${bookId}/resegment/backups`),
+  restoreResegment: (bookId: string, backupId: string | null = null) =>
+    apiFetch<{ backup_id: string; restored: string[] }>(`/books/${bookId}/resegment/restore`, {
+      method: "POST",
+      body: JSON.stringify({ backup_id: backupId }),
+    }),
   deleteBook: (bookId: string) => apiFetch<void>(`/books/${bookId}`, { method: "DELETE" }),
   rescan: () => apiFetch<{ count: number }>("/books/rescan", { method: "POST" }),
   importBook: (file: File) => {
