@@ -59,6 +59,7 @@ export function useResegmentPlan(bookId: string | undefined) {
     queryKey: queryKeys.resegmentPlan(bookId ?? ""),
     queryFn: () => api.getResegmentPlan(bookId as string),
     enabled: Boolean(bookId),
+    staleTime: 30_000,
   });
 }
 
@@ -67,6 +68,7 @@ export function useResegmentBackups(bookId: string | undefined) {
     queryKey: queryKeys.resegmentBackups(bookId ?? ""),
     queryFn: () => api.getResegmentBackups(bookId as string),
     enabled: Boolean(bookId),
+    staleTime: 30_000,
   });
 }
 
