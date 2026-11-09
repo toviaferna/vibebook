@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## v0.4.1 — 2026-11-09
+
+### Agregado
+
+- APK Android lector-only firmado en CI y adjunto como asset experimental.
+- Swipe horizontal y “Fin del libro” en el lector.
 
 ### Cambiado
 

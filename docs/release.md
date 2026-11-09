@@ -1,12 +1,12 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.4.0**. Android ya tiene un MVP
-lector-only, pero su APK no se publica hasta validarlo en CI y en un dispositivo.
+Linux y macOS. La release recomendada es **v0.4.1**, un patch de lector sobre
+v0.4.0. Android se publica como APK lector-only experimental, firmado en CI.
 
-**Estado:** v0.4.0 publicado el 2026-11-09 con Windows x64, Linux x64 y macOS
-arm64/x64. Los checksums de los 7 artefactos se verificaron contra los digests
-de GitHub. Android sigue fuera del Release hasta validar el APK.
+**Estado:** v0.4.1 incluye la transición de página natural, el cruce de
+capítulos, la persistencia de posición y el APK Android firmado. El APK sigue
+sin probarse en un dispositivo físico; SAF/SQLite/audio local quedan pendientes.
 
 ## Checklist previo
 
@@ -33,14 +33,17 @@ de GitHub. Android sigue fuera del Release hasta validar el APK.
 
 ## Artefactos
 
-El workflow `.github/workflows/release.yml` genera:
+El workflow `.github/workflows/release.yml` genera los artefactos de escritorio;
+el workflow manual `.github/workflows/android.yml` genera el APK. El Release
+incluye:
 
 - Windows: `Vibebook-<versión>-windows-x64.zip`,
   `Vibebook_<versión>_x64-setup.exe`, `Vibebook_<versión>_x64_en-US.msi`.
 - Linux: `Vibebook_<versión>_amd64.AppImage`, `Vibebook_<versión>_amd64.deb`.
 - macOS: `Vibebook_<versión>_aarch64.dmg`, `Vibebook_<versión>_x64.dmg`.
+- Android: `Vibebook-<versión>-android-arm64.apk` (experimental, firmado en CI).
 - `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-arm64.txt`,
-  `checksums-macos-x64.txt`.
+  `checksums-macos-x64.txt`, `checksums-android.txt`.
 - Un único GitHub Release con todos los artefactos.
 
 Los jobs de plataforma no publican releases individuales. El job `release`
@@ -67,8 +70,8 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.4.0 -m "Vibebook v0.4.0 — Verdín, ambiente y plataformas"
-git push origin v0.4.0
+git tag -a v0.4.1 -m "Vibebook v0.4.1 — lector"
+git push origin v0.4.1
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
@@ -92,8 +95,10 @@ Para reemplazar el body, editá el Release en GitHub o usá `PATCH
 
 - Confirmar `tag_name`, `draft=false`, `prerelease=false` y que el tag apunte al
   commit de `main`.
-- Confirmar 7 artefactos: ZIP/NSIS/MSI de Windows, AppImage/deb de Linux y dos
-  DMG de macOS, más los 4 `checksums-*.txt`.
+- Confirmar 7 artefactos de escritorio: ZIP/NSIS/MSI de Windows, AppImage/deb
+  de Linux y dos DMG de macOS, más los 4 `checksums-*.txt`.
+- Confirmar el APK Android experimental y `checksums-android.txt` adjuntos al
+  Release.
 - Comparar cada línea de los checksums con el `digest` SHA-256 del asset en la
   API de GitHub.
 - Descargar al menos un artefacto por plataforma y verificar su hash local.
@@ -106,7 +111,7 @@ Si un artefacto sale mal:
 
 1. Marcar el Release como pre-release o borrarlo en GitHub.
 2. Borrar el tag remoto/local si hace falta:
-   `git push origin :refs/tags/v0.4.0` y `git tag -d v0.4.0`.
+   `git push origin :refs/tags/v0.4.1` y `git tag -d v0.4.1`.
 3. Publicar un patch con el fix y checksums nuevos.
 
 No se reutiliza un tag ya publicado para artefactos distintos.
