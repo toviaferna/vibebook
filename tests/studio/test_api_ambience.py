@@ -127,6 +127,13 @@ def test_provider_status_and_unconfigured_imports(client, monkeypatch):
     assert plugin.json()["error"]["code"] == "provider_unavailable"
 
 
+def test_book_ambience_unknown_book_returns_404(client):
+    response = client.get("/api/books/nope/ambience")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "book_not_found"
+
+
 def test_book_ambience_roundtrip(client, imported):
     book_id = imported["id"]
 

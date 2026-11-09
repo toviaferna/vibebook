@@ -25,6 +25,12 @@
 
 ### Corregido
 
+- Ambientación: consultar un libro inexistente devuelve 404 en lugar de 500.
+- Reparación: se rechaza un `epub` del manifiesto que apunte fuera del libro y
+  los errores internos ya no filtran rutas del servidor.
+- Conversión: los libros importados con segmentación vieja se actualizan antes
+  de generar el audio, sin esperar a que el usuario pulse “Reparar”.
+- Reparación: `book.md` se regenera con el texto corregido.
 - Lector: la página con una imagen ya no se salta al restaurar la posición
   cuando dos páginas comparten offset.
 - Lector: se ignora el eco de `saveReadingState` que coincide con la página

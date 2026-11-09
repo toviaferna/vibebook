@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import mimetypes
 from typing import Annotated, Literal
 from uuid import uuid4
@@ -35,6 +36,7 @@ from audiol.studio.models import (
 from audiol.studio.security import save_epub_upload
 
 router = APIRouter(prefix="/books", tags=["books"])
+logger = logging.getLogger(__name__)
 
 
 def _record(request: Request, book_id: str) -> BookRecord:
@@ -186,7 +188,12 @@ async def run_resegment(
     except ResegmentError as exc:
         raise ApiError(422, "resegment_failed", str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
-        raise ApiError(500, "resegment_failed", str(exc)) from exc
+        logger.exception("Could not resegment book %s", record.id)
+        raise ApiError(
+            500,
+            "resegment_failed",
+            "No se pudo reparar la segmentación. Revisá los registros del servidor.",
+        ) from exc
     if not payload.dry_run:
         refreshed = request.app.state.library.get(record.id)
         request.app.state.db.upsert_book(refreshed)

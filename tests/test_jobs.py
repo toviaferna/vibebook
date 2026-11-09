@@ -1,9 +1,11 @@
+import json
 import threading
 import time
 from pathlib import Path
 
 import pytest
 
+from audiol.manifest import SEGMENTATION_VERSION
 from audiol.studio.db import Database
 from audiol.studio.jobs import (
     JobInProgress,
@@ -84,6 +86,29 @@ def wait_for_status(
             return job
         time.sleep(0.05)
     raise AssertionError(f"job {job_id} did not reach {statuses}: {manager.get(job_id)}")
+
+
+@requires_ffmpeg
+def test_start_refreshes_old_imports_before_converting(book, db: Database, library: Library):
+    manifest_path = book.path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest.pop("segmentation_version", None)
+    manifest["chapters"][0]["segments"][0]["text"] = "Viejo texto roto"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    manager = JobManager(
+        db,
+        library,
+        provider_factory=lambda engine: FakeProvider(),
+        allow_fake=True,
+    )
+
+    job_id = manager.start(book.id, OPTIONS)
+    job = wait_for_status(manager, job_id, {"completed", "failed", "cancelled"})
+
+    assert job["status"] == "completed"
+    refreshed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert refreshed["segmentation_version"] == SEGMENTATION_VERSION
+    assert refreshed["chapters"][0]["segments"][0]["text"] != "Viejo texto roto"
 
 
 @requires_ffmpeg

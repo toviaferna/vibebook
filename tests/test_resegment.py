@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -51,6 +52,12 @@ def _make_stale(book_dir: Path, text: str = "Viejo texto roto") -> None:
     manifest.pop("segmentation_version", None)
     manifest["chapters"][0]["segments"][0]["text"] = text
     _write(book_dir, manifest)
+    markdown = book_dir / "book.md"
+    if markdown.is_file():
+        markdown.write_text(
+            markdown.read_text(encoding="utf-8") + f"\n{text}\n",
+            encoding="utf-8",
+        )
 
 
 def _converted(tmp_path: Path, epub: Path) -> Path:
@@ -117,6 +124,20 @@ def test_analyze_reports_missing_source(tmp_path, tiny_epub):
     assert plan.reason == "source_missing"
 
 
+def test_analyze_rejects_an_epub_path_outside_the_book(tmp_path, tiny_epub):
+    _library, book_dir = _imported(tmp_path, tiny_epub)
+    outside = tmp_path / "outside.epub"
+    shutil.copyfile(tiny_epub, outside)
+    manifest = load_manifest(book_dir / "manifest.json")
+    manifest["epub"] = "../outside.epub"
+    _write(book_dir, manifest)
+
+    plan = analyze_resegmentation(book_dir)
+
+    assert not plan.can_repair
+    assert plan.reason == "source_missing"
+
+
 def test_dry_run_does_not_touch_the_manifest(tmp_path, tiny_epub):
     _library, book_dir = _imported(tmp_path, tiny_epub)
     _make_stale(book_dir)
@@ -142,6 +163,7 @@ def test_metadata_only_repair_refreshes_an_imported_book(tmp_path, tiny_epub):
     assert manifest["segmentation_version"] == SEGMENTATION_VERSION
     assert manifest["status"] == "imported"
     assert manifest["chapters"][0]["segments"][0]["text"] != "Viejo texto roto"
+    assert "Viejo texto roto" not in (book_dir / "book.md").read_text(encoding="utf-8")
 
 
 def test_repair_is_idempotent(tmp_path, tiny_epub):

@@ -159,7 +159,8 @@ romper audio ni timings existentes.
   Reutiliza el audio por cache key, reensambla únicamente los capítulos
   cambiados, actualiza timings, M4B y manifiesto, y guarda una copia en
   `backups/` para restaurar. Los manifiestos nuevos declaran
-  `segmentation_version` y `max_chars`.
+  `segmentation_version` y `max_chars`. Al iniciar una conversión, los libros
+  importados con segmentación vieja se actualizan primero.
 
 ## Contratos
 

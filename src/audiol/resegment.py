@@ -14,7 +14,7 @@ from audiol.assemble import (
     calibrate_encoder_delay_ms,
     concat_pcm_to_mp3,
 )
-from audiol.convert import cache_key, measure_duration_ms, synthesize_with_retries
+from audiol.convert import cache_key, measure_duration_ms, render_markdown, synthesize_with_retries
 from audiol.ingest.epub import read_epub
 from audiol.manifest import (
     DEFAULT_MAX_CHARS,
@@ -221,8 +221,11 @@ def _analyze(book_dir: Path) -> tuple[ResegmentPlan, Book, Book]:
     current_version = _optional_int(manifest.get("segmentation_version"))
     max_chars = _optional_int(manifest.get("max_chars")) or DEFAULT_MAX_CHARS
     source_name = manifest.get("epub")
-    source = book_dir / (source_name if isinstance(source_name, str) else "source.epub")
-    source_available = source.is_file()
+    source = _manifest_path(
+        book_dir,
+        source_name if isinstance(source_name, str) else "source.epub",
+    )
+    source_available = source is not None and source.is_file()
     base: dict[str, Any] = {
         "book_id": str(manifest.get("id") or book_dir.name),
         "title": str(manifest.get("title", "")),
@@ -260,6 +263,7 @@ def _analyze(book_dir: Path) -> tuple[ResegmentPlan, Book, Book]:
             old_book,
         )
 
+    assert source is not None
     new_book = _prepare_from_source(source, max_chars, old_book)
     chapters = _diff_chapters(old_book, new_book)
     changed_segments = sum(
@@ -560,6 +564,13 @@ def _write_repaired_manifest(
         max_chars=plan.max_chars,
         segmentation_version=SEGMENTATION_VERSION,
     )
+    markdown = book_dir / "book.md"
+    temporary = markdown.with_name(f"{markdown.name}.{os.getpid()}.part")
+    try:
+        temporary.write_text(render_markdown(new_book), encoding="utf-8")
+        os.replace(temporary, markdown)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _create_backup(
