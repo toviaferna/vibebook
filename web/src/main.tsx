@@ -18,7 +18,6 @@ import { router } from "./router";
 import "./styles/tokens.css";
 import "./styles/base.css";
 import "./styles/app.css";
-import "./styles/reader.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {

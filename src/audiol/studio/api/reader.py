@@ -1,6 +1,8 @@
 import mimetypes
 import re
+import threading
 import unicodedata
+from collections import OrderedDict
 from dataclasses import asdict
 from pathlib import Path
 
@@ -32,6 +34,30 @@ from audiol.timing import ensure_chapter_timing, read_chapter_timing
 
 router = APIRouter(prefix="/books", tags=["reader"])
 
+_MANIFEST_CACHE: OrderedDict[tuple[str, int, int], dict] = OrderedDict()
+_MANIFEST_CACHE_LOCK = threading.Lock()
+_MANIFEST_CACHE_MAX = 8
+
+
+def _load_manifest_cached(path: Path) -> dict:
+    try:
+        stat = path.stat()
+    except OSError:
+        return load_manifest(path)
+    key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+    with _MANIFEST_CACHE_LOCK:
+        cached = _MANIFEST_CACHE.get(key)
+        if cached is not None:
+            _MANIFEST_CACHE.move_to_end(key)
+            return cached
+    data = load_manifest(path)
+    with _MANIFEST_CACHE_LOCK:
+        _MANIFEST_CACHE[key] = data
+        _MANIFEST_CACHE.move_to_end(key)
+        while len(_MANIFEST_CACHE) > _MANIFEST_CACHE_MAX:
+            _MANIFEST_CACHE.popitem(last=False)
+    return data
+
 
 def _record(request: Request, book_id: str) -> BookRecord:
     try:
@@ -42,7 +68,7 @@ def _record(request: Request, book_id: str) -> BookRecord:
 
 def _manifest(request: Request, record: BookRecord) -> dict:
     try:
-        return load_manifest(record.path / "manifest.json")
+        return _load_manifest_cached(record.path / "manifest.json")
     except ValueError as exc:
         raise ApiError(422, "invalid_manifest", str(exc)) from exc
 

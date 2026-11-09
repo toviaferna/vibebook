@@ -30,6 +30,26 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 - Piper en CPU: ≥ 2× tiempo real.
 - APK Android lector: ≤ 50 MB.
 
+## N6 — arranque y lector (2026-11-09)
+
+| Métrica | Antes | Después |
+|---|---:|---:|
+| JS inicial | 155,6 KiB gzip | **118,0 KiB gzip** |
+| CSS inicial | 11,5 KiB gzip | **8,4 KiB gzip** |
+| Chunk del lector | — | 17,4 KiB JS + 4,2 KiB CSS lazy |
+| Chunk de epubjs | 104,8 KiB gzip | 104,8 KiB gzip, solo al abrir EPUB original |
+
+- Las rutas de lector, estudio, detalle, importación y ajustes se cargan con
+  `React.lazy` y `Suspense`; la biblioteca sigue siendo el chunk inicial.
+- `reader.css` se carga con el chunk del lector, no con el arranque.
+- `useBook` y el plan de re-segmentación tienen `staleTime` para evitar
+  peticiones repetidas al volver a una pantalla.
+- La API del lector cachea el manifiesto por ruta + mtime + tamaño (máx. 8) y
+  evita parsear el JSON completo en cada cambio de capítulo.
+- Índices SQLite para `created_at`, `title COLLATE NOCASE` y `duration_ms`.
+- La paginación del lector ya estaba cacheada por capítulo, medidas y
+  tipografía; no se recalcula al pasar páginas.
+
 ## Verificación local
 
 ```bash

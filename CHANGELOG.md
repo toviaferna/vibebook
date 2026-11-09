@@ -23,6 +23,17 @@
   lector; a 720p y 768p la página, la navegación y el player no se solapan.
 - Mobile: la topbar pasa a dos filas y el toggle de vista ya no tapa acciones.
 
+### Rendimiento
+
+- Rutas de lector, estudio, detalle, importación y ajustes en lazy chunks con
+  `Suspense`; el JS inicial baja de 155,6 a 118,0 KiB gzip y el CSS de 11,5 a
+  8,4 KiB.
+- `reader.css` viaja con el chunk del lector, no con el arranque.
+- La API del lector cachea el manifiesto por ruta, mtime y tamaño; la
+  paginación ya estaba cacheada por capítulo y tipografía.
+- `staleTime` en detalle y reparación, e índices SQLite para fecha, título y
+  duración.
+
 ### Corregido
 
 - Ambientación: consultar un libro inexistente devuelve 404 en lugar de 500.

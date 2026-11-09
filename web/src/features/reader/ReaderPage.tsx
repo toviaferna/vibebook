@@ -46,6 +46,7 @@ import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSoundscape } from "./soundscape/useSoundscape";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useMediaSession } from "./useMediaSession";
+import "../../styles/reader.css";
 
 type ReaderFont = "serif" | "sans" | "hyperlegible";
 

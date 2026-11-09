@@ -1,7 +1,9 @@
+import json
 import time
 
 import pytest
 
+from audiol.studio.api.reader import _MANIFEST_CACHE, _load_manifest_cached
 from audiol.tools import find_binary
 
 
@@ -28,6 +30,22 @@ def wait_for_job(client, job_id: str, timeout: float = 30.0) -> dict:
             return job
         time.sleep(0.05)
     raise AssertionError(f"job {job_id} did not finish")
+
+
+def test_manifest_cache_reuses_until_the_file_changes(client, imported):
+    _MANIFEST_CACHE.clear()
+    path = client.app.state.library.get(imported["id"]).path / "manifest.json"
+
+    first = _load_manifest_cached(path)
+    second = _load_manifest_cached(path)
+
+    assert first is second
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["title"] = "Un título mucho más largo"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    third = _load_manifest_cached(path)
+    assert third["title"] == "Un título mucho más largo"
+    assert third is not first
 
 
 @pytest.fixture
