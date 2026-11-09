@@ -1,0 +1,10 @@
+{
+  "build": {
+    "beforeBuildCommand": "npm --prefix web run build:android",
+    "frontendDist": "../web/dist-mobile"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all"
+  }
+}
