@@ -66,6 +66,16 @@ def test_prepare_book_chunks_and_cleans(tiny_epub: Path):
     assert book.chapters[0].segments[0].id == "c001p0001s00"
 
 
+def test_prepare_book_joins_hyphenated_words(hyphenated_epub: Path):
+    book = prepare_book(read_epub(hyphenated_epub))
+    texts = [segment.text for segment in book.chapters[0].segments]
+
+    assert texts == [
+        "Primera: la cosa ultima parte.",
+        "Segunda: la cosa ultima parte.",
+    ]
+
+
 def test_prepare_book_preserves_text(tiny_epub: Path):
     original = read_epub(tiny_epub)
     prepared = prepare_book(original)

@@ -50,6 +50,32 @@ def tiny_epub(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def hyphenated_epub(tmp_path: Path) -> Path:
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-hyphen-123")
+    book.set_title("Libro con cortes")
+    book.set_language("es")
+    book.add_author("Autora")
+
+    chapter = epub.EpubHtml(title="La casa", file_name="hyphen.xhtml", lang="es")
+    chapter.content = (
+        "<h1>La casa</h1>"
+        "<p>Primera: la cosa <span>ulti-</span><span>ma</span> parte.</p>"
+        "<p>Segunda: la cosa ulti-</p>"
+        "<p>-ma parte.</p>"
+    )
+    book.add_item(chapter)
+    book.toc = (chapter,)
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", chapter.id]
+
+    path = tmp_path / "hyphen.epub"
+    epub.write_epub(str(path), book)
+    return path
+
+
+@pytest.fixture
 def block_text_epub(tmp_path: Path) -> Path:
     book = epub.EpubBook()
     book.set_identifier("audiol-test-block-123")
