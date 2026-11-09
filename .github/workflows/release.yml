@@ -197,7 +197,7 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - run: find artifacts -maxdepth 2 -type f -print
+      - run: find artifacts -maxdepth 4 -type f -print
       - uses: softprops/action-gh-release@v2
         with:
           name: Vibebook ${{ github.ref_name }}
@@ -215,7 +215,8 @@ jobs:
             - **Linux x64:** WebKitGTK 4.1, GTK3 y FUSE 2 para AppImage.
             - **macOS:** `.dmg` unsigned; Gatekeeper requiere clic derecho → Abrir
               o `xattr -dr com.apple.quarantine /Applications/Vibebook.app`.
-            - **Android:** lector-only, pendiente de P4.
+            - **Android:** MVP lector-only; el APK todavía no se incluye en esta
+              release hasta validarlo en CI y en un dispositivo.
 
             ### Artefactos
 
@@ -227,12 +228,15 @@ jobs:
             La biblioteca, la lectura y la conversión funcionan offline. No hay
             cuenta, telemetría ni servicio pago obligatorio. Ver
             `docs/desktop.md` y `docs/ambience.md`.
+
+            Verificá cada archivo con el `checksums-*.txt` de su plataforma
+            antes de instalarlo.
           files: |
-            artifacts/*.zip
-            artifacts/*.exe
-            artifacts/*.msi
-            artifacts/*.AppImage
-            artifacts/*.deb
-            artifacts/*.dmg
-            artifacts/checksums-*.txt
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.dmg
+            artifacts/**/checksums-*.txt
           fail_on_unmatched_files: true
