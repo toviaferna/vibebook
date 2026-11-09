@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Cambiado
+
+- Lector: transición de página natural en lugar del giro 3D con hoja vacía.
+- Lector: al llegar a la última página se pasa al capítulo siguiente; al
+  retroceder en la primera se vuelve al capítulo anterior.
+- Lector: la posición se conserva al cambiar tipografía/tamaño y se restaura si
+  el estado de lectura llega tarde.
+- Lector: swipe horizontal en mobile, rango de páginas y “Fin del libro”.
+
 ## v0.4.0 — 2026-11-08
 
 Release de identidad, ambientación y plataformas.

@@ -203,7 +203,9 @@ busca dentro del libro, guarda marcadores con nota opcional, alterna con la vist
 del EPUB original, recuerda posición y velocidad, y ofrece índice, paleta de
 lectura (papel, sepia o noche), tipografía, temporizador y controles del sistema
 vía Media Session. El tema de la app y la paleta del lector son independientes:
-podés leer en noche con la app en claro, o al revés.
+podés leer en noche con la app en claro, o al revés. En Modo Libro, al terminar
+un capítulo seguís con el siguiente sin volver al índice; también podés pasar
+página con swipe en mobile.
 
 Si el libro tiene un plan de ambientación, el lector muestra un toggle de
 ambiente con volumen y escena. También funciona en libros sin audio (A4b), con

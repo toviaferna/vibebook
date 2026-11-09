@@ -463,6 +463,18 @@ export function ReaderPage() {
     }
   }, [goToChapter, isPlaying, nextChapter]);
 
+  const goPreviousChapterFromPage = useCallback(() => {
+    if (previousChapter) {
+      goToChapter(previousChapter.index, 0, isPlaying, Number.MAX_SAFE_INTEGER);
+    }
+  }, [goToChapter, isPlaying, previousChapter]);
+
+  const goNextChapterFromPage = useCallback(() => {
+    if (nextChapter) {
+      goToChapter(nextChapter.index, 0, isPlaying, 0);
+    }
+  }, [goToChapter, isPlaying, nextChapter]);
+
   const seekBackward = useCallback(() => skip(-skipSeconds), [skip, skipSeconds]);
   const seekForward = useCallback(() => skip(skipSeconds), [skip, skipSeconds]);
 
@@ -826,6 +838,10 @@ export function ReaderPage() {
                 font={font}
                 size={size}
                 initialCharOffset={bookInitialOffset}
+                hasNextChapter={Boolean(nextChapter)}
+                hasPreviousChapter={Boolean(previousChapter)}
+                onNextChapter={goNextChapterFromPage}
+                onPreviousChapter={goPreviousChapterFromPage}
                 onPageChange={handleBookPage}
                 onBookmark={handleBookBookmark}
               />

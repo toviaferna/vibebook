@@ -81,7 +81,7 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 | Tecla | Acción |
 |---|---|
 | `Espacio` | Reproducir o pausar |
-| `←` / `→` | Retroceder o adelantar 15 s |
+| `←` / `→` | En Libro: página anterior/siguiente (cruza capítulo en los extremos). En Texto: ±15 s |
 | `J` / `K` | Capítulo anterior / siguiente |
 | `+` / `-` | Cambiar velocidad |
 | `T` | Abrir el índice |
@@ -95,17 +95,29 @@ El toggle **Libro / Texto / Original** agrega una vista paginada:
 - doble página en escritorio y una página en mobile;
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
   tipografía y tamaño;
-- navegación por botones y número de página;
-- page-turn CSS 3D con una sola hoja;
+- navegación por botones, número/rango de página y “Fin del libro”;
+- al pasar la última página cruza al capítulo siguiente; al retroceder en la
+  primera página va al capítulo anterior en su última página;
+- transición natural de 220 ms: la página entra con un slide corto y una sombra
+  de lomo, sin hoja 3D vacía;
 - flechas y PageUp/PageDown para pasar página;
+- swipe horizontal en mobile, ignorado si hay texto seleccionado;
 - cinta lateral para guardar la página actual;
 - marcadores de lectura con nota, listado y salto a capítulo/página;
 - `prefers-reduced-motion` desactiva la animación;
 - los libros importados abren en Libro por defecto; los que tienen audio abren
   en Texto para conservar el karaoke.
 
+La referencia de producto es el page-turn de Kindle/Apple Books: un movimiento
+corto con sombra, no una hoja en blanco girando. Un curl 3D real necesita
+renderizar el contenido de la hoja y su reverso; en WebView el costo y la
+complejidad no se justifican para este lector. Por eso se reemplazó el giro 3D
+por un slide de 220 ms con sombra de lomo.
+
 La posición de Libro se guarda en `reading-state` con capítulo, offset de
-carácter, página, total y porcentaje, independiente del estado de audio.
+carácter, página, total y porcentaje, independiente del estado de audio. Al
+cambiar tipografía o tamaño se conserva la página actual; si el estado de
+lectura llega después del primer render, el lector salta al offset guardado.
 
 ## Persistencia
 

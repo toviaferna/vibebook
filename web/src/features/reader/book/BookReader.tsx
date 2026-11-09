@@ -1,9 +1,10 @@
 ﻿import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type TouchEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { apiUrl } from "../../../api/client";
 import type { ManifestChapter, ManifestImage } from "../../../api/types";
 import { chapterDisplayTitle } from "../chapterTitle";
+import { formatPageLabel, resolvePageMove } from "./navigation";
 import { type BookPage, type PageBlock, pageIndexForOffset, paginateChapter } from "./paginator";
 
 export interface BookPageState {
@@ -20,12 +21,17 @@ interface BookReaderProps {
   font: string;
   size: number;
   initialCharOffset?: number;
+  hasNextChapter?: boolean;
+  hasPreviousChapter?: boolean;
+  onNextChapter?: () => void;
+  onPreviousChapter?: () => void;
   onPageChange?: (state: BookPageState) => void;
   onBookmark?: (state: BookPageState) => void;
 }
 
 const pageCache = new Map<string, BookPage[]>();
 const MAX_CACHE = 6;
+const TURN_MS = 220;
 
 function cacheKey(
   chapter: ManifestChapter,
@@ -56,6 +62,14 @@ function imageDisplaySize(
   return { width, height };
 }
 
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 export function BookReader({
   bookId,
   chapter,
@@ -64,12 +78,22 @@ export function BookReader({
   font,
   size,
   initialCharOffset = 0,
+  hasNextChapter = false,
+  hasPreviousChapter = false,
+  onNextChapter,
+  onPreviousChapter,
   onPageChange,
   onBookmark,
 }: BookReaderProps) {
   const spreadRef = useRef<HTMLDivElement>(null);
   const initialOffsetRef = useRef(initialCharOffset);
+  const lastInitialOffsetRef = useRef(initialCharOffset);
+  const currentOffsetRef = useRef(initialCharOffset);
+  const hasPaginatedRef = useRef(false);
   const turnTimer = useRef<number | null>(null);
+  const chapterTimer = useRef<number | null>(null);
+  const chapterLock = useRef(false);
+  const touchStart = useRef<{ x: number; y: number; time: number } | null>(null);
   const [pages, setPages] = useState<BookPage[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
   const [spread, setSpread] = useState(false);
@@ -140,13 +164,15 @@ export function BookReader({
           }
         }
       }
+      const anchor = hasPaginatedRef.current ? currentOffsetRef.current : initialOffsetRef.current;
       setSpread(isSpread);
       setPageHeight(height);
       setPages(nextPages);
-      const target = pageIndexForOffset(nextPages, initialOffsetRef.current);
+      const target = pageIndexForOffset(nextPages, anchor);
       const aligned = isSpread ? Math.floor(target / 2) * 2 : target;
       const max = isSpread ? Math.max(0, nextPages.length - 2) : nextPages.length - 1;
       setPageIndex(Math.max(0, Math.min(aligned, max)));
+      hasPaginatedRef.current = true;
     };
 
     paginate();
@@ -166,6 +192,28 @@ export function BookReader({
 
   useEffect(() => {
     const page = pages[pageIndex];
+    if (page) {
+      currentOffsetRef.current = page.startOffset;
+    }
+  }, [pageIndex, pages]);
+
+  useEffect(() => {
+    if (initialCharOffset === lastInitialOffsetRef.current) {
+      return;
+    }
+    lastInitialOffsetRef.current = initialCharOffset;
+    initialOffsetRef.current = initialCharOffset;
+    if (pages.length === 0) {
+      return;
+    }
+    const target = pageIndexForOffset(pages, initialCharOffset);
+    const aligned = spread ? Math.floor(target / 2) * 2 : target;
+    const max = spread ? Math.max(0, pages.length - 2) : pages.length - 1;
+    setPageIndex(Math.max(0, Math.min(aligned, max)));
+  }, [initialCharOffset, pages, spread]);
+
+  useEffect(() => {
+    const page = pages[pageIndex];
     if (!page || !onPageChange) {
       return;
     }
@@ -178,38 +226,65 @@ export function BookReader({
 
   const changePage = useCallback(
     (direction: "next" | "prev") => {
-      if (turn) {
+      const move = resolvePageMove({
+        pageIndex,
+        pageCount: pages.length,
+        spread,
+        direction,
+        hasNextChapter,
+        hasPreviousChapter,
+      });
+      if (move.kind === "page") {
+        setPageIndex(move.index);
+        if (prefersReducedMotion()) {
+          setTurn(null);
+          return;
+        }
+        if (turnTimer.current !== null) {
+          window.clearTimeout(turnTimer.current);
+        }
+        setTurn({ direction, id: Date.now() });
+        turnTimer.current = window.setTimeout(() => {
+          setTurn(null);
+          turnTimer.current = null;
+        }, TURN_MS);
         return;
       }
-      const step = spread ? 2 : 1;
-      const target =
-        direction === "next"
-          ? Math.min(pages.length - step, pageIndex + step)
-          : Math.max(0, pageIndex - step);
-      if (target === pageIndex) {
+      if (move.kind !== "chapter" || chapterLock.current) {
         return;
       }
-      const reduce =
-        typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (reduce) {
-        setPageIndex(target);
-        return;
+      chapterLock.current = true;
+      if (move.direction === "next") {
+        onNextChapter?.();
+      } else {
+        onPreviousChapter?.();
       }
-      setTurn({ direction, id: Date.now() });
-      turnTimer.current = window.setTimeout(() => {
-        setPageIndex(target);
-        setTurn(null);
-        turnTimer.current = null;
-      }, 380);
+      if (chapterTimer.current !== null) {
+        window.clearTimeout(chapterTimer.current);
+      }
+      chapterTimer.current = window.setTimeout(() => {
+        chapterLock.current = false;
+        chapterTimer.current = null;
+      }, 600);
     },
-    [pageIndex, pages.length, spread, turn],
+    [
+      hasNextChapter,
+      hasPreviousChapter,
+      onNextChapter,
+      onPreviousChapter,
+      pageIndex,
+      pages.length,
+      spread,
+    ],
   );
 
   useEffect(
     () => () => {
       if (turnTimer.current !== null) {
         window.clearTimeout(turnTimer.current);
+      }
+      if (chapterTimer.current !== null) {
+        window.clearTimeout(chapterTimer.current);
       }
     },
     [],
@@ -230,6 +305,9 @@ export function BookReader({
       ) {
         return;
       }
+      if (document.querySelector('[role="dialog"]')) {
+        return;
+      }
       if (event.key === "ArrowRight" || event.key === "PageDown") {
         event.preventDefault();
         next();
@@ -242,11 +320,50 @@ export function BookReader({
     return () => window.removeEventListener("keydown", handler);
   }, [next, previous]);
 
+  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      return;
+    }
+    touchStart.current = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+      time: Date.now(),
+    };
+  };
+
+  const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || event.changedTouches.length !== 1) {
+      return;
+    }
+    if (Date.now() - start.time > 700) {
+      return;
+    }
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4) {
+      return;
+    }
+    if (typeof window.getSelection === "function" && window.getSelection()?.toString()) {
+      return;
+    }
+    if (dx < 0) {
+      next();
+    } else {
+      previous();
+    }
+  };
+
   const visible = spread
     ? pages.slice(pageIndex, pageIndex + 2)
     : pages.slice(pageIndex, pageIndex + 1);
-  const pageLabel = pages.length > 0 ? `${pageIndex + 1} / ${pages.length}` : "—";
-  const progress = pages.length > 0 ? Math.min(1, (pageIndex + 1) / pages.length) : 0;
+  const atFirst = pageIndex === 0;
+  const lastPage = Math.max(0, pages.length - (spread ? 2 : 1));
+  const atLast = pages.length === 0 || pageIndex >= lastPage;
+  const canPrevious = pages.length > 0 && (!atFirst || hasPreviousChapter);
+  const canNext = pages.length > 0 && (!atLast || hasNextChapter);
+  const label = formatPageLabel(pageIndex, pages.length, spread);
 
   return (
     <section
@@ -258,11 +375,20 @@ export function BookReader({
         <h1>{chapterDisplayTitle(chapter)}</h1>
       </header>
 
-      <div className={`book-spread${spread ? "" : " book-spread--single"}`} ref={spreadRef}>
+      <div
+        className={`book-spread${spread ? "" : " book-spread--single"}`}
+        ref={spreadRef}
+        data-turn={turn?.direction}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => {
+          touchStart.current = null;
+        }}
+      >
         <button
           type="button"
           className="book-ribbon"
-          style={{ height: `${52 + progress * 44}px` }}
+          style={{ height: `${52 + (pages.length ? (pageIndex + 1) / pages.length : 0) * 44}px` }}
           onClick={() =>
             onBookmark?.({
               pageIndex,
@@ -313,16 +439,6 @@ export function BookReader({
             </footer>
           </article>
         ))}
-        {turn ? (
-          <div
-            className={`book-leaf book-leaf--${turn.direction}`}
-            key={turn.id}
-            aria-hidden="true"
-          >
-            <div className="book-leaf-face book-leaf-front" />
-            <div className="book-leaf-face book-leaf-back" />
-          </div>
-        ) : null}
       </div>
 
       <nav className="book-nav" aria-label="Navegación de páginas">
@@ -330,28 +446,31 @@ export function BookReader({
           type="button"
           className="button button--ghost"
           onClick={previous}
-          disabled={pageIndex === 0 || turn !== null}
-          aria-label="Página anterior"
+          disabled={!canPrevious}
+          aria-label={atFirst && hasPreviousChapter ? "Capítulo anterior" : "Página anterior"}
         >
           <ChevronLeft size={17} />
-          Anterior
+          {atFirst && hasPreviousChapter ? "Capítulo anterior" : "Anterior"}
         </button>
         <span className="mono muted" aria-live="polite">
-          Página {pageLabel}
+          {label}
         </span>
         <button
           type="button"
           className="button button--ghost"
           onClick={next}
-          disabled={
-            turn !== null || pages.length === 0 || pageIndex >= pages.length - (spread ? 2 : 1)
-          }
-          aria-label="Página siguiente"
+          disabled={!canNext}
+          aria-label={atLast && hasNextChapter ? "Siguiente capítulo" : "Página siguiente"}
         >
-          Siguiente
+          {atLast && hasNextChapter ? "Siguiente capítulo" : "Siguiente"}
           <ChevronRight size={17} />
         </button>
       </nav>
+      {atLast && !hasNextChapter ? (
+        <p className="book-end" role="status">
+          Fin del libro
+        </p>
+      ) : null}
     </section>
   );
 }

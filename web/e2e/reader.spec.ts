@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { API_URL, ensureReadyBook } from "./helpers";
+import { API_URL, ensureReadyBook, resetReadingState } from "./helpers";
 
 test("reproduce, resalta y persiste la posición", async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: API_URL });
   const book = await ensureReadyBook(api, "e2e-reader.epub", "Lector E2E");
+  await resetReadingState(api, book.id);
   await api.dispose();
 
   await page.goto(`/#/books/${book.id}/read`);
@@ -25,7 +26,7 @@ test("reproduce, resalta y persiste la posición", async ({ page, playwright }) 
 
   await page.getByRole("button", { name: "Libro", exact: true }).click();
   await expect(page.getByRole("region", { name: /Lectura de/ })).toBeVisible();
-  await expect(page.getByText(/Página \d+ \/ \d+/)).toBeVisible();
+  await expect(page.getByText(/Páginas? \d+(?:[-–]\d+)? de \d+/)).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Navegación de páginas" })).toBeVisible();
   await page.getByRole("button", { name: "Texto" }).click();
 
