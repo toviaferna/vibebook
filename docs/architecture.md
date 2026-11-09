@@ -154,6 +154,12 @@ romper audio ni timings existentes.
 - `repair.py`: reconstruye audio/timing de libros viejos desde
   `audio/segments`; omite capítulos sin segmentos y actualiza el manifiesto de
   forma atómica.
+- `resegment.py`: detecta manifiestos con segmentación vieja, vuelve a leer
+  `source.epub`, compara segmentos por id/texto y regenera solo los afectados.
+  Reutiliza el audio por cache key, reensambla únicamente los capítulos
+  cambiados, actualiza timings, M4B y manifiesto, y guarda una copia en
+  `backups/` para restaurar. Los manifiestos nuevos declaran
+  `segmentation_version` y `max_chars`.
 
 ## Contratos
 

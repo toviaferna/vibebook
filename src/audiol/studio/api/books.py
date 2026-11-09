@@ -7,6 +7,13 @@ from fastapi import APIRouter, File, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
+from audiol.resegment import (
+    ResegmentError,
+    analyze_resegmentation,
+    list_backups,
+    repair_segments,
+    restore_resegmentation,
+)
 from audiol.studio.errors import ApiError
 from audiol.studio.library import (
     BookNotFound,
@@ -20,6 +27,10 @@ from audiol.studio.models import (
     BookResponse,
     BookStateResponse,
     JobResponse,
+    ResegmentBackupResponse,
+    ResegmentPlanResponse,
+    ResegmentRequest,
+    ResegmentRestoreRequest,
 )
 from audiol.studio.security import save_epub_upload
 
@@ -140,6 +151,78 @@ def get_book(request: Request, book_id: str) -> BookDetailResponse:
         state=_state_response(request, book_id, row),
         last_job=JobResponse(**last_job) if last_job is not None else None,
     )
+
+
+@router.get("/{book_id}/resegment", response_model=ResegmentPlanResponse)
+def get_resegment_plan(request: Request, book_id: str) -> ResegmentPlanResponse:
+    record = _record(request, book_id)
+    try:
+        plan = analyze_resegmentation(record.path)
+    except (ValueError, ResegmentError) as exc:
+        raise ApiError(422, "invalid_manifest", str(exc)) from exc
+    return ResegmentPlanResponse(**plan.as_dict())
+
+
+@router.post("/{book_id}/resegment")
+async def run_resegment(
+    request: Request,
+    book_id: str,
+    payload: ResegmentRequest,
+) -> dict:
+    record = _record(request, book_id)
+    if request.app.state.jobs.is_book_active(record.id):
+        raise ApiError(
+            409,
+            "job_in_progress",
+            "No se puede reparar un libro mientras se está convirtiendo.",
+        )
+    try:
+        result = await run_in_threadpool(
+            repair_segments,
+            record.path,
+            dry_run=payload.dry_run,
+            allow_fake=request.app.state.settings.allow_fake,
+        )
+    except ResegmentError as exc:
+        raise ApiError(422, "resegment_failed", str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise ApiError(500, "resegment_failed", str(exc)) from exc
+    if not payload.dry_run:
+        refreshed = request.app.state.library.get(record.id)
+        request.app.state.db.upsert_book(refreshed)
+    return result
+
+
+@router.get("/{book_id}/resegment/backups", response_model=list[ResegmentBackupResponse])
+def get_resegment_backups(request: Request, book_id: str) -> list[ResegmentBackupResponse]:
+    record = _record(request, book_id)
+    return [ResegmentBackupResponse(**item) for item in list_backups(record.path)]
+
+
+@router.post("/{book_id}/resegment/restore")
+async def restore_resegment(
+    request: Request,
+    book_id: str,
+    payload: ResegmentRestoreRequest,
+) -> dict:
+    record = _record(request, book_id)
+    if request.app.state.jobs.is_book_active(record.id):
+        raise ApiError(
+            409,
+            "job_in_progress",
+            "No se puede restaurar un libro mientras se está convirtiendo.",
+        )
+    try:
+        result = await run_in_threadpool(
+            restore_resegmentation,
+            record.path,
+            payload.backup_id,
+        )
+    except ResegmentError as exc:
+        raise ApiError(422, "resegment_failed", str(exc)) from exc
+    refreshed = request.app.state.library.get(record.id)
+    request.app.state.db.upsert_book(refreshed)
+    return result
 
 
 @router.delete("/{book_id}", status_code=204)

@@ -164,6 +164,7 @@ def convert(
     on_progress: Callable[[ProgressEvent], None] | None = None,
     should_cancel: Callable[[], bool] | None = None,
     book_id: str | None = None,
+    max_chars: int = 400,
 ) -> ConversionResult:
     require_ffmpeg()
     if not book.chapters:
@@ -194,6 +195,7 @@ def convert(
             book_id=resolved_book_id,
             cover=cover,
             source_epub=source_epub,
+            max_chars=max_chars,
         )
     except ConversionCancelled:
         _write_terminal_manifest(
@@ -208,6 +210,7 @@ def convert(
             source_epub,
             "interrupted",
             had_manifest,
+            max_chars,
         )
         raise
     except KeyboardInterrupt:
@@ -223,6 +226,7 @@ def convert(
             source_epub,
             "interrupted",
             had_manifest,
+            max_chars,
         )
         raise
     except BaseException:
@@ -238,6 +242,7 @@ def convert(
             source_epub,
             "error",
             had_manifest,
+            max_chars,
         )
         raise
 
@@ -260,6 +265,7 @@ def _convert_core(
     book_id: str,
     cover: str | None,
     source_epub: str | None,
+    max_chars: int,
 ) -> ConversionResult:
     audio_dir = out_dir / "audio"
     segments_dir = audio_dir / "segments"
@@ -445,6 +451,7 @@ def _convert_core(
         cover=cover,
         source_epub=source_epub,
         timings_available=capture_timings,
+        max_chars=max_chars,
     )
     emit(
         ProgressEvent(
@@ -477,6 +484,7 @@ def _write_terminal_manifest(
     source_epub: str | None,
     status: str,
     had_manifest: bool,
+    max_chars: int,
 ) -> None:
     if had_manifest:
         return
@@ -493,6 +501,7 @@ def _write_terminal_manifest(
             cover=cover,
             source_epub=source_epub,
             timings_available=False,
+            max_chars=max_chars,
         )
     except Exception:
         logger.exception("Could not write terminal manifest with status %s", status)

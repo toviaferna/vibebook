@@ -5,7 +5,9 @@ import {
   BookOpen,
   Download,
   Headphones,
+  RefreshCw,
   Trash2,
+  Undo2,
   Waves,
 } from "lucide-react";
 import { useState } from "react";
@@ -19,6 +21,10 @@ import {
   useBookAmbience,
   useDeleteBook,
   useGenerateAmbienceAssets,
+  useRepairSegments,
+  useResegmentBackups,
+  useResegmentPlan,
+  useRestoreResegment,
   useStartAmbienceRender,
 } from "../../api/queries";
 import { Button } from "../../components/Button";
@@ -39,6 +45,11 @@ export function BookDetailPage() {
   const [ambienceJobId, setAmbienceJobId] = useState<string | null>(null);
   const ambienceJob = useAmbienceRenderJob(ambienceJobId);
   const startAmbienceRender = useStartAmbienceRender(id ?? "");
+  const resegmentQuery = useResegmentPlan(id);
+  const resegmentBackups = useResegmentBackups(id);
+  const repairSegments = useRepairSegments(id ?? "");
+  const restoreResegment = useRestoreResegment(id ?? "");
+  const [repairMessage, setRepairMessage] = useState<string | null>(null);
   const book = bookQuery.data;
 
   if (bookQuery.isLoading) {
@@ -70,6 +81,42 @@ export function BookDetailPage() {
   }
 
   const deleteError = deleteBook.isError ? errorMessage(deleteBook.error) : null;
+  const resegmentPlan = resegmentQuery.data;
+  const backups = resegmentBackups.data ?? [];
+  const repairError = repairSegments.isError
+    ? errorMessage(repairSegments.error)
+    : restoreResegment.isError
+      ? errorMessage(restoreResegment.error)
+      : null;
+  const runRepair = () => {
+    setRepairMessage(null);
+    repairSegments.mutate(false, {
+      onSuccess: (result) => {
+        if (!result.changed) {
+          setRepairMessage("La segmentación ya estaba al día.");
+          return;
+        }
+        const rebuilt = result.rebuilt_chapters?.length ?? 0;
+        setRepairMessage(
+          result.backup_id
+            ? `Reparación lista: ${result.synthesized_segments ?? 0} segmentos nuevos, ` +
+                `${result.reused_segments ?? 0} reutilizados y ${rebuilt} capítulos reensamblados. ` +
+                "La copia de seguridad quedó guardada."
+            : "Texto actualizado. El próximo audio usará la segmentación corregida.",
+        );
+      },
+    });
+  };
+  const runRestore = () => {
+    setRepairMessage(null);
+    restoreResegment.mutate(backups[0]?.id ?? null, {
+      onSuccess: (result) => {
+        setRepairMessage(
+          `Restaurada la copia ${result.backup_id} (${result.restored.length} archivos).`,
+        );
+      },
+    });
+  };
 
   return (
     <div className="page page--narrow">
@@ -291,6 +338,83 @@ export function BookDetailPage() {
           ) : (
             <p className="hint">Todavía no hay un plan de ambiente para este libro.</p>
           )}
+        </div>
+      </section>
+
+      <section className="panel maintenance-panel" aria-label="Mantenimiento del texto">
+        <div className="panel-head">
+          <div>
+            <p className="eyebrow">Mantenimiento</p>
+            <h2>Segmentación del audio</h2>
+          </div>
+          {resegmentPlan ? (
+            <span className="mono muted">
+              v{resegmentPlan.current_version ?? "?"} → v{resegmentPlan.target_version}
+            </span>
+          ) : null}
+        </div>
+        <div className="panel-body">
+          {resegmentQuery.isLoading ? <p className="hint">Revisando el texto del EPUB…</p> : null}
+          {resegmentQuery.isError ? (
+            <div className="alert" role="alert">
+              <AlertTriangle size={18} />
+              <span>{errorMessage(resegmentQuery.error)}</span>
+            </div>
+          ) : null}
+          {resegmentPlan && !resegmentPlan.can_repair ? (
+            <p className="hint">
+              {resegmentPlan.reason === "source_missing"
+                ? "Falta el EPUB fuente, así que no se puede volver a segmentar."
+                : "El libro no está listo para repararse ahora mismo."}
+            </p>
+          ) : null}
+          {resegmentPlan?.can_repair ? (
+            <>
+              <p className="hint">
+                {resegmentPlan.needs_repair
+                  ? `${resegmentPlan.changed_segments} ${
+                      resegmentPlan.changed_segments === 1 ? "segmento" : "segmentos"
+                    } con texto viejo en ${resegmentPlan.changed_chapters.length} ${
+                      resegmentPlan.changed_chapters.length === 1 ? "capítulo" : "capítulos"
+                    }. Solo se regenera el audio afectado; el resto se reutiliza.`
+                  : "El texto usa la segmentación actual. No hay palabras cortadas pendientes."}
+              </p>
+              <div className="continue-actions">
+                {resegmentPlan.needs_repair ? (
+                  <Button onClick={runRepair} loading={repairSegments.isPending}>
+                    <RefreshCw size={16} />
+                    {book.status === "ready" ? "Reparar segmentación" : "Actualizar texto"}
+                  </Button>
+                ) : null}
+                {backups.length > 0 ? (
+                  <Button variant="ghost" onClick={runRestore} loading={restoreResegment.isPending}>
+                    <Undo2 size={16} />
+                    Restaurar última copia
+                  </Button>
+                ) : null}
+              </div>
+              {backups.length > 0 ? (
+                <p className="hint">
+                  Última copia:{" "}
+                  {backups[0].created_at ? formatDate(backups[0].created_at) : "sin fecha"}
+                  {backups[0].changed_chapters.length
+                    ? ` · capítulos ${backups[0].changed_chapters.join(", ")}`
+                    : ""}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+          {repairMessage ? (
+            <p className="hint" role="status">
+              {repairMessage}
+            </p>
+          ) : null}
+          {repairError ? (
+            <div className="alert" role="alert">
+              <AlertTriangle size={18} />
+              <span>{repairError}</span>
+            </div>
+          ) : null}
         </div>
       </section>
 

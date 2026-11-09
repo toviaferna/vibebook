@@ -84,6 +84,50 @@ export interface BookList {
   offset: number;
 }
 
+export interface ResegmentChapterChange {
+  index: number;
+  title: string;
+  changed: boolean;
+  changed_segments: number;
+  added_segments: number;
+  removed_segments: number;
+}
+
+export interface ResegmentPlan {
+  book_id: string;
+  title: string;
+  status: BookStatus;
+  can_repair: boolean;
+  needs_repair: boolean;
+  reason: string | null;
+  current_version: number | null;
+  target_version: number;
+  max_chars: number;
+  source_available: boolean;
+  old_segments: number;
+  new_segments: number;
+  changed_segments: number;
+  changed_chapters: number[];
+  chapters: ResegmentChapterChange[];
+}
+
+export interface ResegmentResult extends ResegmentPlan {
+  changed: boolean;
+  dry_run: boolean;
+  backup_id: string | null;
+  synthesized_segments?: number;
+  reused_segments?: number;
+  rebuilt_chapters?: number[];
+  duration_ms?: number | null;
+}
+
+export interface ResegmentBackup {
+  id: string;
+  created_at: string | null;
+  reason: string | null;
+  changed_chapters: number[];
+}
+
 export interface Voice {
   id: string;
   locale: string;

@@ -9,6 +9,7 @@ import type {
   PluginList,
   ReadingBookmarkList,
   ReadingState,
+  ResegmentPlan,
   SearchResponse,
   Settings,
   Voice,
@@ -45,6 +46,24 @@ export const sampleBookDetail: BookDetail = {
     updated_at: "2026-11-07T10:00:00+00:00",
   },
   last_job: null,
+};
+
+export const sampleResegmentPlan: ResegmentPlan = {
+  book_id: sampleBook.id,
+  title: sampleBook.title,
+  status: "ready",
+  can_repair: true,
+  needs_repair: false,
+  reason: null,
+  current_version: 2,
+  target_version: 2,
+  max_chars: 400,
+  source_available: true,
+  old_segments: 120,
+  new_segments: 120,
+  changed_segments: 0,
+  changed_chapters: [],
+  chapters: [],
 };
 
 export const sampleSettings: Settings = {

@@ -18,6 +18,8 @@ import type {
 export const queryKeys = {
   books: (params: { q?: string; sort?: string } = {}) => ["books", params] as const,
   book: (id: string) => ["book", id] as const,
+  resegmentPlan: (id: string) => ["resegment-plan", id] as const,
+  resegmentBackups: (id: string) => ["resegment-backups", id] as const,
   job: (id: string) => ["job", id] as const,
   engines: ["engines"] as const,
   plugins: ["plugins"] as const,
@@ -48,6 +50,50 @@ export function useBook(bookId: string | undefined) {
     queryKey: queryKeys.book(bookId ?? ""),
     queryFn: () => api.getBook(bookId as string),
     enabled: Boolean(bookId),
+  });
+}
+
+export function useResegmentPlan(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.resegmentPlan(bookId ?? ""),
+    queryFn: () => api.getResegmentPlan(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+export function useResegmentBackups(bookId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.resegmentBackups(bookId ?? ""),
+    queryFn: () => api.getResegmentBackups(bookId as string),
+    enabled: Boolean(bookId),
+  });
+}
+
+function useInvalidateResegment(bookId: string) {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.book(bookId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.resegmentPlan(bookId) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.resegmentBackups(bookId) });
+    void queryClient.invalidateQueries({ queryKey: ["books"] });
+    void queryClient.invalidateQueries({ queryKey: ["reader-manifest", bookId] });
+    void queryClient.invalidateQueries({ queryKey: ["reader-chapter", bookId] });
+  };
+}
+
+export function useRepairSegments(bookId: string) {
+  const invalidate = useInvalidateResegment(bookId);
+  return useMutation({
+    mutationFn: (dryRun: boolean) => api.repairSegments(bookId, dryRun),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreResegment(bookId: string) {
+  const invalidate = useInvalidateResegment(bookId);
+  return useMutation({
+    mutationFn: (backupId: string | null) => api.restoreResegment(bookId, backupId),
+    onSuccess: invalidate,
   });
 }
 

@@ -55,6 +55,19 @@ Reparar la sincronización de un libro viejo que ya tiene segmentos:
 uv run vibebook repair-sync out/libro
 ```
 
+Reparar la segmentación de un libro convertido antes del fix de palabras
+cortadas (primero se puede revisar sin tocar nada):
+
+```bash
+uv run vibebook repair-segments out/libro --dry-run
+uv run vibebook repair-segments out/libro
+uv run vibebook repair-restore out/libro --list
+uv run vibebook repair-restore out/libro
+```
+
+La reparación reutiliza el audio cuyo texto no cambió, reensambla solo los
+capítulos afectados y guarda una copia en `backups/` antes de escribir.
+
 Ambientación open source: biblioteca de sonidos CC0/importados, camas
 procedurales con ffmpeg, plan por capítulo, análisis heurístico y export M4B
 ambientado. Sin APIs pagas ni IA obligatoria. Freesound y los plugins locales de

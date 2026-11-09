@@ -110,6 +110,52 @@ class BookListResponse(BaseModel):
     offset: int
 
 
+class ResegmentChapterChange(BaseModel):
+    index: int
+    title: str
+    changed: bool
+    changed_segments: int
+    added_segments: int
+    removed_segments: int
+
+
+class ResegmentPlanResponse(BaseModel):
+    book_id: str
+    title: str
+    status: str
+    can_repair: bool
+    needs_repair: bool
+    reason: str | None = None
+    current_version: int | None = None
+    target_version: int
+    max_chars: int
+    source_available: bool
+    old_segments: int
+    new_segments: int
+    changed_segments: int
+    changed_chapters: list[int] = Field(default_factory=list)
+    chapters: list[ResegmentChapterChange] = Field(default_factory=list)
+
+
+class ResegmentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = False
+
+
+class ResegmentRestoreRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    backup_id: str | None = None
+
+
+class ResegmentBackupResponse(BaseModel):
+    id: str
+    created_at: str | None = None
+    reason: str | None = None
+    changed_chapters: list[int] = Field(default_factory=list)
+
+
 class ChapterResponse(BaseModel):
     chapter: dict
     timing: dict | None = None

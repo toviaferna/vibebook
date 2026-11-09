@@ -7,6 +7,13 @@ from pathlib import Path
 from audiol.convert import convert, prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
 from audiol.repair import repair_book
+from audiol.resegment import (
+    ResegmentError,
+    analyze_resegmentation,
+    list_backups,
+    repair_segments,
+    restore_resegmentation,
+)
 from audiol.studio.server import run_studio
 from audiol.studio.settings import Settings, default_library_dir
 from audiol.tts.base import validate_rate
@@ -67,6 +74,23 @@ def build_parser() -> argparse.ArgumentParser:
         "repair-sync", help="Rebuild chapter audio and timing for an old book"
     )
     repair_parser.add_argument("book_dir")
+
+    segments_parser = subparsers.add_parser(
+        "repair-segments",
+        help="Re-segment a book from its EPUB and regenerate only changed audio",
+    )
+    segments_parser.add_argument("book_dir")
+    segments_parser.add_argument("--dry-run", action="store_true")
+    segments_parser.add_argument("--allow-fake", action="store_true")
+    segments_parser.add_argument("--max-attempts", type=int, default=5)
+
+    restore_parser = subparsers.add_parser(
+        "repair-restore",
+        help="Restore the manifest and audio from a segment repair backup",
+    )
+    restore_parser.add_argument("book_dir")
+    restore_parser.add_argument("--backup", default=None)
+    restore_parser.add_argument("--list", action="store_true")
 
     studio_parser = subparsers.add_parser("studio", help="Run the local studio backend")
     studio_parser.add_argument("--host", default="127.0.0.1")
@@ -155,6 +179,49 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Omitidos sin audio: {', '.join(map(str, result['skipped']))}")
         return 0
 
+    if args.command == "repair-segments":
+        try:
+            if args.dry_run:
+                plan = analyze_resegmentation(Path(args.book_dir))
+                print(_format_resegment_plan(plan.as_dict()))
+                return 0
+            result = repair_segments(
+                Path(args.book_dir),
+                allow_fake=args.allow_fake,
+                max_attempts=args.max_attempts,
+            )
+        except (ValueError, RuntimeError, ResegmentError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if not result["changed"]:
+            print("Segmentación al día; no hay nada que reparar.")
+            return 0
+        print(
+            f"Reparado: {result['synthesized_segments']} segmentos nuevos, "
+            f"{result['reused_segments']} reutilizados · "
+            f"capítulos {', '.join(map(str, result['rebuilt_chapters'])) or '-'}"
+        )
+        if result.get("backup_id"):
+            print(f"Copia de seguridad: {result['backup_id']}")
+        return 0
+
+    if args.command == "repair-restore":
+        try:
+            if args.list:
+                backups = list_backups(Path(args.book_dir))
+                if not backups:
+                    print("No hay copias de seguridad.")
+                    return 0
+                for item in backups:
+                    print(f"{item['id']} · {item.get('created_at') or 'sin fecha'}")
+                return 0
+            result = restore_resegmentation(Path(args.book_dir), args.backup)
+        except (ValueError, RuntimeError, ResegmentError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(f"Restaurados {len(result['restored'])} archivos desde {result['backup_id']}")
+        return 0
+
     if args.command == "convert":
         try:
             return _convert(args)
@@ -228,6 +295,7 @@ def _convert(args: argparse.Namespace) -> int:
         rate=rate,
         force=args.force,
         capture_timings=not args.no_timings,
+        max_chars=args.max_chars,
     )
     print(f"M4B: {result.m4b_path}")
     return 0
@@ -254,6 +322,17 @@ def _piper(args: argparse.Namespace) -> int:
         return 0
 
     return 1
+
+
+def _format_resegment_plan(plan: dict) -> str:
+    state = "requiere reparación" if plan["needs_repair"] else "al día"
+    current = plan["current_version"] if plan["current_version"] is not None else "desconocida"
+    return (
+        f"{plan['title']}: {state} · "
+        f"versión {current} → {plan['target_version']} · "
+        f"{plan['changed_segments']} segmentos afectados en "
+        f"{len(plan['changed_chapters'])} capítulos"
+    )
 
 
 def _studio(args: argparse.Namespace) -> int:
