@@ -224,7 +224,8 @@
   gap: 24px;
   height: clamp(420px, 68vh, 760px);
   position: relative;
-  perspective: 2000px;
+  isolation: isolate;
+  touch-action: pan-y;
 }
 
 .book-ribbon {
@@ -245,66 +246,70 @@
   background: var(--accent-strong);
 }
 
-.book-leaf {
+.book-spread::after {
   position: absolute;
   top: 0;
-  right: 0;
-  z-index: 5;
-  width: calc(50% - 12px);
-  height: 100%;
-  transform-style: preserve-3d;
-  animation: book-turn-next 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transform-origin: left center;
+  bottom: 0;
+  left: 50%;
+  z-index: 4;
+  width: 26px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--ink) 13%, transparent),
+    transparent
+  );
+  content: "";
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 180ms var(--ease-out);
 }
 
-.book-leaf--prev {
-  right: auto;
-  left: 0;
-  animation-name: book-turn-prev;
-  transform-origin: right center;
+.book-spread--single::after {
+  display: none;
 }
 
-.book-spread--single .book-leaf {
-  width: 100%;
+.book-spread[data-turn]::after {
+  opacity: 1;
 }
 
-.book-leaf-face {
-  position: absolute;
-  inset: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--ink) 8%, transparent), transparent 18%),
-    var(--surface-raised);
-  backface-visibility: hidden;
+.book-spread[data-turn="next"] .book-page {
+  animation: page-in-next 220ms var(--ease-out);
 }
 
-.book-leaf-back {
-  transform: rotateY(180deg);
-  background: var(--surface-raised);
+.book-spread[data-turn="prev"] .book-page {
+  animation: page-in-prev 220ms var(--ease-out);
 }
 
-@keyframes book-turn-next {
+@keyframes page-in-next {
   from {
-    transform: rotateY(0deg);
+    opacity: 0.55;
+    transform: translateX(16px);
   }
   to {
-    transform: rotateY(-180deg);
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-@keyframes book-turn-prev {
+@keyframes page-in-prev {
   from {
-    transform: rotateY(0deg);
+    opacity: 0.55;
+    transform: translateX(-16px);
   }
   to {
-    transform: rotateY(180deg);
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-leaf {
+  .book-spread[data-turn] .book-page {
+    animation: none;
+  }
+
+  .book-spread::after {
     display: none;
   }
 }
@@ -396,10 +401,25 @@
 
 .book-nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-4);
   margin-top: var(--space-4);
+}
+
+.book-nav .button {
+  white-space: nowrap;
+}
+
+.book-end {
+  margin-top: var(--space-2);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 @media (max-width: 640px) {

@@ -42,6 +42,23 @@ export async function ensureImportedBook(
   return (await importResponse.json()) as Book;
 }
 
+export async function resetReadingState(api: APIRequestContext, bookId: string): Promise<void> {
+  const audio = await api.put(`/api/books/${bookId}/state`, {
+    data: { position_ms: 0, chapter_index: 1, playback_rate: 1 },
+  });
+  expect(audio.ok()).toBeTruthy();
+  const reading = await api.put(`/api/books/${bookId}/reading-state`, {
+    data: {
+      chapter_index: 1,
+      char_offset: 0,
+      page_index: 0,
+      page_count: null,
+      percent: 0,
+    },
+  });
+  expect(reading.ok()).toBeTruthy();
+}
+
 export async function ensureReadyBook(
   api: APIRequestContext,
   fixtureName: string,
