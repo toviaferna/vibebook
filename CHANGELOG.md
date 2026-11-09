@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Corregido
+
+- Segmentación TTS: palabras cortadas por guiones de línea, soft hyphens, spans
+  inline y bloques separados ya no llegan al motor como dos fragmentos.
+- Extracción de texto por bloque sin espacios artificiales entre etiquetas
+  inline; `<br>` sigue separando palabras.
+- Chunking con más abreviaturas protegidas y sin partir palabras largas.
+
 ## v0.4.1 — 2026-11-09
 
 ### Agregado

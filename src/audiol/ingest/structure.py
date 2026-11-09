@@ -6,11 +6,31 @@ from collections import Counter
 from dataclasses import dataclass, field
 from urllib.parse import unquote
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 from audiol.models import TocNode
 
 BLOCK_TAGS = ["p", "li", "blockquote", "pre", "div"]
+TEXT_SEPARATOR_TAGS = {
+    *BLOCK_TAGS,
+    "br",
+    "hr",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "section",
+    "article",
+    "header",
+    "footer",
+    "figure",
+    "figcaption",
+    "tr",
+    "td",
+    "th",
+}
 NAV_TITLES = {
     "contents",
     "copyright",
@@ -246,8 +266,43 @@ def top_level_blocks(soup: BeautifulSoup) -> list[Tag]:
     return selected
 
 
+def extract_text(element: Tag, *, keep_lines: bool = False) -> str:
+    """Extract text without inventing spaces between inline elements.
+
+    ``Tag.get_text(" ")`` inserts a space between every inline span, which turns
+    ``ulti-</span><span>ma`` into ``ulti- ma``. This walks text nodes directly and
+    only adds separators for real block/line-break boundaries.
+    """
+    parts: list[str] = []
+    inline_boundary = False
+    for child in element.descendants:
+        if isinstance(child, Comment):
+            continue
+        if isinstance(child, NavigableString):
+            value = str(child)
+            if (
+                inline_boundary
+                and parts
+                and parts[-1].endswith(("-", "\u2010", "\u2011"))
+                and re.match(r"^[a-záéíóúüñ]", value)
+            ):
+                parts[-1] = parts[-1].rstrip("-\u2010\u2011")
+            parts.append(value)
+            inline_boundary = False
+        elif isinstance(child, Tag):
+            if child.name in TEXT_SEPARATOR_TAGS:
+                parts.append("\n")
+                inline_boundary = False
+            else:
+                inline_boundary = True
+    text = "".join(parts).replace("\u00a0", " ")
+    lines = [re.sub(r"[ \t\f\v]+", " ", line).strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    return "\n".join(lines) if keep_lines else " ".join(lines)
+
+
 def block_texts(blocks: list[Tag] | tuple[Tag, ...]) -> list[str]:
-    return [block.get_text(" ", strip=True) for block in blocks if block.get_text(" ", strip=True)]
+    return [text for block in blocks if (text := extract_text(block))]
 
 
 def extract_bare_text(soup: BeautifulSoup) -> list[str]:
@@ -256,7 +311,9 @@ def extract_bare_text(soup: BeautifulSoup) -> list[str]:
         heading.decompose()
     container = fallback.body or fallback
     return [
-        line.strip() for line in container.get_text("\n", strip=True).splitlines() if line.strip()
+        line.strip()
+        for line in extract_text(container, keep_lines=True).splitlines()
+        if line.strip()
     ]
 
 

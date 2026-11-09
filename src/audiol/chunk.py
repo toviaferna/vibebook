@@ -1,18 +1,40 @@
 import re
 
+from audiol.clean import clean_text
+
 ABBREVIATIONS = (
+    "EE. UU.",
+    "p. ej.",
     "V.M.",
     "Vd.",
-    "Sr.",
-    "Sra.",
+    "Uds.",
+    "Ud.",
     "Srta.",
+    "Sra.",
+    "Sr.",
     "Dr.",
     "Dra.",
+    "Dña.",
+    "Lic.",
+    "Ing.",
+    "Prof.",
     "etc.",
-    "p. ej.",
     "núm.",
+    "Núm.",
+    "pág.",
+    "Pág.",
+    "vol.",
     "art.",
     "cap.",
+    "tel.",
+    "Tel.",
+    "av.",
+    "Av.",
+    "Cía.",
+    "S. A.",
+    "S.A.",
+    "Ilmo.",
+    "Ilma.",
 )
 SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
 
@@ -33,6 +55,7 @@ def split_sentences(text: str) -> list[str]:
 
 
 def chunk_text(text: str, max_chars: int = 400) -> list[str]:
+    text = clean_text(text)
     chunks: list[str] = []
     buffer = ""
     for sentence in split_sentences(text):

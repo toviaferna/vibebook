@@ -133,9 +133,13 @@ romper audio ni timings existentes.
   avisa si un documento no tiene texto.
 - `ingest/images.py`: extrae ilustraciones, las valida/optimiza con Pillow, las
   deduplica y las ancla a un capítulo/párrafo.
+- `ingest/structure.py`: extrae texto por bloque sin inventar espacios entre
+  spans inline; une palabras cortadas por inline tags o `<br>`.
 - `clean.py`: elimina números de página, encabezados de Gutenberg, marcas de
-  agua, líneas duplicadas y corrige guiones.
-- `chunk.py`: agrupa frases hasta 400 caracteres; parte las frases largas.
+  agua, líneas duplicadas y normaliza guiones de línea, soft hyphens, Unicode,
+  elipsis y palabras partidas entre bloques.
+- `chunk.py`: agrupa frases hasta 400 caracteres, protege abreviaturas y nunca
+  parte palabras.
 - `tts/`: adaptadores con el contrato `TTSProvider` y `AudioResult`.
 - `convert.py`: prepara el libro, cachea segmentos, reintenta fallos
   transitorios y arma capítulos.
