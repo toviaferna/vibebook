@@ -1,14 +1,15 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.4.0**; Android lector-only queda
-para P4.
+Linux y macOS. La release recomendada es **v0.4.0**. Android ya tiene un MVP
+lector-only, pero su APK no se publica hasta validarlo en CI y en un dispositivo.
 
 ## Checklist previo
 
 - [ ] Todos los PRs de la ola están mergeados en `main`.
 - [ ] CI en verde: `test`, `web`, `desktop`, `desktop-linux`, `e2e`.
-- [ ] Release workflow verificado: macOS arm64/x64 se construyen en el tag con macos-15/macos-15-intel.
+- [ ] Release workflow verificado: macOS arm64/x64 se construyen en el tag con
+      macos-15/macos-15-intel y los artefactos anidados se publican con `**`.
 - [ ] `LICENSE` AGPL-3.0-only presente y referenciado en README.
 - [ ] `packaging/THIRD_PARTY_NOTICES.md` revisado.
 - [ ] Versiones consistentes: `pyproject.toml`, `package.json`,
