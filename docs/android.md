@@ -57,7 +57,7 @@ incluye el APK firmado y `checksums-android.txt`.
 
 ## Estado validado
 
-Build `aarch64` de v0.4.1 en GitHub Actions:
+Build `aarch64` de v0.5.0 en GitHub Actions:
 
 - APK firmado: **11,23 MB**, 679 entradas.
 - Incluye `AndroidManifest.xml`, `classes.dex`,
