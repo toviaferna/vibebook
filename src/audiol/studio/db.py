@@ -130,6 +130,9 @@ CREATE INDEX IF NOT EXISTS idx_sound_assets_checksum ON sound_assets(checksum);
 CREATE INDEX IF NOT EXISTS idx_jobs_book_created ON jobs(book_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_books_status ON books(status);
+CREATE INDEX IF NOT EXISTS idx_books_created ON books(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_books_title ON books(title COLLATE NOCASE);
+CREATE INDEX IF NOT EXISTS idx_books_duration ON books(duration_ms DESC);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_book_position
   ON bookmarks(book_id, position_ms, created_at);
 CREATE INDEX IF NOT EXISTS idx_reading_bookmarks_book_position

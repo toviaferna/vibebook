@@ -50,6 +50,7 @@ export function useBook(bookId: string | undefined) {
     queryKey: queryKeys.book(bookId ?? ""),
     queryFn: () => api.getBook(bookId as string),
     enabled: Boolean(bookId),
+    staleTime: 10_000,
   });
 }
 
