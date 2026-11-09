@@ -15,6 +15,7 @@ Release de identidad, ambientación y plataformas.
   calibración del encoder y `repair-sync`.
 - Linux x64 (AppImage/deb) y macOS arm64/x64 (DMG unsigned).
 - Workflow de release multi-plataforma con checksums y un único GitHub Release.
+- Android lector-only MVP: file picker, IndexedDB, Epub.js y CFI persistente.
 - Capturas de identidad, informe de contraste, axe y presupuesto de rendimiento.
 
 ### Cambiado
@@ -26,7 +27,8 @@ Release de identidad, ambientación y plataformas.
 ### Limitaciones conocidas
 
 - macOS y Windows sin firma de código; SmartScreen/Gatekeeper pueden advertir.
-- Android lector-only queda para P4.
+- Android es un MVP lector-only; falta validar APK en CI/dispositivo y agregar
+  SAF nativo, SQLite y audio local.
 - Sin auto-update ni cuenta/cloud.
 - Edge/Azure siguen como legado opt-in; el default es Piper/eSpeak local.
 - Freesound y plugins de sonido son opcionales y no se configuran solos.
