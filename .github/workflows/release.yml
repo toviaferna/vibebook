@@ -215,8 +215,8 @@ jobs:
             - **Linux x64:** WebKitGTK 4.1, GTK3 y FUSE 2 para AppImage.
             - **macOS:** `.dmg` unsigned; Gatekeeper requiere clic derecho → Abrir
               o `xattr -dr com.apple.quarantine /Applications/Vibebook.app`.
-            - **Android:** MVP lector-only; el APK todavía no se incluye en esta
-              release hasta validarlo en CI y en un dispositivo.
+            - **Android:** APK lector-only experimental adjunto, firmado en CI.
+              Sideload, sin Play Store; todavía no se probó en un dispositivo.
 
             ### Artefactos
 
