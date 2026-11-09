@@ -71,7 +71,7 @@ jobs:
             --out "artifacts/Vibebook-$VERSION-android-arm64.apk" \
             "$RUNNER_TEMP/vibebook-aligned.apk"
           "$BUILD_TOOLS/apksigner" verify --verbose "artifacts/Vibebook-$VERSION-android-arm64.apk"
-          sha256sum artifacts/*.apk > artifacts/checksums-android.txt
+          sha256sum artifacts/*.apk | sed 's#  artifacts/#  #' > artifacts/checksums-android.txt
           cat artifacts/checksums-android.txt
       - uses: actions/upload-artifact@v4
         with:
