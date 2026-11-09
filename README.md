@@ -234,9 +234,9 @@ Capturas, contraste, axe y límites en [docs/identity-qa.md](docs/identity-qa.md
 La app de escritorio usa Tauri y empaqueta el backend Python y ffmpeg en un
 sidecar. No necesita Python ni Node instalados para ejecutarse.
 
-Plataformas: Windows 10/11 x64 (WebView2), Linux x64 (WebKitGTK 4.1/GTK3) y
-macOS arm64/x64 unsigned. Android será lector-only. Piper es opcional y funciona
-sin internet.
+Plataformas: Windows 10/11 x64 (WebView2), Linux x64 (WebKitGTK 4.1/GTK3),
+macOS arm64/x64 unsigned y Android lector-only (MVP, sin sidecar). Piper es
+opcional y funciona sin internet.
 
 Para desarrollo:
 
