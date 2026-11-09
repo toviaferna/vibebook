@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## v0.5.0 — 2026-11-09
+
+Ola N: calidad de lectura, audio y rendimiento.
+
 ### Agregado
 
 - Reparación incremental de segmentación: detecta libros convertidos con texto

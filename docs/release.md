@@ -1,12 +1,14 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.4.1**, un patch de lector sobre
-v0.4.0. Android se publica como APK lector-only experimental, firmado en CI.
+Linux y macOS. La release recomendada es **v0.5.0**, la ola de calidad de
+lectura, audio y rendimiento. Android se publica como APK lector-only
+experimental, firmado en CI.
 
-**Estado:** v0.4.1 incluye la transición de página natural, el cruce de
-capítulos, la persistencia de posición y el APK Android firmado. El APK sigue
-sin probarse en un dispositivo físico; SAF/SQLite/audio local quedan pendientes.
+**Estado:** v0.5.0 incluye la segmentación TTS corregida, la reparación
+incremental de audios viejos, la identidad **Biblioteca**, el lector responsive
+720p/768p/1080p y el arranque más liviano. El APK sigue sin probarse en un
+dispositivo físico; SAF/SQLite/audio local quedan pendientes.
 
 ## Checklist previo
 
@@ -34,8 +36,9 @@ sin probarse en un dispositivo físico; SAF/SQLite/audio local quedan pendientes
 ## Artefactos
 
 El workflow `.github/workflows/release.yml` genera los artefactos de escritorio;
-el workflow manual `.github/workflows/android.yml` genera el APK. El Release
-incluye:
+el workflow `.github/workflows/android.yml` genera el APK en tags `v*` o manual.
+
+El Release incluye:
 
 - Windows: `Vibebook-<versión>-windows-x64.zip`,
   `Vibebook_<versión>_x64-setup.exe`, `Vibebook_<versión>_x64_en-US.msi`.
@@ -57,7 +60,7 @@ Medición local (Windows 11, sidecar onefile, biblioteca temporal de 100 libros)
 - primer `GET /api/books?limit=100`: ~550 ms;
 - listado caliente de 100 libros: ~18 ms;
 - proceso Python del sidecar: ~13 MB;
-- bundle web: ~150 KiB JS gzip + ~11 KiB CSS gzip + Epub.js lazy;
+- bundle web: ~118 KiB JS gzip + ~8 KiB CSS gzip + Epub.js lazy;
 - instaladores NSIS/MSI: ~99 MB; ZIP portable: ~103 MB.
 
 Lighthouse del lector: accesibilidad 1.0 y best practices 1.0. Axe E2E sin
@@ -70,8 +73,8 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.4.1 -m "Vibebook v0.4.1 — lector"
-git push origin v0.4.1
+git tag -a v0.5.0 -m "Vibebook v0.5.0 — lectura, audio y rendimiento"
+git push origin v0.5.0
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
@@ -82,7 +85,8 @@ sin publicar si no es un tag.
 El body del Release describe requisitos, artefactos y limitaciones. Después de
 publicarlo, revisar:
 
-- novedades: Biblioteca, lector, ambientación, M4B, sync, Linux/macOS;
+- novedades: segmentación TTS, reparación incremental, Biblioteca, responsive,
+  rendimiento, ambientación, M4B, sync, Linux/macOS;
 - requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
 - limitaciones: sin firma, sin Android todavía, sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;
@@ -102,7 +106,7 @@ Para reemplazar el body, editá el Release en GitHub o usá `PATCH
 - Comparar cada línea de los checksums con el `digest` SHA-256 del asset en la
   API de GitHub.
 - Descargar al menos un artefacto por plataforma y verificar su hash local.
-- Revisar el body: requisitos, artefactos, Android fuera del Release y aviso de
+- Revisar el body: requisitos, artefactos, APK Android adjunto y aviso de
   macOS unsigned.
 
 ## Rollback
@@ -111,7 +115,7 @@ Si un artefacto sale mal:
 
 1. Marcar el Release como pre-release o borrarlo en GitHub.
 2. Borrar el tag remoto/local si hace falta:
-   `git push origin :refs/tags/v0.4.1` y `git tag -d v0.4.1`.
+   `git push origin :refs/tags/v0.5.0` y `git tag -d v0.5.0`.
 3. Publicar un patch con el fix y checksums nuevos.
 
 No se reutiliza un tag ya publicado para artefactos distintos.

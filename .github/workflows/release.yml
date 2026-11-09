@@ -206,7 +206,17 @@ jobs:
             ## Vibebook ${{ github.ref_name }}
 
             Lector EPUB local-first con conversión a audiolibro, sincronía karaoke,
-            ambientación open source e identidad Verdín.
+            ambientación open source e identidad **Biblioteca**.
+
+            ### Novedades
+
+            - Segmentación TTS corregida: las palabras cortadas por guiones, spans
+              inline o bloques ya no se separan en dos audios.
+            - Reparación incremental: los libros viejos se re-segmentan y solo se
+              regenera el audio afectado, con copia de seguridad y rollback.
+            - Nueva identidad Biblioteca: pergamino, tinta, oxblood, latón y pizarra.
+            - Lector responsive real en 720p, 768p, 1080p, tablet y mobile.
+            - Arranque más liviano: ~118 KiB de JS inicial (antes ~156 KiB).
 
             ### Requisitos
 
