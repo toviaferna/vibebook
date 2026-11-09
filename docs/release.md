@@ -1,53 +1,56 @@
 # Release
 
-Vibebook se distribuye como app web local y como app de escritorio Windows.
-La primera release pública recomendada es **v0.3.0**, que incluye ambas.
+Vibebook se distribuye como app local y como app de escritorio para Windows,
+Linux y macOS. La release recomendada es **v0.4.0**; Android lector-only queda
+para P4.
 
 ## Checklist previo
 
-- [ ] Todos los PRs de la fase están mergeados en `main`.
-- [ ] CI en verde: `test`, `web`, `desktop`, `e2e`.
+- [ ] Todos los PRs de la ola están mergeados en `main`.
+- [ ] CI en verde: `test`, `web`, `desktop`, `desktop-linux`, `e2e`.
+- [ ] Release workflow verificado: macOS arm64/x64 se construyen en el tag.
 - [ ] `LICENSE` AGPL-3.0-only presente y referenciado en README.
 - [ ] `packaging/THIRD_PARTY_NOTICES.md` revisado.
-- [ ] Versiones consistentes: `pyproject.toml`, `web/package.json`,
-      `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`.
+- [ ] Versiones consistentes: `pyproject.toml`, `package.json`,
+      `web/package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`,
+      `src-tauri/Cargo.lock`.
 - [ ] `uv run pytest`, `ruff`, `mypy`, `uv build`.
-- [ ] `npm run lint`, `typecheck`, `test`, `build`, `e2e`.
-- [ ] `npm audit` sin vulnerabilidades.
-- [ ] `cargo fmt --check` y `cargo check`.
-- [ ] `make sidecar` y `npm run desktop:build` locales.
-- [ ] Instalar NSIS/MSI en una máquina limpia y probar importar → convertir →
-      leer → karaoke.
-- [ ] Probar el ZIP portable con `portable.flag` y una carpeta de solo lectura
-      (debe fallar con un mensaje claro, no corromper datos).
-- [ ] Verificar que cerrar la app no deja `vibebook-sidecar.exe`.
-- [ ] Revisar SmartScreen y documentar que el binario no está firmado.
-- [ ] Revisar accesibilidad con axe/Lighthouse y teclado.
-- [ ] Revisar seguridad según `SECURITY.md`.
+- [ ] `cd web && npm run lint && npm run typecheck && npm run test && npm run build`.
+- [ ] `cd web && npm run check:bundle && npm run e2e`.
+- [ ] `cargo fmt --check` y `cargo check` en las tres plataformas.
+- [ ] `npm run sidecar` y `npm run desktop:build` locales.
+- [ ] Instalar NSIS/MSI en una máquina limpia: importar → convertir → leer →
+      karaoke → exportar ambientado.
+- [ ] Probar AppImage/deb en Ubuntu 22.04/24.04 y Debian 12.
+- [ ] Probar DMG arm64/x64; documentar Gatekeeper y `xattr`.
+- [ ] Verificar checksums y que cerrar la app no deja el sidecar vivo.
+- [ ] Revisar SmartScreen, axe/Lighthouse y `SECURITY.md`.
 
 ## Artefactos
 
-El workflow `.github/workflows/release-desktop.yml` genera:
+El workflow `.github/workflows/release.yml` genera:
 
-- `Vibebook-<versión>-windows-x64.zip` portable.
-- `Vibebook_<versión>_x64-setup.exe` (NSIS).
-- `Vibebook_<versión>_x64_en-US.msi` (MSI).
-- `checksums.txt` con SHA-256.
+- Windows: `Vibebook-<versión>-windows-x64.zip`,
+  `Vibebook_<versión>_x64-setup.exe`, `Vibebook_<versión>_x64_en-US.msi`.
+- Linux: `Vibebook-<versión>-linux-x64.AppImage`, `Vibebook_<versión>_amd64.deb`.
+- macOS: `Vibebook-<versión>-macos-arm64.dmg`,
+  `Vibebook-<versión>-macos-x64.dmg`.
+- `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-arm64.txt`,
+  `checksums-macos-x64.txt`.
+- Un único GitHub Release con todos los artefactos.
 
-El ZIP incluye `Vibebook.exe`, `sidecar/vibebook-sidecar.exe`,
-`portable.flag`, `LEEME.md` y `THIRD_PARTY_NOTICES.md`.
+Los jobs de plataforma no publican releases individuales. El job `release`
+solo corre con tags `v*` y falla si falta un artefacto.
 
 ## Rendimiento observado
 
-Medición local (Windows 11, `dist/vibebook-sidecar.exe`, biblioteca temporal de
-100 libros):
+Medición local (Windows 11, sidecar onefile, biblioteca temporal de 100 libros):
 
-- sidecar onefile listo para health: ~4,4 s en el primer arranque (extrae el
-  bundle a temporal);
-- primer `GET /api/books?limit=100`: ~550 ms (incluye escaneo/DB);
-- siguiente listado de 100 libros: ~18 ms;
-- proceso Python del sidecar: ~13 MB de working set;
-- bundle web: ~478 KB JS + ~349 KB lazy para Epub.js + ~46 KB CSS;
+- sidecar onefile listo para health: ~4,4 s;
+- primer `GET /api/books?limit=100`: ~550 ms;
+- listado caliente de 100 libros: ~18 ms;
+- proceso Python del sidecar: ~13 MB;
+- bundle web: ~150 KiB JS gzip + ~11 KiB CSS gzip + Epub.js lazy;
 - instaladores NSIS/MSI: ~99 MB; ZIP portable: ~103 MB.
 
 Lighthouse del lector: accesibilidad 1.0 y best practices 1.0. Axe E2E sin
@@ -60,35 +63,34 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.3.0 -m "Vibebook v0.3.0"
-git push origin v0.3.0
+git tag -a v0.4.0 -m "Vibebook v0.4.0 — Verdín, ambiente y plataformas"
+git push origin v0.4.0
 ```
 
-El tag dispara el workflow de release. Un `workflow_dispatch` manual genera los
-artefactos sin publicar el GitHub Release.
+El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
+sin publicar si no es un tag.
 
 ## Notas del release
 
-El workflow publica el Release con `generate_release_notes: true`, así que
-GitHub arma las notas desde los PRs y commits del tag. Después conviene editarlas
-para incluir:
+El body del Release describe requisitos, artefactos y limitaciones. Después de
+publicarlo, revisar:
 
-- novedades: lector sincronizado, búsqueda, marcadores, vista EPUB original,
-  app Tauri y Azure con word boundaries opcional;
-- requisitos: Windows 10/11 x64, WebView2, internet para Edge;
-- limitaciones: sin DRM, sin auto-update, sin firma, Edge no oficial;
+- novedades: Verdín, lector, ambientación, M4B, sync, Linux/macOS;
+- requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
+- limitaciones: sin firma, sin Android todavía, sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;
-- checksums.
+- checksums por plataforma.
 
-Para reemplazar las notas automáticas por la sección correspondiente de
-`CHANGELOG.md`, editá el Release desde GitHub o usá `PATCH
+Para reemplazar el body, editá el Release en GitHub o usá `PATCH
 /repos/{owner}/{repo}/releases/{id}` con `body`.
 
 ## Rollback
 
 Si un artefacto sale mal:
 
-1. Marcar el release como pre-release o borrarlo en GitHub.
-2. Borrar el tag remoto y local si hace falta:
-   `git push origin :refs/tags/v0.3.0` y `git tag -d v0.3.0`.
+1. Marcar el Release como pre-release o borrarlo en GitHub.
+2. Borrar el tag remoto/local si hace falta:
+   `git push origin :refs/tags/v0.4.0` y `git tag -d v0.4.0`.
 3. Publicar un patch con el fix y checksums nuevos.
+
+No se reutiliza un tag ya publicado para artefactos distintos.

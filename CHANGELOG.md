@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.4.0 — 2026-11-08
+
+Release de identidad, ambientación y plataformas.
+
+### Agregado
+
+- Identidad **Verdín** (I1–I5): contexto de diseño, tres direcciones, tokens,
+  temas claro/oscuro, marca, estante, detalle, lector, ajustes y QA visual.
+- Ambientación open source (A1–A6): biblioteca de sonidos, camas procedurales,
+  plan por capítulo, analizador heurístico, mezcla Web Audio, M4B ambientado y
+  providers opcionales de Freesound/plugin local.
+- Sincronía karaoke Y1–Y4: diagnóstico, offsets PCM, cliente estable,
+  calibración del encoder y `repair-sync`.
+- Linux x64 (AppImage/deb) y macOS arm64/x64 (DMG unsigned).
+- Workflow de release multi-plataforma con checksums y un único GitHub Release.
+- Capturas de identidad, informe de contraste, axe y presupuesto de rendimiento.
+
+### Cambiado
+
+- El lector separa `theme_mode` de la app y `reader_palette` de la lectura.
+- La UI deja la paleta crema/terracota por Verdín.
+- Los assets de ambiente requieren licencia y aprobación explícita.
+
+### Limitaciones conocidas
+
+- macOS y Windows sin firma de código; SmartScreen/Gatekeeper pueden advertir.
+- Android lector-only queda para P4.
+- Sin auto-update ni cuenta/cloud.
+- Edge/Azure siguen como legado opt-in; el default es Piper/eSpeak local.
+- Freesound y plugins de sonido son opcionales y no se configuran solos.
+
 ## v0.3.0 — 2026-11-08
 
 Primera release pública.

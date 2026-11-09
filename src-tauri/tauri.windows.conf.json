@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "../dist/vibebook-sidecar.exe": "sidecar/vibebook-sidecar.exe"
+    }
+  }
+}
