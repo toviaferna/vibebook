@@ -43,11 +43,13 @@ El Release incluye:
 - Windows: `Vibebook-<versión>-windows-x64.zip`,
   `Vibebook_<versión>_x64-setup.exe`, `Vibebook_<versión>_x64_en-US.msi`.
 - Linux: `Vibebook_<versión>_amd64.AppImage`, `Vibebook_<versión>_amd64.deb`.
-- macOS: `Vibebook_<versión>_aarch64.dmg`, `Vibebook_<versión>_x64.dmg`.
+- macOS Intel: `Vibebook_<versión>_x64.dmg`. El arm64 nativo requiere un runner
+  `macos-15`; si la cuenta alcanza su límite de gasto, el Release sale sin ese
+  DMG y se documenta en el body.
 - Android: `Vibebook-<versión>-android-arm64.apk` (experimental, firmado en CI).
-- `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-arm64.txt`,
-  `checksums-macos-x64.txt`, `checksums-android.txt`.
-- Un único GitHub Release con todos los artefactos.
+- `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-x64.txt`,
+  `checksums-android.txt`; `checksums-macos-arm64.txt` cuando existe el DMG.
+- Un único GitHub Release con todos los artefactos disponibles.
 
 Los jobs de plataforma no publican releases individuales. El job `release`
 solo corre con tags `v*` y falla si falta un artefacto.
@@ -80,6 +82,17 @@ git push origin v0.5.0
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
 sin publicar si no es un tag.
 
+## Known issue v0.5.0
+
+- El DMG **macOS arm64 nativo** no se publicó: GitHub Actions rechazó el runner
+  `macos-15` con el mensaje “recent account payments have failed or your
+  spending limit needs to be increased”. El DMG x64 está disponible y funciona
+  en Apple Silicon con Rosetta 2. Para completar el arm64:
+  1. restablecer el límite de gasto en GitHub Billing;
+  2. correr de nuevo el workflow `Release` sobre `v0.5.0`;
+  3. adjuntar `Vibebook_0.5.0_aarch64.dmg` y `checksums-macos-arm64.txt` si el
+     job `release` no los sube solo.
+
 ## Notas del release
 
 El body del Release describe requisitos, artefactos y limitaciones. Después de
@@ -99,8 +112,9 @@ Para reemplazar el body, editá el Release en GitHub o usá `PATCH
 
 - Confirmar `tag_name`, `draft=false`, `prerelease=false` y que el tag apunte al
   commit de `main`.
-- Confirmar 7 artefactos de escritorio: ZIP/NSIS/MSI de Windows, AppImage/deb
-  de Linux y dos DMG de macOS, más los 4 `checksums-*.txt`.
+- Confirmar los artefactos de escritorio disponibles: ZIP/NSIS/MSI de Windows,
+  AppImage/deb de Linux y DMG de macOS (x64 y arm64 cuando el runner esté
+  disponible), más los `checksums-*.txt` correspondientes.
 - Confirmar el APK Android experimental y `checksums-android.txt` adjuntos al
   Release.
 - Comparar cada línea de los checksums con el `digest` SHA-256 del asset en la
