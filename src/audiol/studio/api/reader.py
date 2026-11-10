@@ -363,6 +363,15 @@ def get_image(request: Request, book_id: str, image_id: str) -> FileResponse:
 @router.get("/{book_id}/m4b")
 def get_m4b(request: Request, book_id: str) -> FileResponse:
     record = _record(request, book_id)
+    manifest = _manifest(request, record)
+    manifest_m4b = manifest.get("m4b")
+    if isinstance(manifest_m4b, str):
+        try:
+            path = request.app.state.library.asset_path(record.id, manifest_m4b)
+        except LibraryError:
+            path = None
+        if path is not None and path.is_file():
+            return FileResponse(path, media_type="audio/mp4", filename=path.name)
     for candidate in sorted(record.path.glob("*.m4b")):
         try:
             path = request.app.state.library.asset_path(record.id, candidate.name)
@@ -556,7 +565,7 @@ def set_book_preferences(
     record = _record(request, book_id)
     preferences = request.app.state.db.set_book_preferences(
         record.id,
-        payload.model_dump(),
+        payload.model_dump(exclude_unset=True),
     )
     return BookPreferencesResponse(
         book_id=record.id,

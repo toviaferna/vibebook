@@ -148,6 +148,16 @@ def test_get_book_and_cover(client, cover_epub: Path):
     assert cover.headers["content-type"].startswith("image/")
 
 
+def test_delete_blocked_by_book_activity(client, imported):
+    lease = client.app.state.activity.reserve(imported["id"], "convert")
+
+    response = client.delete(f"/api/books/{imported['id']}")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "book_busy"
+    client.app.state.activity.release(lease)
+
+
 def test_delete_book(client, imported):
     response = client.delete(f"/api/books/{imported['id']}")
 

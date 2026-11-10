@@ -7,8 +7,9 @@ from pathlib import Path
 import pytest
 
 from audiol.cli import main
-from audiol.models import WordTiming
-from audiol.repair import repair_book
+from audiol.convert import cache_key
+from audiol.models import Segment, WordTiming
+from audiol.repair import RepairError, _select_segment_audio, repair_book
 from audiol.timing import (
     ChapterTiming,
     SegmentTiming,
@@ -158,6 +159,65 @@ def test_repair_book_skips_chapters_without_segment_audio(tmp_path):
 
     assert result["rebuilt"] == [1]
     assert result["skipped"] == [2]
+
+
+def test_repair_prefers_manifest_cache_key(tmp_path):
+    book_dir = _book(tmp_path)
+    folder = book_dir / "audio" / "segments"
+    segment = Segment(
+        id="s1",
+        chapter_index=1,
+        paragraph_index=1,
+        text="Hola",
+    )
+    key = cache_key(segment, "old", "fake", "neutral", "-10%")
+    expected = folder / f"s1_{key}.wav"
+    expected.write_bytes((folder / "s1_oldkey.wav").read_bytes())
+    (folder / "s1_other.wav").write_bytes(b"wrong")
+
+    selected = _select_segment_audio(folder, segment, "old", "fake", "neutral", "-10%")
+
+    assert selected == expected
+
+
+def test_repair_rejects_ambiguous_segment_audio(tmp_path):
+    book_dir = _book(tmp_path)
+    folder = book_dir / "audio" / "segments"
+    segment = Segment(id="s1", chapter_index=1, paragraph_index=1, text="Hola")
+    (folder / "s1_a.wav").write_bytes(b"a")
+    (folder / "s1_b.wav").write_bytes(b"b")
+
+    with pytest.raises(RepairError, match="Ambiguous"):
+        _select_segment_audio(folder, segment, "old", "fake", "neutral", "-10%")
+
+
+def test_repair_rejects_audio_path_outside_book(tmp_path):
+    book_dir = _book(tmp_path)
+    path = book_dir / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["chapters"][0]["audio"] = "../escape.mp3"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(RepairError, match="escapes"):
+        repair_book(book_dir)
+
+
+@requires_ffmpeg
+def test_repair_failure_preserves_previous_manifest(tmp_path, monkeypatch):
+    book_dir = _book(tmp_path)
+    manifest_before = (book_dir / "manifest.json").read_bytes()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("timing failed")
+
+    monkeypatch.setattr("audiol.repair.write_chapter_timing", fail)
+
+    with pytest.raises(RuntimeError, match="timing failed"):
+        repair_book(book_dir)
+
+    assert (book_dir / "manifest.json").read_bytes() == manifest_before
+    assert not (book_dir / "audio" / "chapters" / "chapter_001.mp3").exists()
+    assert not list(book_dir.glob(".staging/*"))
 
 
 @requires_ffmpeg

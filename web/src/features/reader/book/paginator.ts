@@ -1,4 +1,5 @@
 ﻿import type { ManifestChapter, ManifestImage } from "../../../api/types";
+import { chapterSignature } from "./pageCache";
 
 export interface TextBlock {
   kind: "text";
@@ -21,6 +22,7 @@ export type PageBlock = TextBlock | ImageBlock;
 export type BookItem = TextBlock | ImageBlock;
 
 export interface BookPage {
+  id?: string;
   blocks: PageBlock[];
   startOffset: number;
 }
@@ -119,8 +121,10 @@ export function paginateChapter(
   images: ManifestImage[],
   measure: MeasurePage,
   pageHeight: number,
+  bookId = "book",
 ): BookPage[] {
   const flow = bookFlow(chapter, images);
+  const signature = chapterSignature(chapter, images);
   const pages: BookPage[] = [];
   let current: PageBlock[] = [];
 
@@ -128,7 +132,11 @@ export function paginateChapter(
     if (current.length === 0) {
       return;
     }
-    pages.push({ blocks: current, startOffset: current[0]?.startOffset ?? 0 });
+    pages.push({
+      id: `${bookId}:${signature}:${pages.length + 1}`,
+      blocks: current,
+      startOffset: current[0]?.startOffset ?? 0,
+    });
     current = [];
   };
 
@@ -166,7 +174,11 @@ export function paginateChapter(
   }
   flush();
   if (pages.length === 0) {
-    pages.push({ blocks: [], startOffset: 0 });
+    pages.push({
+      id: `${bookId}:${signature}:1`,
+      blocks: [],
+      startOffset: 0,
+    });
   }
   return pages;
 }

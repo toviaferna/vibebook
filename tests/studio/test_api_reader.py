@@ -32,6 +32,40 @@ def wait_for_job(client, job_id: str, timeout: float = 30.0) -> dict:
     raise AssertionError(f"job {job_id} did not finish")
 
 
+def test_partial_book_preferences_update(client, imported):
+    book_id = imported["id"]
+    first = client.put(
+        f"/api/books/{book_id}/preferences",
+        json={"reader_palette": "sepia"},
+    )
+    assert first.status_code == 200
+
+    second = client.put(
+        f"/api/books/{book_id}/preferences",
+        json={"reader_size": 22},
+    )
+
+    assert second.status_code == 200
+    data = second.json()
+    assert data["reader_palette"] == "sepia"
+    assert data["reader_size"] == 22
+
+
+def test_m4b_endpoint_uses_manifest_file(client, imported):
+    book_dir = client.app.state.library.get(imported["id"]).path
+    (book_dir / "old.m4b").write_bytes(b"old")
+    (book_dir / "new.m4b").write_bytes(b"new")
+    path = book_dir / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["m4b"] = "new.m4b"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    response = client.get(f"/api/books/{imported['id']}/m4b")
+
+    assert response.status_code == 200
+    assert response.content == b"new"
+
+
 def test_manifest_cache_reuses_until_the_file_changes(client, imported):
     _MANIFEST_CACHE.clear()
     path = client.app.state.library.get(imported["id"]).path / "manifest.json"

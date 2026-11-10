@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -9,6 +8,7 @@ from mutagen import File as MutagenFile
 from mutagen import MutagenError
 
 from audiol.models import Chapter, WordTiming
+from audiol.storage import write_json_atomic
 
 Precision = Literal["exact", "estimated"]
 
@@ -424,10 +424,7 @@ def _distribute_duration(chapter: Chapter, duration_ms: int) -> list[int]:
 
 
 def _write_json_atomic(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(temporary, path)
+    write_json_atomic(path, payload)
 
 
 def _word_weight(word: str) -> float:

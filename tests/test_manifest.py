@@ -1,4 +1,5 @@
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -279,3 +280,52 @@ def test_write_manifest_preserves_structure_and_toc(tmp_path: Path):
     assert loaded.toc[0].children[0].title == "La casa"
     assert loaded.images[0].alt == "Una casa"
     assert loaded.images[0].width == 320
+
+
+def test_write_manifest_preserves_ambience_and_unknown_keys(tmp_path: Path):
+    data = _v1_manifest()
+    data["created_at"] = "2020-01-01T00:00:00+00:00"
+    data["ambience"] = {"version": 1, "enabled": True}
+    data["custom_key"] = {"keep": True}
+    (tmp_path / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+    book = book_from_manifest(data)
+
+    write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+
+    loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert loaded["ambience"] == {"version": 1, "enabled": True}
+    assert loaded["custom_key"] == {"keep": True}
+    assert loaded["created_at"] == "2020-01-01T00:00:00+00:00"
+    assert loaded["voice"] == "es-MX-JorgeNeural"
+
+
+def test_write_manifest_replaces_m4b_instead_of_preserving_it(tmp_path: Path):
+    data = _v1_manifest()
+    data["m4b"] = "old.m4b"
+    (tmp_path / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+    book = book_from_manifest(data)
+
+    write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro", m4b="new.m4b")
+
+    loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert loaded["m4b"] == "new.m4b"
+
+
+def test_concurrent_manifest_writes_do_not_corrupt(tmp_path: Path):
+    data = _v1_manifest()
+    (tmp_path / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+    book = book_from_manifest(data)
+
+    def write() -> None:
+        for _ in range(50):
+            write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+
+    threads = [threading.Thread(target=write) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert loaded["title"] == "Libro viejo"
+    assert len(loaded["chapters"][0]["segments"]) == 2

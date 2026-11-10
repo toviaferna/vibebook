@@ -25,6 +25,7 @@ from audiol.ambience.models import (
 from audiol.ambience.plan import AmbiencePlanError, load_ambience, save_ambience, validate_plan
 from audiol.ambience.providers.freesound import FreesoundError, FreesoundProvider
 from audiol.ambience.providers.plugin import PluginSoundError, PluginSoundProvider
+from audiol.studio.activity import BookBusy
 from audiol.studio.ambience_jobs import AmbienceRenderError
 from audiol.studio.errors import ApiError
 from audiol.studio.library import BookNotFound
@@ -264,11 +265,15 @@ def put_book_ambience(
     payload: AmbiencePlanUpdate,
 ) -> AmbienceResponse:
     record = _record(request, book_id)
+    lease = _reserve(request, record.id, "ambience_save")
     try:
-        validate_plan(payload.plan, record, _known_assets(request))
-    except AmbiencePlanError as exc:
-        raise ApiError(422, "invalid_ambience", str(exc)) from exc
-    save_ambience(record.path, payload.settings, payload.plan)
+        try:
+            validate_plan(payload.plan, record, _known_assets(request))
+        except AmbiencePlanError as exc:
+            raise ApiError(422, "invalid_ambience", str(exc)) from exc
+        save_ambience(record.path, payload.settings, payload.plan)
+    finally:
+        request.app.state.activity.release(lease)
     return AmbienceResponse(book_id=record.id, settings=payload.settings, plan=payload.plan)
 
 
@@ -281,13 +286,17 @@ def analyze_book_ambience(
     record = _record(request, book_id)
     from audiol.ambience.analyzer import analyze_book
 
-    assets, _ = request.app.state.db.list_sound_assets(limit=200)
+    lease = _reserve(request, record.id, "ambience_save")
     try:
-        settings, plan = analyze_book(record.path, assets)
-        validate_plan(plan, record, {str(asset["id"]) for asset in assets})
-    except AmbiencePlanError as exc:
-        raise ApiError(422, "invalid_ambience", str(exc)) from exc
-    save_ambience(record.path, settings, plan)
+        assets, _ = request.app.state.db.list_sound_assets(limit=200)
+        try:
+            settings, plan = analyze_book(record.path, assets)
+            validate_plan(plan, record, {str(asset["id"]) for asset in assets})
+        except AmbiencePlanError as exc:
+            raise ApiError(422, "invalid_ambience", str(exc)) from exc
+        save_ambience(record.path, settings, plan)
+    finally:
+        request.app.state.activity.release(lease)
     return AmbienceResponse(book_id=record.id, settings=settings, plan=plan)
 
 
@@ -336,3 +345,14 @@ def _record(request: Request, book_id: str):
         return request.app.state.library.get(book_id)
     except (BookNotFound, KeyError) as exc:
         raise ApiError(404, "book_not_found", "El libro no existe.") from exc
+
+
+def _reserve(request: Request, book_id: str, kind: str):
+    try:
+        return request.app.state.activity.reserve(book_id, kind)
+    except BookBusy as exc:
+        raise ApiError(
+            409,
+            "book_busy",
+            f"El libro está ocupado con otra operación: {exc.kind}.",
+        ) from exc
