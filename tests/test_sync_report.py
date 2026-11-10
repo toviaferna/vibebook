@@ -99,6 +99,66 @@ def test_build_report_compares_timing_with_chapter_audio(tmp_path):
     assert report["summary"]["chapters"] == 1
 
 
+def test_sync_report_ignores_paths_outside_the_book(tmp_path):
+    book = tmp_path / "book"
+    _wav(book / "audio" / "chapters" / "chapter_001.wav", 1.0)
+    timing = ChapterTiming(
+        chapter_index=1,
+        duration_ms=1_000,
+        precision="estimated",
+        segments=[
+            SegmentTiming(
+                id="s1",
+                start_ms=0,
+                end_ms=1_000,
+                precision="estimated",
+                words=[WordTiming("hola", 0, 500)],
+            )
+        ],
+    )
+    write_chapter_timing(book / "timings" / "chapter_001.json", timing)
+    _wav(tmp_path / "escape.wav", 2.0)
+    (book / "manifest.json").write_text(
+        json.dumps(
+            {
+                "title": "Libro",
+                "chapters": [
+                    {
+                        "index": 1,
+                        "title": "Uno",
+                        "timing": "timings/chapter_001.json",
+                        "audio": "../escape.wav",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_report(book)
+
+    assert report["chapters"][0]["timing_vs_audio_ms"] is None
+
+
+def test_sync_report_marks_timing_outside_the_book_as_missing(tmp_path):
+    book = tmp_path / "book"
+    book.mkdir()
+    (tmp_path / "escape.json").write_text("{}", encoding="utf-8")
+    (book / "manifest.json").write_text(
+        json.dumps(
+            {
+                "title": "Libro",
+                "chapters": [{"index": 1, "title": "Uno", "timing": "../escape.json"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_report(book)
+
+    assert report["chapters"][0]["missing_timing"] is True
+
+
 def test_sync_report_cli_json_and_strict(tmp_path, capsys):
     book = tmp_path / "book"
     _wav(book / "audio" / "chapters" / "chapter_001.wav", 1.2)

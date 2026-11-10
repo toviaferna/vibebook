@@ -16,6 +16,8 @@ class Settings:
     max_upload_bytes: int = 200 * 1024 * 1024
     max_archive_entries: int = 5000
     max_uncompressed_bytes: int = 500 * 1024 * 1024
+    max_entry_bytes: int = 100 * 1024 * 1024
+    max_compression_ratio: int = 100
 
     def __post_init__(self) -> None:
         if self.token is not None:

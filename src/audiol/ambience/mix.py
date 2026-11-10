@@ -9,6 +9,8 @@ from audiol.ambience.library import AmbienceLibrary
 from audiol.ambience.models import AmbiencePlan, AmbienceSettings
 from audiol.assemble import build_m4b, probe_duration
 from audiol.manifest import load_manifest
+from audiol.paths import UnsafePathError, safe_book_path
+from audiol.timing import read_chapter_timing
 from audiol.tools import require_ffmpeg
 
 SAMPLE_RATE = 48_000
@@ -127,7 +129,10 @@ def render_ambient_book(
         audio_rel = chapter.get("audio")
         if not isinstance(audio_rel, str):
             raise AmbienceMixError(f"Chapter {index} has no audio")
-        voice_path = book_dir / audio_rel
+        try:
+            voice_path = safe_book_path(book_dir, audio_rel)
+        except UnsafePathError as exc:
+            raise AmbienceMixError(f"Chapter {index} audio path is invalid") from exc
         if not voice_path.is_file():
             raise AmbienceMixError(f"Chapter {index} audio is missing")
         chapter_plan = plan_by_index.get(index)
@@ -193,11 +198,10 @@ def _effect_start_ms(
     timing_rel = chapter.get("timing")
     if not isinstance(timing_rel, str):
         return None
-    from audiol.timing import read_chapter_timing
-
     try:
-        timing = read_chapter_timing(book_dir / timing_rel)
-    except (OSError, ValueError):
+        path = safe_book_path(book_dir, timing_rel)
+        timing = read_chapter_timing(path)
+    except (OSError, ValueError, UnsafePathError):
         return None
     segment = next((item for item in timing.segments if item.id == segment_id), None)
     return int(segment.start_ms + offset_ms) if segment is not None else None

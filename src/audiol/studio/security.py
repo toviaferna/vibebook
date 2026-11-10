@@ -1,6 +1,6 @@
 import hmac
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import Request, UploadFile
 
@@ -8,6 +8,7 @@ from audiol.studio.errors import ApiError, error_response
 from audiol.studio.settings import Settings
 
 EPUB_CONTAINER = "META-INF/container.xml"
+CHUNK_SIZE = 1024 * 1024
 
 
 async def save_epub_upload(upload: UploadFile, destination: Path, settings: Settings) -> None:
@@ -73,8 +74,72 @@ def _validate_epub_archive(path: Path, settings: Settings) -> None:
                     "invalid_epub",
                     "El EPUB contiene enlaces simbólicos.",
                 )
+            if any(not _is_safe_archive_name(info.filename) for info in infos):
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB contiene rutas de archivo no seguras.",
+                )
+            _validate_expanded_size(archive, infos, settings)
     except zipfile.BadZipFile as exc:
         raise ApiError(422, "invalid_epub", "El archivo no es un EPUB/ZIP válido.") from exc
+
+
+def _validate_expanded_size(
+    archive: zipfile.ZipFile,
+    infos: list[zipfile.ZipInfo],
+    settings: Settings,
+) -> None:
+    total = 0
+    for info in infos:
+        if info.is_dir():
+            continue
+        if info.file_size > settings.max_entry_bytes:
+            raise ApiError(422, "invalid_epub", "Una entrada del EPUB es demasiado grande.")
+        if info.compress_size > 0:
+            ratio = info.file_size / info.compress_size
+            if ratio > settings.max_compression_ratio:
+                raise ApiError(
+                    422,
+                    "invalid_epub",
+                    "El EPUB tiene una compresión sospechosa.",
+                )
+        elif info.file_size > 0:
+            raise ApiError(
+                422,
+                "invalid_epub",
+                "El EPUB tiene una compresión sospechosa.",
+            )
+        try:
+            with archive.open(info) as handle:
+                entry_total = 0
+                while chunk := handle.read(CHUNK_SIZE):
+                    entry_total += len(chunk)
+                    total += len(chunk)
+                    if entry_total > settings.max_entry_bytes:
+                        raise ApiError(
+                            422,
+                            "invalid_epub",
+                            "Una entrada del EPUB es demasiado grande.",
+                        )
+                    if total > settings.max_uncompressed_bytes:
+                        raise ApiError(
+                            422,
+                            "invalid_epub",
+                            "El EPUB descomprimido supera el tamaño permitido.",
+                        )
+        except (RuntimeError, zipfile.BadZipFile) as exc:
+            raise ApiError(422, "invalid_epub", "El EPUB contiene datos dañados.") from exc
+
+
+def _is_safe_archive_name(name: str) -> bool:
+    if not name or "\x00" in name:
+        return False
+    normalized = name.replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if path.is_absolute():
+        return False
+    return not any(part == ".." for part in path.parts)
 
 
 def _is_symlink(info: zipfile.ZipInfo) -> bool:
