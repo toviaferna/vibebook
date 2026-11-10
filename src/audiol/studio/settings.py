@@ -1,7 +1,20 @@
 from dataclasses import dataclass
+from ipaddress import ip_address
 from pathlib import Path
 
 from platformdirs import user_data_path
+
+LOOPBACK_HOSTS = {"localhost", "localhost.localdomain", "ip6-localhost"}
+
+
+def is_loopback_host(host: str) -> bool:
+    candidate = host.strip().strip("[]").lower()
+    if candidate in LOOPBACK_HOSTS:
+        return True
+    try:
+        return ip_address(candidate).is_loopback
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -25,6 +38,10 @@ class Settings:
                 self.token.encode("ascii")
             except UnicodeEncodeError as exc:
                 raise ValueError("The local token must contain only ASCII characters") from exc
+        if not is_loopback_host(self.host) and not self.token:
+            raise ValueError(
+                "A local token is required when the Studio listens on a non-loopback host"
+            )
 
 
 def default_library_dir() -> Path:
