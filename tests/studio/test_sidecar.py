@@ -1,3 +1,4 @@
+import io
 import json
 from pathlib import Path
 
@@ -57,6 +58,42 @@ def test_sidecar_generates_token_when_missing(tmp_path: Path, monkeypatch, capsy
     ready = json.loads(capsys.readouterr().out.strip())
     assert len(ready["token"]) == 64
     assert int(ready["token"], 16) >= 0
+
+
+def test_sidecar_reads_token_from_stdin(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr(sidecar.uvicorn, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(sidecar.sys, "stdin", io.StringIO("stdin-token\n"))
+
+    code = sidecar.main(
+        [
+            "serve",
+            "--json-ready",
+            "--token-stdin",
+            "--library",
+            str(tmp_path / "library"),
+        ]
+    )
+
+    assert code == 0
+    ready = json.loads(capsys.readouterr().out.strip())
+    assert ready["token"] == "stdin-token"
+
+
+def test_sidecar_rejects_empty_stdin_token(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr(sidecar.uvicorn, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(sidecar.sys, "stdin", io.StringIO(""))
+
+    code = sidecar.main(
+        [
+            "serve",
+            "--token-stdin",
+            "--library",
+            str(tmp_path / "library"),
+        ]
+    )
+
+    assert code == 1
+    assert "token" in capsys.readouterr().err
 
 
 def test_find_binary_prefers_ffmpeg_dir(tmp_path: Path, monkeypatch):
