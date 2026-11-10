@@ -39,7 +39,8 @@ def test_media_ticket_rejects_tampering(client, unauth_client, imported):
     ticket = _ticket(client, path)
     url, query = ticket["url"].split("?")
     signature = query.split("=", 1)[1]
-    tampered = f"{url}?ticket={signature[:-1]}0"
+    flipped = "0" if signature[0] != "0" else "1"
+    tampered = f"{url}?ticket={flipped}{signature[1:]}"
 
     assert unauth_client.get(tampered).status_code == 401
 
