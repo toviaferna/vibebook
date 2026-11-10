@@ -110,6 +110,38 @@ def test_analyze_detects_rain_and_door(tmp_path):
     validate_plan(plan, record, {"rain-1", "door-1"})
 
 
+def test_analyze_ignores_timing_paths_outside_the_book(tmp_path):
+    record = _record(tmp_path)
+    escape = tmp_path / "escape.json"
+    escape.write_text(
+        json.dumps(
+            {
+                "chapter_index": 1,
+                "duration_ms": 20_000,
+                "precision": "estimated",
+                "segments": [
+                    {
+                        "id": "s1",
+                        "start_ms": 5_000,
+                        "end_ms": 6_000,
+                        "precision": "estimated",
+                        "words": [{"text": "La", "start_ms": 5_000, "end_ms": 5_200}],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    manifest_path = record.path / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["chapters"][0]["timing"] = "../escape.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    _, plan = analyze_book(record.path, _assets())
+
+    assert plan.chapters[0].effects == []
+
+
 def test_analyze_without_assets_returns_empty_plan(tmp_path):
     record = _record(tmp_path)
 

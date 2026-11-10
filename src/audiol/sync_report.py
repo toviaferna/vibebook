@@ -9,6 +9,7 @@ from typing import Any
 
 from audiol.assemble import probe_duration
 from audiol.manifest import load_manifest
+from audiol.paths import UnsafePathError, safe_book_path
 from audiol.timing import ChapterTiming, audio_duration_ms, read_chapter_timing
 
 SEGMENT_EXTENSIONS = (".wav", ".mp3", ".m4a", ".ogg", ".opus", ".flac")
@@ -147,8 +148,8 @@ def build_report(book_dir: Path) -> dict[str, Any]:
                 }
             )
             continue
-        path = book_dir / timing_path
-        if not path.is_file():
+        path = _book_path(book_dir, timing_path)
+        if path is None or not path.is_file():
             chapters.append(
                 {
                     "chapter_index": chapter.get("index"),
@@ -200,8 +201,17 @@ def _chapter_audio_paths(book_dir: Path, manifest: dict) -> dict[int, Path]:
             continue
         audio = chapter.get("audio")
         if isinstance(audio, str):
-            result[int(chapter.get("index", 0))] = book_dir / audio
+            path = _book_path(book_dir, audio)
+            if path is not None:
+                result[int(chapter.get("index", 0))] = path
     return result
+
+
+def _book_path(book_dir: Path, relative: str) -> Path | None:
+    try:
+        return safe_book_path(book_dir, relative)
+    except UnsafePathError:
+        return None
 
 
 def _segment_audio_durations(book_dir: Path) -> dict[str, int]:

@@ -14,6 +14,7 @@ from audiol.convert import prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
 from audiol.manifest import load_manifest, write_manifest
 from audiol.naming import slugify
+from audiol.paths import UnsafePathError, safe_book_path
 from audiol.storage import recover_incomplete_commit
 
 logger = logging.getLogger(__name__)
@@ -290,8 +291,13 @@ def _has_audio(book_dir: Path, chapters: list) -> bool:
         if not isinstance(chapter, dict):
             continue
         audio = chapter.get("audio")
-        if isinstance(audio, str) and (book_dir / audio).is_file():
-            return True
+        if not isinstance(audio, str):
+            continue
+        try:
+            if safe_book_path(book_dir, audio).is_file():
+                return True
+        except UnsafePathError:
+            continue
     return any((book_dir / "audio" / "chapters").glob("*.mp3"))
 
 

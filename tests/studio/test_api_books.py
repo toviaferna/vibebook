@@ -124,6 +124,53 @@ def test_import_rejects_zip_bomb(tmp_path: Path):
     assert response.json()["error"]["code"] == "invalid_epub"
 
 
+def test_import_rejects_suspicious_compression_ratio(tmp_path: Path):
+    settings = Settings(
+        library_dir=tmp_path / "library",
+        token="test-token",
+        allow_fake=True,
+        max_archive_entries=10,
+        max_uncompressed_bytes=200_000,
+        max_compression_ratio=2,
+    )
+    app = create_app(settings, provider_factory=lambda engine: FakeProvider())
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("META-INF/container.xml", b"<container/>")
+        archive.writestr("repeated.bin", b"0" * 10_000)
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        client.headers.update({"X-Vibebook-Token": "test-token"})
+        response = client.post(
+            "/api/books/import",
+            files={"file": ("bomb.epub", buffer.getvalue(), "application/epub+zip")},
+        )
+
+    assert response.status_code == 422
+    assert "compresión" in response.json()["error"]["message"]
+
+
+def test_import_rejects_archive_path_traversal(tmp_path: Path):
+    settings = Settings(
+        library_dir=tmp_path / "library",
+        token="test-token",
+        allow_fake=True,
+    )
+    app = create_app(settings, provider_factory=lambda engine: FakeProvider())
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("META-INF/container.xml", b"<container/>")
+        archive.writestr("../escape.txt", b"evil")
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        client.headers.update({"X-Vibebook-Token": "test-token"})
+        response = client.post(
+            "/api/books/import",
+            files={"file": ("traversal.epub", buffer.getvalue(), "application/epub+zip")},
+        )
+
+    assert response.status_code == 422
+    assert "rutas" in response.json()["error"]["message"]
+
+
 def test_get_book_and_cover(client, cover_epub: Path):
     response = client.post(
         "/api/books/import",

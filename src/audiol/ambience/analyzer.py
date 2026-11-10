@@ -13,6 +13,7 @@ from audiol.ambience.models import (
     AmbienceSettings,
 )
 from audiol.manifest import load_manifest
+from audiol.paths import UnsafePathError, safe_book_path
 from audiol.timing import read_chapter_timing
 
 BED_KEYWORDS: dict[str, tuple[str, ...]] = {
@@ -140,8 +141,9 @@ def _timing(book_dir: Path, chapter: dict[str, Any]):
     if not isinstance(timing_rel, str):
         return None
     try:
-        return read_chapter_timing(book_dir / timing_rel)
-    except (OSError, ValueError):
+        path = safe_book_path(book_dir, timing_rel)
+        return read_chapter_timing(path)
+    except (OSError, ValueError, UnsafePathError):
         return None
 
 
