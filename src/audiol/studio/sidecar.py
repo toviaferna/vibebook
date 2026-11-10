@@ -23,7 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=0)
     serve.add_argument("--library", default=None)
-    serve.add_argument("--token", default=None)
+    serve.add_argument("--token", default=None, help="Deprecated: prefer --token-stdin")
+    serve.add_argument(
+        "--token-stdin",
+        action="store_true",
+        help="Read the local token from stdin instead of the command line",
+    )
     serve.add_argument("--allow-fake", action="store_true")
     serve.add_argument("--dev", action="store_true")
     serve.add_argument("--log-level", default="info")
@@ -73,7 +78,7 @@ def _configure_logging(level: str) -> None:
 def _serve(args: argparse.Namespace) -> int:
     _configure_logging(args.log_level)
     port = args.port or find_free_port(args.host)
-    token = args.token or secrets.token_hex(32)
+    token = _resolve_token(args)
     library_dir = Path(args.library).expanduser() if args.library else default_library_dir()
     settings = Settings(
         library_dir=library_dir,
@@ -99,6 +104,17 @@ def _serve(args: argparse.Namespace) -> int:
         log_config=None,
     )
     return 0
+
+
+def _resolve_token(args: argparse.Namespace) -> str:
+    if args.token:
+        return args.token
+    if args.token_stdin:
+        token = sys.stdin.readline().strip()
+        if not token:
+            raise ValueError("The sidecar did not receive a token on stdin")
+        return token
+    return secrets.token_hex(32)
 
 
 def main(argv: list[str] | None = None) -> int:

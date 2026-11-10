@@ -90,10 +90,9 @@ fn start(app: &AppHandle, log_path: &PathBuf) -> Result<(ApiConfig, Child), Stri
             "127.0.0.1",
             "--port",
             "0",
-            "--token",
-            &token,
+            "--token-stdin",
         ])
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
@@ -113,6 +112,15 @@ fn start(app: &AppHandle, log_path: &PathBuf) -> Result<(ApiConfig, Child), Stri
     let mut child = command
         .spawn()
         .map_err(|error| format!("No se pudo iniciar el sidecar: {error}"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        if writeln!(stdin, "{token}").is_err() {
+            return Err(terminate(
+                child,
+                "No se pudo enviar el token local al sidecar.",
+            ));
+        }
+    }
 
     if let Some(stderr) = child.stderr.take() {
         let log_path = log_path.clone();

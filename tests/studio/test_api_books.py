@@ -223,6 +223,35 @@ def test_rescan_picks_up_external_book(client, tmp_path: Path, tiny_epub: Path):
     assert client.get(f"/api/books/{record.id}").status_code == 200
 
 
+def test_non_loopback_host_requires_token(tmp_path: Path):
+    with pytest.raises(ValueError, match="non-loopback"):
+        Settings(
+            library_dir=tmp_path / "library",
+            host="0.0.0.0",
+            token=None,
+            allow_fake=True,
+        )
+
+    settings = Settings(
+        library_dir=tmp_path / "library",
+        host="0.0.0.0",
+        token="smoke",
+        allow_fake=True,
+    )
+    assert settings.token == "smoke"
+
+
+def test_loopback_hosts_do_not_require_token(tmp_path: Path):
+    for host in ("127.0.0.1", "localhost", "::1", "[::1]"):
+        settings = Settings(
+            library_dir=tmp_path / "library",
+            host=host,
+            token=None,
+            allow_fake=True,
+        )
+        assert settings.token is None
+
+
 def test_non_ascii_token_is_rejected(tmp_path: Path):
     with pytest.raises(ValueError):
         Settings(
