@@ -79,7 +79,10 @@ test("guarda la posición del texto y el CFI del original", async ({ page, playw
   await expect(page.getByRole("heading", { name: "Capítulo 1" })).toBeVisible();
   await page.getByRole("button", { name: "Buscar en el libro" }).click();
   await page.getByRole("searchbox", { name: "Texto a buscar" }).fill("lector");
-  await page.getByRole("button", { name: /Cap\. 1/ }).first().click();
+  await page
+    .getByRole("button", { name: /Cap\. 1/ })
+    .first()
+    .click();
   await page.waitForTimeout(900);
 
   await expect
