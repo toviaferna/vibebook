@@ -7,7 +7,8 @@ from audiol.models import Book, BookImage, Chapter, Segment, TocNode, make_segme
 from audiol.storage import write_json_atomic
 
 SCHEMA_VERSION = 2
-SEGMENTATION_VERSION = 2
+SEGMENTATION_VERSION = 3
+PAUSE_POLICY_VERSION = 1
 DEFAULT_MAX_CHARS = 400
 
 
@@ -47,6 +48,8 @@ def book_from_manifest(data: dict) -> Book:
                     chunk_index=chunk_index,
                     source_href=segment_data.get("source_href"),
                     source_fragment=segment_data.get("source_fragment"),
+                    boundary=str(segment_data.get("boundary") or "paragraph"),
+                    continuation=bool(segment_data.get("continuation", False)),
                 )
             )
         chapters.append(
@@ -145,6 +148,7 @@ def write_manifest(
     segmentation_version: int = SEGMENTATION_VERSION,
     m4b: str | None = None,
     preserve_from: dict | None = None,
+    provider_fingerprint: str = "",
 ) -> Path:
     if chapter_durations_ms is not None and len(chapter_durations_ms) != len(book.chapters):
         raise ValueError("chapter_durations_ms must have one duration per chapter")
@@ -166,7 +170,9 @@ def write_manifest(
         "engine": engine,
         "style": style,
         "rate": rate,
+        "provider_fingerprint": provider_fingerprint,
         "segmentation_version": segmentation_version,
+        "pause_policy_version": PAUSE_POLICY_VERSION,
         "max_chars": max_chars,
         "duration_ms": total_duration_ms,
         "cover": cover,

@@ -276,7 +276,7 @@ def test_timing_roundtrip_json(tmp_path: Path):
 
     assert loaded == timing
     payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["duration_ms"] == 500
     assert payload["timing_offset_ms"] == 0
     assert payload["segments"][0]["words"][0]["text"] == "Hola"

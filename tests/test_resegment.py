@@ -267,7 +267,7 @@ def test_repair_segments_cli_applies_metadata_repair(tmp_path, tiny_epub, capsys
     assert main(["repair-segments", str(book_dir)]) == 0
     output = capsys.readouterr().out
     assert "Reparado" in output
-    assert load_manifest(book_dir / "manifest.json")["segmentation_version"] == 2
+    assert load_manifest(book_dir / "manifest.json")["segmentation_version"] == 3
 
 
 def test_restore_cli_lists_backups(tmp_path, tiny_epub, capsys):

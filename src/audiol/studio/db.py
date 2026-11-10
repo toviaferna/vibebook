@@ -816,6 +816,20 @@ class Database:
             if cursor.rowcount == 0:
                 raise KeyError(asset_id)
 
+    def record_sound_asset_uses(self, asset_ids: list[str]) -> None:
+        if not asset_ids:
+            return
+        now = _now()
+        with self._connect() as connection:
+            connection.executemany(
+                """
+                UPDATE sound_assets
+                SET usage_count = usage_count + 1, last_used_at = ?
+                WHERE id = ?
+                """,
+                [(now, asset_id) for asset_id in dict.fromkeys(asset_ids)],
+            )
+
     def delete_sound_asset(self, asset_id: str) -> None:
         with self._connect() as connection:
             cursor = connection.execute("DELETE FROM sound_assets WHERE id = ?", (asset_id,))

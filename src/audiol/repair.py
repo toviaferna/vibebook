@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from datetime import UTC, datetime
@@ -48,6 +49,10 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
     engine = str(manifest.get("engine") or "edge")
     style = str(manifest.get("style") or "neutral")
     rate = str(manifest.get("rate") or "-10%")
+    fingerprint = str(manifest.get("provider_fingerprint") or "")
+    timing_config_hash = hashlib.sha256(f"{voice}|{engine}|{style}|{rate}".encode()).hexdigest()[
+        :16
+    ]
     rebuilt: list[int] = []
     skipped: list[int] = []
     durations: list[int] = []
@@ -63,7 +68,9 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
                 skipped.append(chapter.index)
                 durations.append(0)
                 continue
-            files = _chapter_segment_files(book_dir, chapter, voice, engine, style, rate)
+            files = _chapter_segment_files(
+                book_dir, chapter, voice, engine, style, rate, fingerprint
+            )
             if files is None:
                 skipped.append(chapter.index)
                 durations.append(int(chapter_data.get("duration_ms") or 0))
@@ -92,6 +99,7 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
                 words,
                 chapter_duration_ms=assembly.total_ms,
                 timing_offset_ms=timing_offset_ms,
+                config_hash=timing_config_hash,
             )
             write_chapter_timing(staged_timing, timing)
             try:
@@ -146,13 +154,14 @@ def _chapter_segment_files(
     engine: str,
     style: str,
     rate: str,
+    fingerprint: str = "",
 ) -> list[Path] | None:
     if not chapter.segments:
         return None
     folder = book_dir / "audio" / "segments"
     files: list[Path] = []
     for segment in chapter.segments:
-        path = _select_segment_audio(folder, segment, voice, engine, style, rate)
+        path = _select_segment_audio(folder, segment, voice, engine, style, rate, fingerprint)
         if path is None:
             return None
         files.append(path)
@@ -166,8 +175,9 @@ def _select_segment_audio(
     engine: str,
     style: str,
     rate: str,
+    fingerprint: str = "",
 ) -> Path | None:
-    key = cache_key(segment, voice, engine, style, rate)
+    key = cache_key(segment, voice, engine, style, rate, fingerprint)
     exact = _audio_candidates(folder.glob(f"{segment.id}_{key}.*"))
     if len(exact) > 1:
         raise RepairError(f"Ambiguous segment audio for {segment.id}: exact key")

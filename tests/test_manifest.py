@@ -299,6 +299,17 @@ def test_write_manifest_preserves_ambience_and_unknown_keys(tmp_path: Path):
     assert loaded["voice"] == "es-MX-JorgeNeural"
 
 
+def test_cache_key_changes_with_provider_fingerprint():
+    from audiol.convert import cache_key
+    from audiol.models import Segment
+
+    segment = Segment(id="s1", chapter_index=1, paragraph_index=1, text="Hola")
+
+    assert cache_key(segment, "voz", "plugin", "neutral", "+0%", "v1") != cache_key(
+        segment, "voz", "plugin", "neutral", "+0%", "v2"
+    )
+
+
 def test_write_manifest_replaces_m4b_instead_of_preserving_it(tmp_path: Path):
     data = _v1_manifest()
     data["m4b"] = "old.m4b"
@@ -309,6 +320,20 @@ def test_write_manifest_replaces_m4b_instead_of_preserving_it(tmp_path: Path):
 
     loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
     assert loaded["m4b"] == "new.m4b"
+
+
+def test_manifest_roundtrip_keeps_boundaries(tmp_path: Path):
+    data = _v1_manifest()
+    data["chapters"][0]["segments"][1]["boundary"] = "sentence"
+    data["chapters"][0]["segments"][1]["continuation"] = True
+    book = book_from_manifest(data)
+
+    write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+
+    loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    segment = loaded["chapters"][0]["segments"][1]
+    assert segment["boundary"] == "sentence"
+    assert segment["continuation"] is True
 
 
 def test_concurrent_manifest_writes_do_not_corrupt(tmp_path: Path):

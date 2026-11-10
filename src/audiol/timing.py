@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -33,6 +34,13 @@ class ChapterTiming:
     precision: Precision
     segments: list[SegmentTiming]
     timing_offset_ms: int = 0
+    text_hash: str | None = None
+    config_hash: str | None = None
+
+
+def chapter_text_hash(chapter: Chapter) -> str:
+    payload = "\x00".join(f"{segment.id}:{segment.text}" for segment in chapter.segments)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 def estimate_word_timings(text: str, duration_ms: int) -> list[WordTiming]:
@@ -93,6 +101,7 @@ def build_chapter_timing_from_offsets(
     segment_words: list[list[WordTiming]],
     chapter_duration_ms: int | None = None,
     timing_offset_ms: int = 0,
+    config_hash: str | None = None,
 ) -> ChapterTiming:
     if not (
         len(segment_offsets_ms)
@@ -151,6 +160,8 @@ def build_chapter_timing_from_offsets(
         precision=precision,
         segments=segments,
         timing_offset_ms=timing_offset_ms,
+        text_hash=chapter_text_hash(chapter),
+        config_hash=config_hash,
     )
 
 
@@ -174,6 +185,7 @@ def build_chapter_timing(
     segment_durations_ms: list[int],
     segment_words: list[list[WordTiming]],
     chapter_duration_ms: int | None = None,
+    config_hash: str | None = None,
 ) -> ChapterTiming:
     if not (len(segment_durations_ms) == len(segment_words) == len(chapter.segments)):
         raise ValueError("segment durations, words and segments must have the same length")
@@ -225,6 +237,8 @@ def build_chapter_timing(
         duration_ms=total_ms,
         precision=precision,
         segments=segments,
+        text_hash=chapter_text_hash(chapter),
+        config_hash=config_hash,
     )
 
 
@@ -259,11 +273,13 @@ def ensure_chapter_timing(
 
 def write_chapter_timing(path: Path, timing: ChapterTiming) -> None:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "chapter_index": timing.chapter_index,
         "duration_ms": timing.duration_ms,
         "precision": timing.precision,
         "timing_offset_ms": timing.timing_offset_ms,
+        "text_hash": timing.text_hash,
+        "config_hash": timing.config_hash,
         "segments": [
             {
                 "id": segment.id,
@@ -348,6 +364,8 @@ def read_chapter_timing(path: Path) -> ChapterTiming:
         precision=cast(Precision, payload["precision"]),
         segments=segments,
         timing_offset_ms=int(payload.get("timing_offset_ms", 0)),
+        text_hash=payload.get("text_hash"),
+        config_hash=payload.get("config_hash"),
     )
 
 
@@ -397,6 +415,8 @@ def _timing_matches(timing: ChapterTiming, chapter: Chapter, chapter_duration_ms
     if len(timing.segments) != len(chapter.segments):
         return False
     if [segment.id for segment in timing.segments] != [segment.id for segment in chapter.segments]:
+        return False
+    if timing.text_hash is not None and timing.text_hash != chapter_text_hash(chapter):
         return False
     tolerance = max(250, chapter_duration_ms // 100)
     return abs(timing.duration_ms - chapter_duration_ms) <= tolerance

@@ -11,6 +11,7 @@ from audiol.ambience.library import MAX_ASSET_BYTES, AmbienceError, AmbienceLibr
 from audiol.ambience.models import (
     AmbienceAnalyzeRequest,
     AmbienceGenerateRequest,
+    AmbiencePlan,
     AmbiencePlanUpdate,
     AmbienceResponse,
     FreesoundImportRequest,
@@ -272,6 +273,7 @@ def put_book_ambience(
         except AmbiencePlanError as exc:
             raise ApiError(422, "invalid_ambience", str(exc)) from exc
         save_ambience(record.path, payload.settings, payload.plan)
+        request.app.state.db.record_sound_asset_uses(_plan_asset_ids(payload.plan))
     finally:
         request.app.state.activity.release(lease)
     return AmbienceResponse(book_id=record.id, settings=payload.settings, plan=payload.plan)
@@ -295,6 +297,7 @@ def analyze_book_ambience(
         except AmbiencePlanError as exc:
             raise ApiError(422, "invalid_ambience", str(exc)) from exc
         save_ambience(record.path, settings, plan)
+        request.app.state.db.record_sound_asset_uses(_plan_asset_ids(plan))
     finally:
         request.app.state.activity.release(lease)
     return AmbienceResponse(book_id=record.id, settings=settings, plan=plan)
@@ -338,6 +341,15 @@ def get_ambient_attribution(request: Request, book_id: str) -> FileResponse:
 def _known_assets(request: Request) -> set[str]:
     assets, _ = request.app.state.db.list_sound_assets(limit=200)
     return {str(asset["id"]) for asset in assets}
+
+
+def _plan_asset_ids(plan: AmbiencePlan) -> list[str]:
+    ids: list[str] = []
+    for chapter in plan.chapters:
+        if chapter.bed is not None:
+            ids.append(chapter.bed.asset_id)
+        ids.extend(effect.asset_id for effect in chapter.effects)
+    return ids
 
 
 def _record(request: Request, book_id: str):

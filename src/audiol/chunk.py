@@ -1,4 +1,5 @@
 import re
+from dataclasses import dataclass
 
 from audiol.clean import clean_text
 
@@ -39,6 +40,13 @@ ABBREVIATIONS = (
 SENTENCE_END = re.compile(r"(?<=[.!?…])\s+")
 
 
+@dataclass(frozen=True)
+class TextChunk:
+    text: str
+    boundary: str
+    continuation: bool
+
+
 def split_sentences(text: str) -> list[str]:
     protected = text
     for index, abbreviation in enumerate(ABBREVIATIONS):
@@ -55,6 +63,22 @@ def split_sentences(text: str) -> list[str]:
 
 
 def chunk_text(text: str, max_chars: int = 400) -> list[str]:
+    return [part.text for part in chunk_text_parts(text, max_chars=max_chars)]
+
+
+def chunk_text_parts(text: str, max_chars: int = 400) -> list[TextChunk]:
+    chunks = _chunk_text(text, max_chars=max_chars)
+    return [
+        TextChunk(
+            text=chunk,
+            boundary="paragraph" if index == len(chunks) - 1 else _boundary_for(chunk),
+            continuation=index > 0,
+        )
+        for index, chunk in enumerate(chunks)
+    ]
+
+
+def _chunk_text(text: str, max_chars: int = 400) -> list[str]:
     text = clean_text(text)
     chunks: list[str] = []
     buffer = ""
@@ -78,6 +102,15 @@ def chunk_text(text: str, max_chars: int = 400) -> list[str]:
     if buffer:
         chunks.append(buffer)
     return [chunk for chunk in chunks if chunk]
+
+
+def _boundary_for(chunk: str) -> str:
+    stripped = chunk.rstrip()
+    if stripped.endswith((".", "!", "?", "…")):
+        return "sentence"
+    if stripped.endswith((",", ";", ":")):
+        return "clause"
+    return "word"
 
 
 def _split_long(text: str, max_chars: int) -> list[str]:
