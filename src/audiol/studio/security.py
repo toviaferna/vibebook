@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 from fastapi import Request, UploadFile
 
 from audiol.studio.errors import ApiError, error_response
+from audiol.studio.media import is_media_path, verify_ticket
 from audiol.studio.settings import Settings
 
 EPUB_CONTAINER = "META-INF/container.xml"
@@ -174,10 +175,16 @@ def install_security_middleware(app, settings: Settings) -> None:
             and request.url.path.startswith("/api")
             and request.url.path != "/api/health"
         ):
-            provided = request.headers.get("X-Vibebook-Token") or request.query_params.get(
-                "token", ""
+            provided = request.headers.get("X-Vibebook-Token", "")
+            authorized = bool(provided) and hmac.compare_digest(
+                provided.encode("utf-8"), settings.token.encode("utf-8")
             )
-            if not hmac.compare_digest(provided.encode("utf-8"), settings.token.encode("utf-8")):
+            if not authorized and is_media_path(request.url.path):
+                ticket = request.query_params.get("ticket")
+                authorized = (
+                    ticket is not None and verify_ticket(ticket, request.url.path) is not None
+                )
+            if not authorized:
                 return _secure_response(
                     error_response(
                         401,

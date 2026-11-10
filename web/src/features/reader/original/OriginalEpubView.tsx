@@ -2,7 +2,7 @@ import type { Book, Contents, Rendition } from "epubjs";
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { apiUrl } from "../../../api/client";
+import { mediaUrl } from "../../../api/media";
 import type { ManifestChapter } from "../../../api/types";
 
 interface OriginalEpubViewProps {
@@ -103,7 +103,9 @@ export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
         if (cancelled || !containerRef.current) {
           return;
         }
-        book = ePub(apiUrl(`/books/${bookId}/epub`), { openAs: "epub" });
+        book = ePub(await mediaUrl(bookId, "epub", `/api/books/${bookId}/epub`), {
+          openAs: "epub",
+        });
         rendition = book.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",

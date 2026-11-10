@@ -304,6 +304,11 @@ export interface Preview {
   key: string;
 }
 
+export interface MediaTicket {
+  url: string;
+  expires_at: string;
+}
+
 export interface ConversionInput {
   voice: string;
   engine: string;

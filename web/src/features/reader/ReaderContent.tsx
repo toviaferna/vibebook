@@ -1,12 +1,12 @@
 import { forwardRef, type MouseEvent, memo, useMemo } from "react";
 
-import { apiUrl } from "../../api/client";
 import type {
   ChapterTiming,
   ManifestChapter,
   ManifestImage,
   ManifestSegment,
 } from "../../api/types";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import type { AlignedSegment } from "./alignment";
 import { chapterDisplayTitle } from "./chapterTitle";
 
@@ -30,6 +30,14 @@ function groupParagraphs(segments: ManifestSegment[]): ManifestSegment[][] {
     groups.set(segment.paragraph_index, group);
   }
   return [...groups.values()];
+}
+
+function ReaderFigure({ bookId, image }: { bookId: string; image: ManifestImage }) {
+  const src = useMediaUrl(bookId, "images", `/api/books/${bookId}/images/${image.id}`);
+  if (!src) {
+    return null;
+  }
+  return <img src={src} alt={image.alt} loading="lazy" decoding="async" />;
 }
 
 export const ReaderContent = memo(
@@ -65,14 +73,7 @@ export const ReaderContent = memo(
       renderedImages.add(image.id);
       return (
         <figure className="reader-figure" key={image.id}>
-          {bookId ? (
-            <img
-              src={apiUrl(`/books/${bookId}/images/${image.id}`)}
-              alt={image.alt}
-              loading="lazy"
-              decoding="async"
-            />
-          ) : null}
+          {bookId ? <ReaderFigure bookId={bookId} image={image} /> : null}
           {image.caption ? <figcaption>{image.caption}</figcaption> : null}
         </figure>
       );

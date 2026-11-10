@@ -2,11 +2,12 @@ import { AlertTriangle, FileText, Upload } from "lucide-react";
 import { type DragEvent, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { apiUrl, errorMessage } from "../../api/client";
+import { errorMessage } from "../../api/client";
 import { useImportBook } from "../../api/queries";
 import type { Book } from "../../api/types";
 import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { formatDuration } from "../../lib/format";
 
 const MAX_BYTES = 200 * 1024 * 1024;
@@ -17,6 +18,7 @@ export function ImportPage() {
   const [localError, setLocalError] = useState<string | null>(null);
   const [imported, setImported] = useState<Book | null>(null);
   const mutation = useImportBook();
+  const cover = useMediaUrl(imported?.id, "cover", imported?.cover_url);
 
   const chooseFile = () => inputRef.current?.click();
 
@@ -97,8 +99,8 @@ export function ImportPage() {
           <div className="panel-body">
             <div className="import-summary">
               <div className="book-cover">
-                {imported.cover_url ? (
-                  <img src={apiUrl(imported.cover_url)} alt={`Portada de ${imported.title}`} />
+                {cover ? (
+                  <img src={cover} alt={`Portada de ${imported.title}`} />
                 ) : (
                   <div className="cover-placeholder" aria-hidden="true">
                     <FileText size={28} />

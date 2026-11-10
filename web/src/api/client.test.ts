@@ -37,9 +37,7 @@ describe("api client", () => {
   it("usa la conexión del escritorio y su token", () => {
     configureApi({ baseUrl: "http://127.0.0.1:9999", token: "abc 123" });
 
-    expect(apiUrl("/api/books/x/cover")).toBe(
-      "http://127.0.0.1:9999/api/books/x/cover?token=abc%20123",
-    );
+    expect(apiUrl("/api/books/x/cover")).toBe("http://127.0.0.1:9999/api/books/x/cover");
     expect(authHeaders()).toEqual({ "X-Vibebook-Token": "abc 123" });
 
     configureApi({ baseUrl: "/api", token: "" });

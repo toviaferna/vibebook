@@ -13,7 +13,7 @@ import {
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { apiUrl, errorMessage } from "../../api/client";
+import { errorMessage } from "../../api/client";
 import {
   useAmbienceRenderJob,
   useAnalyzeBookAmbience,
@@ -31,6 +31,7 @@ import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
 import { ProgressBar } from "../../components/ProgressBar";
 import { StatusChip } from "../../components/StatusChip";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { formatDate, formatDuration, formatPercent, formatRate } from "../../lib/format";
 
 export function BookDetailPage() {
@@ -51,6 +52,17 @@ export function BookDetailPage() {
   const restoreResegment = useRestoreResegment(id ?? "");
   const [repairMessage, setRepairMessage] = useState<string | null>(null);
   const book = bookQuery.data;
+  const cover = useMediaUrl(id, "cover", book?.cover_url);
+  const m4bUrl = useMediaUrl(
+    id,
+    "m4b",
+    book?.status === "ready" ? `/api/books/${id}/m4b` : undefined,
+  );
+  const ambientUrl = useMediaUrl(
+    id,
+    "ambience",
+    ambienceJob.data?.status === "completed" ? `/api/books/${id}/ambience/audio` : undefined,
+  );
 
   if (bookQuery.isLoading) {
     return (
@@ -136,8 +148,8 @@ export function BookDetailPage() {
         <div className="panel-body">
           <div className="detail-grid">
             <div className="book-cover">
-              {book.cover_url ? (
-                <img src={apiUrl(book.cover_url)} alt={`Portada de ${book.title}`} />
+              {cover ? (
+                <img src={cover} alt={`Portada de ${book.title}`} />
               ) : (
                 <div className="cover-placeholder cover-placeholder--detail" aria-hidden="true">
                   <span className="cover-placeholder-mark">
@@ -215,12 +227,8 @@ export function BookDetailPage() {
                     Abrir estudio
                   </Link>
                 )}
-                {book.status === "ready" ? (
-                  <a
-                    className="button button--ghost"
-                    href={apiUrl(`/books/${book.id}/m4b`)}
-                    download
-                  >
+                {book.status === "ready" && m4bUrl ? (
+                  <a className="button button--ghost" href={m4bUrl} download>
                     <Download size={17} />
                     Descargar M4B
                   </a>
@@ -290,12 +298,8 @@ export function BookDetailPage() {
             >
               Exportar ambientado
             </Button>
-            {ambienceJob.data?.status === "completed" ? (
-              <a
-                className="button button--ghost"
-                href={apiUrl(`/books/${book.id}/ambience/audio`)}
-                download
-              >
+            {ambienceJob.data?.status === "completed" && ambientUrl ? (
+              <a className="button button--ghost" href={ambientUrl} download>
                 Descargar M4B ambientado
               </a>
             ) : null}

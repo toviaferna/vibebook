@@ -113,12 +113,7 @@ export function apiUrl(path: string): string {
     return path;
   }
   const normalized = path.startsWith("/api/") ? path.slice(4) : path;
-  const url = `${apiBase}${normalized}`;
-  if (!apiToken) {
-    return url;
-  }
-  const separator = url.includes("?") ? "&" : "?";
-  return `${url}${separator}token=${encodeURIComponent(apiToken)}`;
+  return `${apiBase}${normalized}`;
 }
 
 export const api = {
