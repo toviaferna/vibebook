@@ -565,7 +565,7 @@ def set_book_preferences(
     record = _record(request, book_id)
     preferences = request.app.state.db.set_book_preferences(
         record.id,
-        payload.model_dump(),
+        payload.model_dump(exclude_unset=True),
     )
     return BookPreferencesResponse(
         book_id=record.id,

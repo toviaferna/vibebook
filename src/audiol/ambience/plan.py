@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
 from audiol.ambience.models import AmbienceAnchor, AmbiencePlan, AmbienceSettings
 from audiol.manifest import load_manifest
+from audiol.storage import write_json_atomic
 from audiol.studio.library import BookRecord
 from audiol.timing import read_chapter_timing
 
@@ -159,12 +159,4 @@ def _anchor_start_ms(anchor: AmbienceAnchor, timing) -> int | None:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    temporary = path.with_name(f"{path.name}.{os.getpid()}.part")
-    try:
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    write_json_atomic(path, payload)

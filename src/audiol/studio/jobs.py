@@ -11,6 +11,7 @@ from uuid import uuid4
 from audiol.convert import ConversionCancelled, convert
 from audiol.manifest import SEGMENTATION_VERSION, book_from_manifest, load_manifest
 from audiol.resegment import repair_segments
+from audiol.studio.activity import BookActivity, BookBusy, BookLease
 from audiol.studio.db import Database
 from audiol.studio.library import BookRecord, Library
 from audiol.studio.plugins import PluginRegistry
@@ -56,53 +57,63 @@ class JobManager:
         provider_factory: Callable[[str], TTSProvider],
         allow_fake: bool = False,
         plugins: PluginRegistry | None = None,
+        activity: BookActivity | None = None,
     ) -> None:
         self.db = db
         self.library = library
         self.provider_factory = provider_factory
         self.allow_fake = allow_fake
         self.plugins = plugins
+        self.activity = activity or BookActivity()
         self._active_job_id: str | None = None
         self._cancel_event: threading.Event | None = None
         self._lock = threading.Lock()
 
     def start(self, book_id: str, options: JobOptions) -> str:
-        with self._lock:
-            if self._active_job_id is not None:
-                raise JobInProgress(self._active_job_id)
+        try:
+            lease = self.activity.reserve(book_id, "convert")
+        except BookBusy as exc:
+            raise JobInProgress(exc.kind) from exc
+        try:
+            with self._lock:
+                if self._active_job_id is not None:
+                    raise JobInProgress(self._active_job_id)
 
-            record = self.library.get(book_id)
-            self._refresh_imported_segments(record)
-            manifest = load_manifest(record.path / "manifest.json")
-            book = book_from_manifest(manifest)
-            if not book.chapters:
-                raise BookNotReady("Book has no readable chapters")
-            self._validate_options(options)
-            provider = self.provider_factory(options.engine)
+                record = self.library.get(book_id)
+                self._refresh_imported_segments(record)
+                manifest = load_manifest(record.path / "manifest.json")
+                book = book_from_manifest(manifest)
+                if not book.chapters:
+                    raise BookNotReady("Book has no readable chapters")
+                self._validate_options(options)
+                provider = self.provider_factory(options.engine)
 
-            job_id = f"job_{uuid4().hex}"
-            total_segments = sum(len(chapter.segments) for chapter in book.chapters)
-            self.db.create_job(
-                {
-                    "id": job_id,
-                    "book_id": record.id,
-                    "status": "queued",
-                    "stage": "preparing",
-                    "total_segments": total_segments,
-                    "options_json": json.dumps(asdict(options)),
-                }
-            )
-            cancel_event = threading.Event()
-            self._active_job_id = job_id
-            self._cancel_event = cancel_event
-            thread = threading.Thread(
-                target=self._run,
-                args=(job_id, record, book, options, provider, cancel_event),
-                name=f"vibebook-{job_id}",
-                daemon=True,
-            )
-            thread.start()
-            return job_id
+                job_id = f"job_{uuid4().hex}"
+                total_segments = sum(len(chapter.segments) for chapter in book.chapters)
+                self.db.create_job(
+                    {
+                        "id": job_id,
+                        "book_id": record.id,
+                        "status": "queued",
+                        "stage": "preparing",
+                        "total_segments": total_segments,
+                        "options_json": json.dumps(asdict(options)),
+                    }
+                )
+                cancel_event = threading.Event()
+                self._active_job_id = job_id
+                self._cancel_event = cancel_event
+                thread = threading.Thread(
+                    target=self._run,
+                    args=(job_id, record, book, options, provider, cancel_event, lease),
+                    name=f"vibebook-{job_id}",
+                    daemon=True,
+                )
+                thread.start()
+                return job_id
+        except BaseException:
+            self.activity.release(lease)
+            raise
 
     def cancel(self, job_id: str) -> dict:
         job = self.db.get_job(job_id)
@@ -204,6 +215,7 @@ class JobManager:
         options: JobOptions,
         provider: TTSProvider,
         cancel_event: threading.Event,
+        lease: BookLease,
     ) -> None:
         started_at = _now()
         try:
@@ -284,6 +296,7 @@ class JobManager:
                 finished_at=_now(),
             )
         finally:
+            self.activity.release(lease)
             with self._lock:
                 if self._active_job_id == job_id:
                     self._active_job_id = None

@@ -1,7 +1,9 @@
+import sqlite3
 from pathlib import Path
 
 import pytest
 
+import audiol.studio.db as db_module
 from audiol.studio.db import Database
 from audiol.studio.library import BookRecord
 
@@ -44,10 +46,73 @@ def test_migrate_is_idempotent(db: Database):
     db.migrate()
     db.migrate()
 
-    import sqlite3
-
     with sqlite3.connect(db.path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == db_module.SCHEMA_VERSION
+
+
+def test_migration_2_adds_sequence_to_reading_state(db: Database):
+    with sqlite3.connect(db.path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(reading_state)")}
+
+    assert "sequence" in columns
+
+
+def test_failed_migration_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    path = tmp_path / "db.sqlite"
+    database = Database(path)
+    monkeypatch.setattr(db_module, "MIGRATIONS", db_module.MIGRATIONS[:1])
+    database.migrate()
+
+    monkeypatch.setattr(
+        db_module,
+        "MIGRATIONS",
+        [
+            *db_module.MIGRATIONS[:1],
+            (2, "CREATE TABLE broken (id INTEGER); INSERT INTO missing VALUES (1);"),
+        ],
+    )
+    with pytest.raises(sqlite3.OperationalError):
+        database.migrate()
+
+    with sqlite3.connect(path) as connection:
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+    assert version == 1
+    assert "broken" not in tables
+
+
+def test_migration_backs_up_the_database_with_wal_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    path = tmp_path / "db.sqlite"
+    database = Database(path)
+    monkeypatch.setattr(db_module, "MIGRATIONS", db_module.MIGRATIONS[:1])
+    database.migrate()
+    database.upsert_book(make_record("libro-1234", "Libro"))
+    with sqlite3.connect(path) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("INSERT INTO settings (key, value) VALUES ('clave', 'valor')")
+        connection.commit()
+
+    monkeypatch.setattr(
+        db_module, "MIGRATIONS", [(1, db_module.SCHEMA_V1), (2, db_module.MIGRATION_2)]
+    )
+    database.migrate()
+
+    backups = list(tmp_path.glob("db.sqlite.backup-*"))
+    assert len(backups) == 1
+    with sqlite3.connect(backups[0]) as connection:
+        assert (
+            connection.execute("SELECT value FROM settings WHERE key = 'clave'").fetchone()[0]
+            == "valor"
+        )
+        assert (
+            connection.execute("SELECT title FROM books WHERE id = 'libro-1234'").fetchone()[0]
+            == "Libro"
+        )
 
 
 def test_upsert_and_get_book(db: Database):

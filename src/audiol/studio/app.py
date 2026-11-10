@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from audiol.ambience.library import AmbienceLibrary
+from audiol.studio.activity import BookActivity
 from audiol.studio.ambience_jobs import AmbienceJobManager
 from audiol.studio.api import ambience, books, engines, jobs, reader, voices
 from audiol.studio.api import settings as settings_api
@@ -33,6 +34,7 @@ def create_app(
     db = Database(settings.library_dir / ".vibebook.db")
     ambience_library = AmbienceLibrary(settings.library_dir / "ambience", db)
     plugins = PluginRegistry(settings.library_dir)
+    activity = BookActivity()
     resolved_factory = provider_factory or (
         lambda engine: plugins.make_provider(engine, allow_fake=settings.allow_fake)
     )
@@ -42,8 +44,9 @@ def create_app(
         resolved_factory,
         allow_fake=settings.allow_fake,
         plugins=plugins,
+        activity=activity,
     )
-    ambience_jobs = AmbienceJobManager(db, library, ambience_library)
+    ambience_jobs = AmbienceJobManager(db, library, ambience_library, activity=activity)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -59,6 +62,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.library = library
+    app.state.activity = activity
     app.state.db = db
     app.state.ambience = ambience_library
     app.state.ambience_jobs = ambience_jobs

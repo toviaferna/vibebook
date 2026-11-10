@@ -71,6 +71,16 @@ def test_resegment_applies_metadata_repair(client, imported):
     assert client.get(f"/api/books/{imported['id']}").status_code == 200
 
 
+def test_resegment_is_blocked_by_another_operation(client, imported):
+    lease = client.app.state.activity.reserve(imported["id"], "convert")
+
+    response = client.post(f"/api/books/{imported['id']}/resegment", json={})
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "book_busy"
+    client.app.state.activity.release(lease)
+
+
 def test_resegment_refuses_a_book_that_is_not_ready(client, imported):
     path = _book_dir(client, imported["id"]) / "manifest.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))

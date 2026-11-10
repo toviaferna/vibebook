@@ -15,6 +15,7 @@ from audiol.resegment import (
     repair_segments,
     restore_resegmentation,
 )
+from audiol.studio.activity import BookBusy
 from audiol.studio.errors import ApiError
 from audiol.studio.library import (
     BookNotFound,
@@ -44,6 +45,17 @@ def _record(request: Request, book_id: str) -> BookRecord:
         return request.app.state.library.get(book_id)
     except BookNotFound as exc:
         raise ApiError(404, "book_not_found", "El libro no existe.") from exc
+
+
+def _reserve(request: Request, book_id: str, kind: str):
+    try:
+        return request.app.state.activity.reserve(book_id, kind)
+    except BookBusy as exc:
+        raise ApiError(
+            409,
+            "book_busy",
+            f"El libro está ocupado con otra operación: {exc.kind}.",
+        ) from exc
 
 
 def _book_response(row: dict) -> BookResponse:
@@ -132,11 +144,15 @@ async def import_book(request: Request, file: Annotated[UploadFile, File()]) -> 
             raise ApiError(422, "invalid_epub", str(exc)) from exc
         except LibraryError as exc:
             raise ApiError(422, "invalid_library_entry", str(exc)) from exc
-        request.app.state.db.upsert_book(record)
-        row = request.app.state.db.get_book(record.id)
-        if row is None:
-            raise ApiError(500, "internal_error", "No se pudo indexar el libro.")
-        return _book_response(row)
+        lease = _reserve(request, record.id, "import")
+        try:
+            request.app.state.db.upsert_book(record)
+            row = request.app.state.db.get_book(record.id)
+            if row is None:
+                raise ApiError(500, "internal_error", "No se pudo indexar el libro.")
+            return _book_response(row)
+        finally:
+            request.app.state.activity.release(lease)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -172,12 +188,7 @@ async def run_resegment(
     payload: ResegmentRequest,
 ) -> dict:
     record = _record(request, book_id)
-    if request.app.state.jobs.is_book_active(record.id):
-        raise ApiError(
-            409,
-            "job_in_progress",
-            "No se puede reparar un libro mientras se está convirtiendo.",
-        )
+    lease = _reserve(request, record.id, "resegment")
     try:
         result = await run_in_threadpool(
             repair_segments,
@@ -194,6 +205,8 @@ async def run_resegment(
             "resegment_failed",
             "No se pudo reparar la segmentación. Revisá los registros del servidor.",
         ) from exc
+    finally:
+        request.app.state.activity.release(lease)
     if not payload.dry_run:
         refreshed = request.app.state.library.get(record.id)
         request.app.state.db.upsert_book(refreshed)
@@ -213,12 +226,7 @@ async def restore_resegment(
     payload: ResegmentRestoreRequest,
 ) -> dict:
     record = _record(request, book_id)
-    if request.app.state.jobs.is_book_active(record.id):
-        raise ApiError(
-            409,
-            "job_in_progress",
-            "No se puede restaurar un libro mientras se está convirtiendo.",
-        )
+    lease = _reserve(request, record.id, "restore")
     try:
         result = await run_in_threadpool(
             restore_resegmentation,
@@ -227,6 +235,8 @@ async def restore_resegment(
         )
     except ResegmentError as exc:
         raise ApiError(422, "resegment_failed", str(exc)) from exc
+    finally:
+        request.app.state.activity.release(lease)
     refreshed = request.app.state.library.get(record.id)
     request.app.state.db.upsert_book(refreshed)
     return result
@@ -235,18 +245,15 @@ async def restore_resegment(
 @router.delete("/{book_id}", status_code=204)
 def delete_book(request: Request, book_id: str) -> Response:
     record = _record(request, book_id)
-    if request.app.state.jobs.is_book_active(record.id):
-        raise ApiError(
-            409,
-            "job_in_progress",
-            "No se puede borrar un libro mientras se está convirtiendo.",
-        )
+    lease = _reserve(request, record.id, "delete")
     try:
         request.app.state.library.delete(record.id)
+        with contextlib.suppress(KeyError):
+            request.app.state.db.delete_book(record.id)
     except LibraryError as exc:
         raise ApiError(422, "invalid_library_entry", str(exc)) from exc
-    with contextlib.suppress(KeyError):
-        request.app.state.db.delete_book(record.id)
+    finally:
+        request.app.state.activity.release(lease)
     return Response(status_code=204)
 
 

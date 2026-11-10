@@ -5,6 +5,7 @@ import { apiUrl } from "../../../api/client";
 import type { ManifestChapter, ManifestImage } from "../../../api/types";
 import { chapterDisplayTitle } from "../chapterTitle";
 import { formatPageLabel, resolvePageMove } from "./navigation";
+import { clearPageCache, getCachedPages, pageCacheKey, setCachedPages } from "./pageCache";
 import { type BookPage, type PageBlock, pageIndexForOffset, paginateChapter } from "./paginator";
 
 export interface BookPageState {
@@ -29,20 +30,7 @@ interface BookReaderProps {
   onBookmark?: (state: BookPageState) => void;
 }
 
-const pageCache = new Map<string, BookPage[]>();
-const MAX_CACHE = 6;
 const TURN_MS = 220;
-
-function cacheKey(
-  chapter: ManifestChapter,
-  width: number,
-  height: number,
-  font: string,
-  size: number,
-  album: boolean,
-) {
-  return `${chapter.index}:${Math.round(width)}:${Math.round(height)}:${font}:${size}:${album ? "album" : "book"}`;
-}
 
 function imageDisplaySize(
   image: ManifestImage,
@@ -115,8 +103,17 @@ export function BookReader({
       const isSpread = width >= 820;
       const gap = isSpread ? 24 : 0;
       const pageWidth = isSpread ? (width - gap) / 2 : width;
-      const key = cacheKey(chapter, pageWidth, height, font, size, album);
-      let nextPages = pageCache.get(key);
+      const key = pageCacheKey({
+        bookId,
+        chapter,
+        images,
+        width: pageWidth,
+        height,
+        font,
+        size,
+        album,
+      });
+      let nextPages = getCachedPages(key);
       if (!nextPages) {
         const measureElement = document.createElement("div");
         measureElement.className = "book-page book-page--measure";
@@ -154,15 +151,9 @@ export function BookReader({
           );
           return measureElement.scrollHeight;
         };
-        nextPages = paginateChapter(chapter, images, measure, height);
+        nextPages = paginateChapter(chapter, images, measure, height, bookId);
         measureElement.remove();
-        pageCache.set(key, nextPages);
-        if (pageCache.size > MAX_CACHE) {
-          const first = pageCache.keys().next().value;
-          if (first) {
-            pageCache.delete(first);
-          }
-        }
+        setCachedPages(key, nextPages);
       }
       const anchor = hasPaginatedRef.current ? currentOffsetRef.current : initialOffsetRef.current;
       setSpread(isSpread);
@@ -176,11 +167,26 @@ export function BookReader({
     };
 
     paginate();
+    let cancelled = false;
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      void document.fonts.ready.then(() => {
+        if (!cancelled) {
+          paginate();
+        }
+      });
+    }
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => paginate());
     observer?.observe(element);
-    return () => observer?.disconnect();
-  }, [album, chapter, font, images, size]);
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+    };
+  }, [album, bookId, chapter, font, images, size]);
+
+  useEffect(() => {
+    clearPageCache(bookId);
+  }, [bookId]);
 
   useEffect(() => {
     if (pages.length === 0) {
@@ -408,7 +414,7 @@ export function BookReader({
         {visible.map((page) => (
           <article
             className="book-page"
-            key={`${chapter.index}-${page.startOffset}`}
+            key={page.id ?? `${chapter.index}-${page.startOffset}`}
             aria-label={`Página ${pageIndex + visible.indexOf(page) + 1}`}
           >
             <div className="book-page-body">

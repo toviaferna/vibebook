@@ -10,6 +10,7 @@ from audiol.ambience.library import AmbienceLibrary
 from audiol.ambience.mix import render_ambient_book
 from audiol.ambience.models import AmbiencePlan, AmbienceSettings
 from audiol.ambience.plan import load_ambience
+from audiol.studio.activity import BookActivity, BookLease
 from audiol.studio.db import Database
 from audiol.studio.library import Library
 
@@ -24,43 +25,50 @@ class AmbienceJobManager:
         db: Database,
         library: Library,
         ambience: AmbienceLibrary,
+        activity: BookActivity | None = None,
     ) -> None:
         self.db = db
         self.library = library
         self.ambience = ambience
+        self.activity = activity or BookActivity()
         self._lock = threading.Lock()
         self._active_job_id: str | None = None
 
     def start(self, book_id: str) -> str:
-        with self._lock:
-            if self._active_job_id is not None:
-                raise AmbienceRenderError("Ya hay un render de ambiente en curso.")
-            record = self.library.get(book_id)
-            settings, plan = load_ambience(record.path)
-            if not any(chapter.bed is not None or chapter.effects for chapter in plan.chapters):
-                raise AmbienceRenderError("El libro no tiene un plan de ambiente con cues.")
-            job_id = f"job_{uuid4().hex}"
-            manifest = json.loads((record.path / "manifest.json").read_text(encoding="utf-8"))
-            total = len(manifest.get("chapters", []))
-            self.db.create_job(
-                {
-                    "id": job_id,
-                    "book_id": record.id,
-                    "status": "queued",
-                    "stage": "rendering",
-                    "total_segments": total,
-                    "options_json": json.dumps({"kind": "ambience_render"}),
-                }
-            )
-            self._active_job_id = job_id
-            thread = threading.Thread(
-                target=self._run,
-                args=(job_id, record.id, settings, plan, total),
-                name=f"vibebook-{job_id}",
-                daemon=True,
-            )
-            thread.start()
-            return job_id
+        lease = self.activity.reserve(book_id, "ambience_render")
+        try:
+            with self._lock:
+                if self._active_job_id is not None:
+                    raise AmbienceRenderError("Ya hay un render de ambiente en curso.")
+                record = self.library.get(book_id)
+                settings, plan = load_ambience(record.path)
+                if not any(chapter.bed is not None or chapter.effects for chapter in plan.chapters):
+                    raise AmbienceRenderError("El libro no tiene un plan de ambiente con cues.")
+                job_id = f"job_{uuid4().hex}"
+                manifest = json.loads((record.path / "manifest.json").read_text(encoding="utf-8"))
+                total = len(manifest.get("chapters", []))
+                self.db.create_job(
+                    {
+                        "id": job_id,
+                        "book_id": record.id,
+                        "status": "queued",
+                        "stage": "rendering",
+                        "total_segments": total,
+                        "options_json": json.dumps({"kind": "ambience_render"}),
+                    }
+                )
+                self._active_job_id = job_id
+                thread = threading.Thread(
+                    target=self._run,
+                    args=(job_id, record.id, settings, plan, total, lease),
+                    name=f"vibebook-{job_id}",
+                    daemon=True,
+                )
+                thread.start()
+                return job_id
+        except BaseException:
+            self.activity.release(lease)
+            raise
 
     def _run(
         self,
@@ -69,11 +77,12 @@ class AmbienceJobManager:
         settings: AmbienceSettings,
         plan: AmbiencePlan,
         total: int,
+        lease: BookLease,
     ) -> None:
-        record = self.library.get(book_id)
-        now = datetime.now(UTC).isoformat()
-        self.db.update_job(job_id, status="running", stage="assembling", started_at=now)
         try:
+            record = self.library.get(book_id)
+            now = datetime.now(UTC).isoformat()
+            self.db.update_job(job_id, status="running", stage="assembling", started_at=now)
 
             def progress(done: int, total: int, title: str) -> None:
                 self.db.update_job(
@@ -116,6 +125,7 @@ class AmbienceJobManager:
                 finished_at=datetime.now(UTC).isoformat(),
             )
         finally:
+            self.activity.release(lease)
             with self._lock:
                 if self._active_job_id == job_id:
                     self._active_job_id = None

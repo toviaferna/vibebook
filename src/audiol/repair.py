@@ -12,7 +12,9 @@ from audiol.assemble import (
     calibrate_encoder_delay_ms,
     concat_pcm_to_mp3,
 )
+from audiol.convert import cache_key
 from audiol.manifest import book_from_manifest, load_manifest
+from audiol.paths import UnsafePathError, safe_book_path
 from audiol.storage import (
     backup_book_state,
     cleanup_staging,
@@ -42,6 +44,10 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
         raise RepairError("The manifest has no chapters")
 
     timing_offset_ms = calibrate_encoder_delay_ms(PCM_SAMPLE_RATE)
+    voice = str(manifest.get("voice") or "es-MX-JorgeNeural")
+    engine = str(manifest.get("engine") or "edge")
+    style = str(manifest.get("style") or "neutral")
+    rate = str(manifest.get("rate") or "-10%")
     rebuilt: list[int] = []
     skipped: list[int] = []
     durations: list[int] = []
@@ -57,7 +63,7 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
                 skipped.append(chapter.index)
                 durations.append(0)
                 continue
-            files = _chapter_segment_files(book_dir, chapter)
+            files = _chapter_segment_files(book_dir, chapter, voice, engine, style, rate)
             if files is None:
                 skipped.append(chapter.index)
                 durations.append(int(chapter_data.get("duration_ms") or 0))
@@ -69,6 +75,11 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
             timing_rel = chapter_data.get("timing")
             if not isinstance(timing_rel, str):
                 timing_rel = f"timings/chapter_{chapter.index:03d}.json"
+            try:
+                safe_book_path(book_dir, audio_rel)
+                safe_book_path(book_dir, timing_rel)
+            except UnsafePathError as exc:
+                raise RepairError(str(exc)) from exc
             staged_audio = chapters_dir / Path(audio_rel).name
             staged_timing = timings_dir / Path(timing_rel).name
 
@@ -128,21 +139,50 @@ def repair_book(book_dir: Path) -> dict[str, Any]:
     }
 
 
-def _chapter_segment_files(book_dir: Path, chapter) -> list[Path] | None:
+def _chapter_segment_files(
+    book_dir: Path,
+    chapter,
+    voice: str,
+    engine: str,
+    style: str,
+    rate: str,
+) -> list[Path] | None:
     if not chapter.segments:
         return None
     folder = book_dir / "audio" / "segments"
     files: list[Path] = []
     for segment in chapter.segments:
-        candidates = [
-            path
-            for path in sorted(folder.glob(f"{segment.id}_*"))
-            if path.suffix.lower() in AUDIO_EXTENSIONS
-        ]
-        if not candidates:
+        path = _select_segment_audio(folder, segment, voice, engine, style, rate)
+        if path is None:
             return None
-        files.append(candidates[0])
+        files.append(path)
     return files
+
+
+def _select_segment_audio(
+    folder: Path,
+    segment,
+    voice: str,
+    engine: str,
+    style: str,
+    rate: str,
+) -> Path | None:
+    key = cache_key(segment, voice, engine, style, rate)
+    exact = _audio_candidates(folder.glob(f"{segment.id}_{key}.*"))
+    if len(exact) > 1:
+        raise RepairError(f"Ambiguous segment audio for {segment.id}: exact key")
+    if exact:
+        return exact[0]
+    legacy = _audio_candidates(folder.glob(f"{segment.id}_*"))
+    if len(legacy) > 1:
+        raise RepairError(f"Ambiguous segment audio for {segment.id}: multiple legacy files")
+    return legacy[0] if legacy else None
+
+
+def _audio_candidates(paths) -> list[Path]:
+    return sorted(
+        path for path in paths if path.is_file() and path.suffix.lower() in AUDIO_EXTENSIONS
+    )
 
 
 def _write_json(path: Path, payload: dict) -> None:

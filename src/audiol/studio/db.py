@@ -9,7 +9,7 @@ from typing import Any
 
 from audiol.studio.library import BookRecord
 
-SCHEMA = """
+SCHEMA_V1 = """
 CREATE TABLE IF NOT EXISTS books (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -139,6 +139,16 @@ CREATE INDEX IF NOT EXISTS idx_reading_bookmarks_book_position
   ON reading_bookmarks(book_id, chapter_index, char_offset, created_at);
 """
 
+MIGRATION_2 = """
+ALTER TABLE reading_state ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0;
+"""
+
+MIGRATIONS: list[tuple[int, str]] = [
+    (1, SCHEMA_V1),
+    (2, MIGRATION_2),
+]
+SCHEMA_VERSION = MIGRATIONS[-1][0]
+
 SORT_SQL = {
     "recent": "b.created_at DESC",
     "title": "b.title COLLATE NOCASE ASC",
@@ -177,8 +187,34 @@ class Database:
     def migrate(self) -> None:
         with self._connect() as connection:
             connection.execute("PRAGMA journal_mode=WAL")
-            connection.executescript(SCHEMA)
-            connection.execute("PRAGMA user_version = 1")
+            current = int(connection.execute("PRAGMA user_version").fetchone()[0])
+            target = SCHEMA_VERSION
+            if current >= target:
+                return
+            if current > 0 and self.path.exists():
+                self._backup_database(current)
+            for version, script in MIGRATIONS:
+                if version <= current:
+                    continue
+                try:
+                    connection.executescript(
+                        f"BEGIN IMMEDIATE;\n{script}\nPRAGMA user_version = {version};\nCOMMIT;"
+                    )
+                except BaseException:
+                    connection.rollback()
+                    raise
+
+    def _backup_database(self, version: int) -> Path:
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
+        target = self.path.with_name(f"{self.path.name}.backup-{stamp}-v{version}")
+        source = sqlite3.connect(self.path)
+        destination = sqlite3.connect(target)
+        try:
+            source.backup(destination)
+        finally:
+            destination.close()
+            source.close()
+        return target
 
     def upsert_book(self, record: BookRecord) -> None:
         with self._connect() as connection:
@@ -594,32 +630,19 @@ class Database:
             if key in values and values[key] is not None:
                 values[key] = int(bool(values[key]))
         now = _now()
+        columns = ["book_id", *values, "updated_at"]
+        placeholders = ", ".join("?" for _ in columns)
+        assignments = ", ".join(
+            [f"{key}=excluded.{key}" for key in values] + ["updated_at=excluded.updated_at"]
+        )
         with self._connect() as connection:
             connection.execute(
-                """
-                INSERT INTO book_preferences (
-                    book_id, reader_mode, reader_palette, reader_font,
-                    reader_size, page_turn, ambience_enabled, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(book_id) DO UPDATE SET
-                    reader_mode=excluded.reader_mode,
-                    reader_palette=excluded.reader_palette,
-                    reader_font=excluded.reader_font,
-                    reader_size=excluded.reader_size,
-                    page_turn=excluded.page_turn,
-                    ambience_enabled=excluded.ambience_enabled,
-                    updated_at=excluded.updated_at
+                f"""
+                INSERT INTO book_preferences ({", ".join(columns)})
+                VALUES ({placeholders})
+                ON CONFLICT(book_id) DO UPDATE SET {assignments}
                 """,
-                (
-                    book_id,
-                    values.get("reader_mode"),
-                    values.get("reader_palette"),
-                    values.get("reader_font"),
-                    values.get("reader_size"),
-                    values.get("page_turn"),
-                    values.get("ambience_enabled"),
-                    now,
-                ),
+                (book_id, *values.values(), now),
             )
             row = connection.execute(
                 "SELECT * FROM book_preferences WHERE book_id = ?", (book_id,)

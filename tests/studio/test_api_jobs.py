@@ -114,7 +114,7 @@ def test_delete_while_converting_returns_409(client, imported):
 
     response = client.delete(f"/api/books/{imported['id']}")
     assert response.status_code == 409
-    assert response.json()["error"]["code"] == "job_in_progress"
+    assert response.json()["error"]["code"] == "book_busy"
 
     client.post(f"/api/jobs/{job_id}/cancel")
     release.set()

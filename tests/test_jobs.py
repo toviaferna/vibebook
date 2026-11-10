@@ -13,7 +13,7 @@ from audiol.studio.jobs import (
     JobNotFound,
     JobOptions,
 )
-from audiol.studio.library import Library
+from audiol.studio.library import BookNotFound, Library
 from audiol.tools import find_binary
 from audiol.tts.fake import FakeProvider
 
@@ -86,6 +86,20 @@ def wait_for_status(
             return job
         time.sleep(0.05)
     raise AssertionError(f"job {job_id} did not reach {statuses}: {manager.get(job_id)}")
+
+
+def test_start_releases_activity_when_book_is_missing(db: Database, library: Library):
+    manager = JobManager(
+        db,
+        library,
+        provider_factory=lambda engine: FakeProvider(),
+        allow_fake=True,
+    )
+
+    with pytest.raises(BookNotFound):
+        manager.start("missing-book", OPTIONS)
+
+    assert manager.activity.active("missing-book") is None
 
 
 @requires_ffmpeg

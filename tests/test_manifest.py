@@ -1,4 +1,5 @@
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -308,3 +309,23 @@ def test_write_manifest_replaces_m4b_instead_of_preserving_it(tmp_path: Path):
 
     loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
     assert loaded["m4b"] == "new.m4b"
+
+
+def test_concurrent_manifest_writes_do_not_corrupt(tmp_path: Path):
+    data = _v1_manifest()
+    (tmp_path / "manifest.json").write_text(json.dumps(data), encoding="utf-8")
+    book = book_from_manifest(data)
+
+    def write() -> None:
+        for _ in range(50):
+            write_manifest(book, tmp_path, "es-MX-JorgeNeural", "edge", book_id="libro")
+
+    threads = [threading.Thread(target=write) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    loaded = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert loaded["title"] == "Libro viejo"
+    assert len(loaded["chapters"][0]["segments"]) == 2

@@ -1,10 +1,10 @@
 import json
-import os
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
 from audiol.models import Book, BookImage, Chapter, Segment, TocNode, make_segment_id
+from audiol.storage import write_json_atomic
 
 SCHEMA_VERSION = 2
 SEGMENTATION_VERSION = 2
@@ -217,9 +217,7 @@ def write_manifest(
     }
     for key, value in previous.items():
         data.setdefault(key, value)
-    temporary = path.with_name(f"{path.name}.tmp")
-    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(temporary, path)
+    write_json_atomic(path, data)
     return path
 
 
