@@ -67,6 +67,16 @@ Build `aarch64` de v0.5.0 en GitHub Actions:
 - `checksums-android.txt` usa el nombre del APK, sin el prefijo `artifacts/`.
 - Queda pendiente la prueba en dispositivo y el cierre de SAF/SQLite/audio.
 
+### Estado 0.6 (sin hardware)
+
+- El puente con escritorio (pareo, descarga de M4B, catálogo) **no está
+  implementado**; el APK sigue siendo lector EPUB con IndexedDB.
+- El player de audio local en Android **no está implementado**.
+- La conversión on-device (Sherpa-ONNX) **no está implementada**; se mantiene
+  como experimental y fuera del release.
+- Para cerrar la ola 6/7 hace falta un dispositivo Android físico o un emulador
+  con SAF, SQLite y salida de audio verificables.
+
 ## Rendimiento
 
 - Objetivo APK: ≤ 50 MB.

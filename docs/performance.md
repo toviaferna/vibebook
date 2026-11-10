@@ -50,6 +50,40 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 - La paginación del lector ya estaba cacheada por capítulo, medidas y
   tipografía; no se recalcula al pasar páginas.
 
+## N7 — lector, biblioteca y release (2026-11-10)
+
+| Métrica | Antes | Después |
+|---|---:|---:|
+| JS inicial | 118,0 KiB gzip | **118,9 KiB gzip** |
+| CSS inicial | 8,4 KiB gzip | **8,4 KiB gzip** |
+| Tests web | 89 | **96** |
+| Tests backend | 435 | **464** |
+| Vulnerabilidades npm/pip | — | **0** |
+
+- La caché de paginación ahora incluye libro, contenido, imágenes, viewport,
+  fuente y modo álbum.
+- La biblioteca usa `useInfiniteQuery` de a 60 libros; el total viene del
+  servidor.
+- Las escrituras de posición se debouncean 350 ms y llevan secuencia monotónica.
+- El lector libera `src` de audio al desmontar.
+- `npm run check:bundle` sigue dentro del presupuesto: 118,9 KiB JS y 8,4 KiB
+  CSS.
+
+## Build
+
+El sidecar se empaqueta con PyInstaller en modo onefile
+(`packaging/pyinstaller/vibebook-sidecar.spec`). Para medir el arranque
+alternativo hay un spec onedir experimental:
+
+```bash
+uv run pyinstaller packaging/pyinstaller/vibebook-sidecar-onedir.spec --noconfirm
+```
+
+El resultado queda en `dist/vibebook-sidecar/`; para usarlo con Tauri hay que
+apuntar `VIBEBOOK_SIDECAR` al ejecutable dentro de esa carpeta o copiarlo a
+`dist/vibebook-sidecar`. No se cambió el release a onedir todavía porque el
+workflow y el recurso de Tauri esperan un archivo único.
+
 ## Verificación local
 
 ```bash

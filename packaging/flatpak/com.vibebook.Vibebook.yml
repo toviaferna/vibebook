@@ -1,0 +1,50 @@
+app-id: com.vibebook.Vibebook
+runtime: org.gnome.Platform
+runtime-version: "46"
+sdk: org.gnome.Sdk
+command: vibebook-flatpak
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=network
+  - --filesystem=home
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --env=PATH=/app/bin:/usr/lib/extensions/ffmpeg-full/bin:/usr/bin
+  - --env=VIBEBOOK_SIDECAR=/app/lib/vibebook/sidecar/vibebook-sidecar
+  - --env=VIBEBOOK_WEB_DIST=/app/share/vibebook/web
+
+add-extensions:
+  org.freedesktop.Platform.ffmpeg-full:
+    directory: lib/ffmpeg
+    version: "24.08"
+    add-ld-path: "."
+    autodownload: true
+
+modules:
+  - name: vibebook
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 vibebook /app/bin/vibebook
+      - install -Dm755 vibebook-sidecar /app/lib/vibebook/sidecar/vibebook-sidecar
+      - install -Dm755 vibebook-flatpak /app/bin/vibebook-flatpak
+      - mkdir -p /app/share/vibebook
+      - cp -r web /app/share/vibebook/web
+      - install -Dm644 com.vibebook.Vibebook.desktop /app/share/applications/com.vibebook.Vibebook.desktop
+      - install -Dm644 com.vibebook.Vibebook.png /app/share/icons/hicolor/128x128/apps/com.vibebook.Vibebook.png
+    sources:
+      - type: file
+        path: ../../src-tauri/target/release/vibebook
+      - type: file
+        path: ../../dist/vibebook-sidecar
+      - type: dir
+        path: ../../web/dist
+        dest: web
+      - type: file
+        path: vibebook-flatpak
+      - type: file
+        path: com.vibebook.Vibebook.desktop
+      - type: file
+        path: com.vibebook.Vibebook.png
