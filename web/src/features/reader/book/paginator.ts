@@ -55,6 +55,12 @@ export function chapterParagraphs(chapter: ManifestChapter): Paragraph[] {
   return paragraphs;
 }
 
+export function chapterTextLength(chapter: ManifestChapter): number {
+  const paragraphs = chapterParagraphs(chapter);
+  const last = paragraphs[paragraphs.length - 1];
+  return last ? last.startOffset + last.text.length : 0;
+}
+
 export function bookFlow(chapter: ManifestChapter, images: ManifestImage[]): BookItem[] {
   const paragraphs = chapterParagraphs(chapter);
   const byParagraph = new Map<number, ManifestImage[]>();

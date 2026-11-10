@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from audiol.studio.api.reader import _MANIFEST_CACHE, _load_manifest_cached
+from audiol.studio.api.reader import _MANIFEST_CACHE, _chapter_text_length, _load_manifest_cached
 from audiol.tools import find_binary
 
 
@@ -180,7 +180,7 @@ def test_reading_state_defaults_and_roundtrip(client, imported):
 
 def test_reading_state_rejects_unknown_chapter_and_offset(client, imported):
     chapter = client.get(f"/api/books/{imported['id']}/chapters/1").json()["chapter"]
-    text_length = sum(len(segment["text"]) for segment in chapter["segments"])
+    text_length = _chapter_text_length(chapter)
 
     unknown = client.put(
         f"/api/books/{imported['id']}/reading-state",
@@ -190,9 +190,46 @@ def test_reading_state_rejects_unknown_chapter_and_offset(client, imported):
         f"/api/books/{imported['id']}/reading-state",
         json={"chapter_index": 1, "char_offset": text_length + 1, "percent": 0},
     )
+    at_end = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={"chapter_index": 1, "char_offset": text_length, "percent": 0},
+    )
 
     assert unknown.status_code == 404
     assert too_far.status_code == 422
+    assert at_end.status_code == 200
+
+
+def test_reading_state_keeps_the_highest_sequence(client, imported):
+    first = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={
+            "chapter_index": 1,
+            "char_offset": 12,
+            "page_index": 2,
+            "page_count": 8,
+            "percent": 0.25,
+            "sequence": 2,
+        },
+    )
+    stale = client.put(
+        f"/api/books/{imported['id']}/reading-state",
+        json={
+            "chapter_index": 1,
+            "char_offset": 1,
+            "page_index": 0,
+            "page_count": 8,
+            "percent": 0.1,
+            "sequence": 1,
+        },
+    )
+
+    assert first.status_code == 200
+    assert first.json()["sequence"] == 2
+    assert stale.status_code == 200
+    assert stale.json()["sequence"] == 2
+    assert stale.json()["char_offset"] == 12
+    assert stale.json()["percent"] == 0.25
 
 
 def test_reading_bookmarks_crud(client, imported):

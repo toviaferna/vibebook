@@ -25,7 +25,7 @@ test("el lector y la biblioteca caben en 720p, 768p, 1080p y mobile", async ({
     await page.setViewportSize(viewport);
 
     await page.goto("/#/");
-    await expect(page.getByRole("heading", { name: "Tu taller de escucha" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Tu biblioteca" })).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
       `biblioteca sin overflow horizontal en ${label}`,

@@ -12,7 +12,7 @@ test("biblioteca, detalle, estudio y lector sin violaciones graves", async ({
   await api.dispose();
 
   const pages = [
-    { path: "/", heading: "Tu taller de escucha" },
+    { path: "/", heading: "Tu biblioteca" },
     { path: `/#/books/${book.id}`, heading: "Lector E2E" },
     { path: `/#/books/${book.id}/studio`, heading: "Lector E2E" },
     { path: `/#/books/${book.id}/read`, heading: "Capítulo 1" },

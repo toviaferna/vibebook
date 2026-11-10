@@ -109,7 +109,7 @@ export function ImportPage() {
               </div>
               <div>
                 <p className="page-subtitle">
-                  El texto está listo. El siguiente paso es elegir cómo va a sonar.
+                  El libro ya está importado. Ahora podés leerlo o preparar el audiolibro.
                 </p>
                 <div className="summary-facts">
                   <div className="fact">

@@ -8,6 +8,7 @@ import type {
 } from "../../api/types";
 import { useMediaUrl } from "../../hooks/useMediaUrl";
 import type { AlignedSegment } from "./alignment";
+import { chapterParagraphs } from "./book/paginator";
 import { chapterDisplayTitle } from "./chapterTitle";
 
 interface ReaderContentProps {
@@ -65,6 +66,12 @@ export const ReaderContent = memo(
       [timing],
     );
     const renderedImages = new Set<string>();
+    const paragraphOffsets = new Map(
+      chapterParagraphs(chapter).map((paragraph) => [
+        paragraph.paragraphIndex,
+        paragraph.startOffset,
+      ]),
+    );
 
     const renderFigure = (image: ManifestImage) => {
       if (renderedImages.has(image.id)) {
@@ -107,7 +114,11 @@ export const ReaderContent = memo(
         {paragraphs.map((paragraph) => {
           const paragraphIndex = paragraph[0]?.paragraph_index ?? 0;
           return (
-            <div key={paragraph[0]?.id ?? "empty"}>
+            <div
+              key={paragraph[0]?.id ?? "empty"}
+              data-paragraph-index={paragraphIndex}
+              data-start-offset={paragraphOffsets.get(paragraphIndex) ?? 0}
+            >
               {chapterImages
                 .filter(
                   (image) =>

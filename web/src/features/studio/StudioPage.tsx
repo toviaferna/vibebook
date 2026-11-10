@@ -86,15 +86,39 @@ export function StudioPage() {
   });
 
   useEffect(() => {
-    if (initialized.current || !book) {
+    if (initialized.current || !book || enginesQuery.isLoading || settingsQuery.isLoading) {
       return;
     }
     const defaults = settings;
-    setVoice(book.voice ?? defaults?.default_voice ?? "es-MX-JorgeNeural");
+    const preferredEngine = book.engine ?? defaults?.default_engine ?? "edge";
+    const selected =
+      engines.find((item) => item.id === preferredEngine && item.available) ??
+      engines.find((item) => item.available) ??
+      engines[0];
+    if (!selected) {
+      return;
+    }
+    setEngine(selected.id);
     setRate(book.rate ?? defaults?.default_rate ?? "-10%");
-    setEngine(book.engine ?? defaults?.default_engine ?? "edge");
+    const preferredVoice = book.voice ?? defaults?.default_voice ?? "es-MX-JorgeNeural";
+    const voiceExists = voices.some(
+      (item) => item.id === preferredVoice && item.engines.includes(selected.id),
+    );
+    setVoice(
+      voiceExists ? preferredVoice : (defaultVoiceForEngine(selected.id, voices) ?? preferredVoice),
+    );
     initialized.current = true;
-  }, [book, settings]);
+  }, [book, engines, enginesQuery.isLoading, settings, settingsQuery.isLoading, voices]);
+
+  useEffect(() => {
+    if (!voices.length) {
+      return;
+    }
+    const available = voices.filter((item) => item.engines.includes(engine));
+    if (available.length > 0 && !available.some((item) => item.id === voice)) {
+      setVoice(available[0].id);
+    }
+  }, [engine, voice, voices]);
 
   useEffect(() => {
     if (jobId || !book?.last_job) {
@@ -368,7 +392,7 @@ export function StudioPage() {
                 </select>
                 <p className="hint">
                   {selectedEngine?.description ??
-                    "Edge es el camino rápido. Azure requiere credenciales y tiene cuota mensual."}
+                    "Edge suele ser la opción más rápida, pero es un servicio externo. Azure requiere credenciales y tiene cuota mensual."}
                 </p>
               </div>
               <details className="advanced">

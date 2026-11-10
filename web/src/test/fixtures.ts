@@ -318,6 +318,7 @@ export const sampleReadingState: ReadingState = {
   page_count: 1,
   percent: 0,
   cfi: null,
+  sequence: 0,
   updated_at: null,
 };
 
@@ -344,6 +345,7 @@ export const sampleSearch: SearchResponse = {
       position_ms: 0,
       excerpt: "Hola, mundo. Esta es una prueba.",
       offset: 0,
+      char_offset: 0,
     },
   ],
 };

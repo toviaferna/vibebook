@@ -1,5 +1,11 @@
 ﻿import type { ManifestChapter, ManifestImage, ManifestSegment } from "../../../api/types";
-import { bookFlow, chapterParagraphs, pageIndexForOffset, paginateChapter } from "./paginator";
+import {
+  bookFlow,
+  chapterParagraphs,
+  chapterTextLength,
+  pageIndexForOffset,
+  paginateChapter,
+} from "./paginator";
 
 function chapter(texts: string[]): ManifestChapter {
   const segments: ManifestSegment[] = texts.map((text, index) => ({
@@ -32,6 +38,9 @@ describe("paginator", () => {
     expect(paragraphs.map((paragraph) => paragraph.text)).toEqual(["Hola mundo", "AdiÃ³s"]);
     expect(paragraphs[0].startOffset).toBe(0);
     expect(paragraphs[1].startOffset).toBe("Hola mundo".length + 1);
+    expect(chapterTextLength(chapter(["Hola mundo", "Adiós mundo"]))).toBe(
+      "Hola mundo".length + 1 + "Adiós mundo".length,
+    );
   });
 
   it("pagina sin perder texto y mantiene offsets", () => {

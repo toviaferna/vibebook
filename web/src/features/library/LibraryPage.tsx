@@ -51,7 +51,8 @@ export function LibraryPage() {
   const debouncedQuery = useDebouncedValue(query);
   const books = useBooks({ q: debouncedQuery, sort });
   const rescan = useRescan();
-  const items = books.data?.items ?? [];
+  const items = books.data?.pages.flatMap((page) => page.items) ?? [];
+  const total = books.data?.pages[0]?.total ?? 0;
   const filteredItems = items.filter((book) => matchesFilter(book, filter));
   const continueBook =
     items.find((book) => book.reading_progress > 0) ??
@@ -62,8 +63,8 @@ export function LibraryPage() {
     <div className="page">
       <PageHeader
         eyebrow="Biblioteca"
-        title="Tu taller de escucha"
-        subtitle="Importá EPUB, leelos a tu ritmo y convertí a audiolibro solo cuando quieras."
+        title="Tu biblioteca"
+        subtitle="Importá un EPUB y leelo cuando quieras; el audiolibro es opcional."
         actions={
           <>
             <IconButton
@@ -112,7 +113,9 @@ export function LibraryPage() {
             ))}
           </select>
           <span className="mono muted">
-            {filteredItems.length} {pluralize(filteredItems.length, "libro", "libros")}
+            {hasActiveFilter
+              ? `${filteredItems.length} ${pluralize(filteredItems.length, "libro", "libros")}`
+              : `${total} ${pluralize(total, "libro", "libros")}`}
           </span>
         </div>
       </div>
@@ -183,6 +186,14 @@ export function LibraryPage() {
           {filteredItems.map((book) => (
             <BookCard book={book} key={book.id} />
           ))}
+        </div>
+      ) : null}
+
+      {books.hasNextPage ? (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: "var(--space-5)" }}>
+          <Button onClick={() => void books.fetchNextPage()} loading={books.isFetchingNextPage}>
+            Cargar más libros
+          </Button>
         </div>
       ) : null}
     </div>

@@ -68,3 +68,37 @@ test("reproduce, resalta y persiste la posición", async ({ page, playwright }) 
   );
   expect(paused).toBe(true);
 });
+
+test("guarda la posición del texto y el CFI del original", async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: API_URL });
+  const book = await ensureReadyBook(api, "e2e-reader.epub", "Lector E2E");
+  await resetReadingState(api, book.id);
+  await api.dispose();
+
+  await page.goto(`/#/books/${book.id}/read`);
+  await expect(page.getByRole("heading", { name: "Capítulo 1" })).toBeVisible();
+  await page.getByRole("button", { name: "Buscar en el libro" }).click();
+  await page.getByRole("searchbox", { name: "Texto a buscar" }).fill("lector");
+  await page.getByRole("button", { name: /Cap\. 1/ }).first().click();
+  await page.waitForTimeout(900);
+
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(`/api/books/${book.id}/reading-state`);
+      const state = await response.json();
+      return state.char_offset as number;
+    })
+    .toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Original" }).click();
+  await expect(page.getByTestId("original-epub")).toHaveAttribute("data-status", "ready", {
+    timeout: 20_000,
+  });
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(`/api/books/${book.id}/reading-state`);
+      const state = await response.json();
+      return state.cfi as string | null;
+    })
+    .not.toBeNull();
+});

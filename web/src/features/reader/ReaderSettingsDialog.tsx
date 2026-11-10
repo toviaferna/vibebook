@@ -41,7 +41,7 @@ export function ReaderSettingsDialog({
             <div>
               <p className="eyebrow">Lectura</p>
               <Dialog.Title asChild>
-                <h2>Tu espacio</h2>
+                <h2>Ajustes de lectura</h2>
               </Dialog.Title>
             </div>
             <Dialog.Close asChild>

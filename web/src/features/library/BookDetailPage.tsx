@@ -32,7 +32,14 @@ import { PageHeader } from "../../components/PageHeader";
 import { ProgressBar } from "../../components/ProgressBar";
 import { StatusChip } from "../../components/StatusChip";
 import { useMediaUrl } from "../../hooks/useMediaUrl";
-import { formatDate, formatDuration, formatPercent, formatRate } from "../../lib/format";
+import {
+  formatDate,
+  formatDuration,
+  formatPercent,
+  formatRate,
+  formatStatus,
+  pluralize,
+} from "../../lib/format";
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -187,7 +194,7 @@ export function BookDetailPage() {
               <div className="detail-facts">
                 <div className="fact">
                   <strong>{book.chapter_count}</strong>
-                  <span>Capítulos</span>
+                  <span>{pluralize(book.chapter_count, "Capítulo", "Capítulos")}</span>
                 </div>
                 <div className="fact">
                   <strong>
@@ -243,7 +250,8 @@ export function BookDetailPage() {
         <div className="colophon-copy">
           <p className="eyebrow">Colofón</p>
           <p>
-            Edición local · {book.chapter_count} capítulos ·{" "}
+            Edición local · {book.chapter_count}{" "}
+            {pluralize(book.chapter_count, "capítulo", "capítulos")} ·{" "}
             {book.status === "ready"
               ? `${book.engine === "azure" ? "Azure" : "Edge"} · ${book.voice ?? "voz local"} · ${formatRate(book.rate)}`
               : "sin audio · lectura directa del EPUB"}
@@ -271,8 +279,8 @@ export function BookDetailPage() {
         </div>
         <div className="panel-body ambience-body">
           <p className="hint">
-            Camas y efectos locales, sin cuentas ni APIs pagas. Generá las camas procedurales,
-            analizá el texto y después activá el ambiente desde el lector.
+            Camas y efectos locales, sin cuentas ni APIs pagas. Generá los fondos sonoros, analizá
+            el texto y después activá el ambiente desde el lector.
           </p>
           <div className="ambience-actions">
             <Button onClick={() => generateBeds.mutate(undefined)} loading={generateBeds.isPending}>
@@ -306,7 +314,7 @@ export function BookDetailPage() {
           </div>
           {ambienceJob.data ? (
             <p className="hint">
-              Render: {ambienceJob.data.status}
+              Preparando audio: {formatStatus(ambienceJob.data.status)}
               {ambienceJob.data.status === "running" && ambienceJob.data.chapter_title
                 ? ` · ${ambienceJob.data.chapter_title}`
                 : null}
@@ -429,7 +437,7 @@ export function BookDetailPage() {
             <div className="summary-list" style={{ marginTop: "var(--space-3)" }}>
               <div className="summary-row">
                 <span>Estado</span>
-                <strong>{book.last_job.status}</strong>
+                <strong>{formatStatus(book.last_job.status)}</strong>
               </div>
               <div className="summary-row">
                 <span>Progreso</span>
@@ -462,8 +470,8 @@ export function BookDetailPage() {
               </Dialog.Title>
               <Dialog.Description asChild>
                 <p>
-                  Se borran el EPUB, el audio, los timings y el estado de lectura. Esta acción no se
-                  puede deshacer.
+                  Se borran el EPUB, el audio, los datos de sincronización y el estado de lectura.
+                  Esta acción no se puede deshacer.
                 </p>
               </Dialog.Description>
               {deleteError ? (

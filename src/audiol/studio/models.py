@@ -176,10 +176,12 @@ class ReadingStateUpdate(BaseModel):
     page_count: int | None = Field(default=None, ge=0)
     percent: float = Field(default=0.0, ge=0.0, le=1.0)
     cfi: str | None = Field(default=None, max_length=2000)
+    sequence: int | None = Field(default=None, ge=0)
 
 
 class ReadingStateResponse(ReadingStateUpdate):
     book_id: str
+    sequence: int = 0
     updated_at: str | None = None
 
 
@@ -229,6 +231,7 @@ class SearchResult(BaseModel):
     position_ms: int
     excerpt: str
     offset: int
+    char_offset: int = 0
 
 
 class SearchResponse(BaseModel):

@@ -25,14 +25,14 @@ import {
   useSaveReadingState,
   useSettings,
   useUpdateBookPreferences,
-  useUpdateSettings,
 } from "../../api/queries";
-import type { ChapterTiming, ReadingBookmark } from "../../api/types";
+import type { ChapterTiming, ReadingBookmark, ReadingStateInput } from "../../api/types";
 import { Button } from "../../components/Button";
 import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { type ReaderPalette, readStoredReaderPalette, storeReaderPalette } from "../../lib/theme";
 import { alignSegment, findActive, findActiveWord } from "./alignment";
 import { type BookPageState, BookReader } from "./book/BookReader";
+import { chapterTextLength } from "./book/paginator";
 import { chapterDisplayTitle } from "./chapterTitle";
 import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
@@ -66,7 +66,6 @@ export function ReaderPage() {
   const saveState = useSaveReaderState(id ?? "");
   const saveReadingState = useSaveReadingState(id ?? "");
   const createReadingBookmark = useCreateReadingBookmark(id ?? "");
-  const updateSettings = useUpdateSettings();
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
@@ -88,13 +87,18 @@ export function ReaderPage() {
   const [followSuspended, setFollowSuspended] = useState(false);
   const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
   const [ambienceVolume, setAmbienceVolume] = useState(() => {
-    const stored = Number(window.localStorage.getItem("vibebook.ambience-volume"));
+    const raw = window.localStorage.getItem("vibebook.ambience-volume");
+    if (raw === null) {
+      return 0.35;
+    }
+    const stored = Number(raw);
     return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.35;
   });
   const [font, setFont] = useState<ReaderFont>("serif");
   const [size, setSize] = useState(19);
   const [skipSeconds, setSkipSeconds] = useState(15);
   const [sleepMinutes, setSleepMinutes] = useState(0);
+  const [sleepDeadline, setSleepDeadline] = useState<number | null>(null);
   const [seekNonce, setSeekNonce] = useState(0);
   const initialized = useRef(false);
   const viewInitialized = useRef(false);
@@ -102,6 +106,9 @@ export function ReaderPage() {
   const pendingSeek = useRef<number | null>(null);
   const autoPlay = useRef(false);
   const followTimer = useRef<number | null>(null);
+  const readingSequence = useRef(0);
+  const readingSaveTimer = useRef<number | null>(null);
+  const textInitialized = useRef(false);
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const contentRef = useRef<HTMLElement>(null);
 
@@ -189,12 +196,13 @@ export function ReaderPage() {
     id && audioReady ? `/api/books/${id}/audio/${chapterIndex}` : undefined,
   );
   const chapters = manifest?.chapters ?? [];
+  const chapterPosition = chapters.findIndex((item) => item.index === chapterIndex);
+  const chapterLength = chapter ? chapterTextLength(chapter) : 0;
   const bookInitialOffset =
     bookOffsetOverride ??
     (readingStateQuery.data?.chapter_index === chapterIndex
       ? readingStateQuery.data.char_offset
       : 0);
-  const chapterPosition = chapters.findIndex((item) => item.index === chapterIndex);
   const previousChapter = chapterPosition > 0 ? chapters[chapterPosition - 1] : null;
   const nextChapter =
     chapterPosition >= 0 && chapterPosition < chapters.length - 1
@@ -254,21 +262,6 @@ export function ReaderPage() {
   );
 
   useEffect(() => {
-    if (!prefsSeeded.current) {
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      updateSettings.mutate({
-        reader_palette: palette,
-        reader_font: font,
-        reader_size: size,
-        auto_scroll: follow,
-      });
-    }, 500);
-    return () => window.clearTimeout(timer);
-  }, [follow, font, palette, size, updateSettings.mutate]);
-
-  useEffect(() => {
     if (initialized.current || !manifest || !stateQuery.data) {
       return;
     }
@@ -293,25 +286,166 @@ export function ReaderPage() {
     viewInitialized.current = true;
   }, [chapterPayload, manifest, preferencesQuery.data?.reader_mode, preferencesQuery.isLoading]);
 
+  const queueReadingState = useCallback(
+    (input: Omit<ReadingStateInput, "sequence">) => {
+      readingSequence.current += 1;
+      const payload: ReadingStateInput = { ...input, sequence: readingSequence.current };
+      if (readingSaveTimer.current !== null) {
+        window.clearTimeout(readingSaveTimer.current);
+      }
+      readingSaveTimer.current = window.setTimeout(() => {
+        readingSaveTimer.current = null;
+        saveReadingState.mutate(payload);
+      }, 350);
+    },
+    [saveReadingState.mutate],
+  );
+
+  useEffect(() => {
+    const serverSequence = readingStateQuery.data?.sequence;
+    if (typeof serverSequence === "number") {
+      readingSequence.current = Math.max(readingSequence.current, serverSequence);
+    }
+  }, [readingStateQuery.data?.sequence]);
+
+  useEffect(
+    () => () => {
+      if (readingSaveTimer.current !== null) {
+        window.clearTimeout(readingSaveTimer.current);
+      }
+    },
+    [],
+  );
+
   const handleBookPage = useCallback(
     (page: BookPageState) => {
       setBookPage(page);
-      const total = manifest?.chapters.length ?? 0;
-      const position = manifest?.chapters.findIndex((item) => item.index === chapterIndex) ?? 0;
+      const total = chapters.length;
       const percent =
         total > 0
-          ? Math.min(1, (Math.max(0, position) + page.pageIndex / page.pageCount) / total)
+          ? Math.min(1, (Math.max(0, chapterPosition) + page.pageIndex / page.pageCount) / total)
           : 0;
-      saveReadingState.mutate({
+      queueReadingState({
         chapter_index: chapterIndex,
         char_offset: page.charOffset,
         page_index: page.pageIndex,
         page_count: page.pageCount,
         percent,
+        cfi: null,
       });
     },
-    [chapterIndex, manifest?.chapters, saveReadingState.mutate],
+    [chapterIndex, chapterPosition, chapters.length, queueReadingState],
   );
+
+  const handleTextPosition = useCallback(
+    (charOffset: number) => {
+      const total = chapters.length;
+      const percent =
+        total > 0 && chapterLength > 0
+          ? Math.min(1, (Math.max(0, chapterPosition) + charOffset / chapterLength) / total)
+          : 0;
+      queueReadingState({
+        chapter_index: chapterIndex,
+        char_offset: Math.max(0, Math.min(chapterLength, charOffset)),
+        page_index: 0,
+        page_count: 1,
+        percent,
+        cfi: null,
+      });
+    },
+    [chapterIndex, chapterLength, chapterPosition, chapters.length, queueReadingState],
+  );
+
+  const handleOriginalCfi = useCallback(
+    (cfi: string) => {
+      const total = chapters.length;
+      const percent = total > 0 ? Math.min(1, Math.max(0, chapterPosition) / total) : 0;
+      queueReadingState({
+        chapter_index: chapterIndex,
+        char_offset: bookInitialOffset,
+        page_index: bookPage.pageIndex,
+        page_count: bookPage.pageCount,
+        percent,
+        cfi,
+      });
+    },
+    [
+      bookInitialOffset,
+      bookPage.pageCount,
+      bookPage.pageIndex,
+      chapterIndex,
+      chapterPosition,
+      chapters.length,
+      queueReadingState,
+    ],
+  );
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when the chapter or view changes
+  useEffect(() => {
+    textInitialized.current = false;
+  }, [chapterIndex, view]);
+
+  useEffect(() => {
+    if (view !== "text" || bookOffsetOverride === null) {
+      return;
+    }
+    textInitialized.current = false;
+    handleTextPosition(bookOffsetOverride);
+  }, [bookOffsetOverride, handleTextPosition, view]);
+
+  useEffect(() => {
+    if (
+      view !== "text" ||
+      !chapter ||
+      textInitialized.current ||
+      readingStateQuery.data?.chapter_index !== chapterIndex
+    ) {
+      return;
+    }
+    const root = contentRef.current;
+    if (!root) {
+      return;
+    }
+    const nodes = [...root.querySelectorAll<HTMLElement>("[data-start-offset]")];
+    const target = nodes
+      .filter((node) => Number(node.dataset.startOffset) <= bookInitialOffset)
+      .pop();
+    target?.scrollIntoView?.({ block: "start" });
+    textInitialized.current = true;
+  }, [bookInitialOffset, chapter, chapterIndex, readingStateQuery.data?.chapter_index, view]);
+
+  useEffect(() => {
+    if (view !== "text" || !chapter) {
+      return;
+    }
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const root = contentRef.current;
+      if (!root) {
+        return;
+      }
+      const nodes = root.querySelectorAll<HTMLElement>("[data-start-offset]");
+      for (const node of nodes) {
+        if (node.getBoundingClientRect().bottom > 120) {
+          handleTextPosition(Number(node.dataset.startOffset));
+          return;
+        }
+      }
+    };
+    const onScroll = () => {
+      if (!frame) {
+        frame = requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+    };
+  }, [chapter, handleTextPosition, view]);
 
   const handleBookBookmark = useCallback(
     (page: BookPageState) => {
@@ -388,15 +522,28 @@ export function ReaderPage() {
   }, [audio, chapterIndex, id, playbackRate, save]);
 
   useEffect(() => {
-    if (!sleepMinutes || !isPlaying) {
+    if (!sleepDeadline) {
+      return;
+    }
+    const remaining = sleepDeadline - Date.now();
+    if (remaining <= 0) {
+      pause();
+      setSleepMinutes(0);
+      setSleepDeadline(null);
       return;
     }
     const timer = window.setTimeout(() => {
       pause();
       setSleepMinutes(0);
-    }, sleepMinutes * 60_000);
+      setSleepDeadline(null);
+    }, remaining);
     return () => window.clearTimeout(timer);
-  }, [isPlaying, pause, sleepMinutes]);
+  }, [pause, sleepDeadline]);
+
+  const handleSleep = useCallback((minutes: number) => {
+    setSleepMinutes(minutes);
+    setSleepDeadline(minutes > 0 ? Date.now() + minutes * 60_000 : null);
+  }, []);
 
   const alignments = useMemo(() => {
     const result = new Map<string, ReturnType<typeof alignSegment>>();
@@ -520,10 +667,7 @@ export function ReaderPage() {
       }
       if (
         (view === "book" || view === "album") &&
-        (event.key === " " ||
-          event.code === "Space" ||
-          event.key === "ArrowLeft" ||
-          event.key === "ArrowRight")
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
       ) {
         return;
       }
@@ -853,7 +997,16 @@ export function ReaderPage() {
               />
             )
           ) : view === "original" ? (
-            <OriginalEpubView bookId={manifest.id} chapter={chapter} />
+            <OriginalEpubView
+              bookId={manifest.id}
+              chapter={chapter}
+              initialCfi={
+                readingStateQuery.data?.chapter_index === chapterIndex
+                  ? readingStateQuery.data.cfi
+                  : null
+              }
+              onCfiChange={handleOriginalCfi}
+            />
           ) : (
             <ReaderContent
               ref={contentRef}
@@ -906,7 +1059,7 @@ export function ReaderPage() {
             onSeek={seekMs}
             onRate={setRate}
             onVolume={setVolume}
-            onSleep={setSleepMinutes}
+            onSleep={handleSleep}
             onFollow={() => setFollow((current) => !current)}
           />
         </>
@@ -948,7 +1101,9 @@ export function ReaderPage() {
         open={searchOpen}
         onOpenChange={setSearchOpen}
         bookId={manifest.id}
-        onSelect={goToChapter}
+        onSelect={(chapterIndex, positionMs, charOffset) =>
+          goToChapter(chapterIndex, positionMs, false, charOffset)
+        }
       />
       {audioReady ? (
         <ReaderBookmarksDialog

@@ -78,6 +78,7 @@ export function SettingsPage() {
     ? currentVoice
     : (voiceOptions[0]?.id ?? currentVoice);
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    update.reset();
     setForm((current) => ({ ...current, [key]: value }));
   };
   const changeEngine = (engine: string) => {
@@ -146,7 +147,7 @@ export function SettingsPage() {
     <div className="page page--narrow">
       <PageHeader
         eyebrow="Ajustes"
-        title="Preferencias del taller"
+        title="Preferencias"
         subtitle="Valores por defecto para convertir, leer y escuchar."
         actions={
           <Button variant="primary" onClick={save} loading={update.isPending}>
@@ -177,7 +178,7 @@ export function SettingsPage() {
               htmlFor="default-engine"
               hint={
                 selectedEngine?.description ??
-                "Piper y eSpeak NG funcionan sin conexión. Edge y Azure son legado."
+                "Piper y eSpeak NG funcionan sin conexión. Edge suele ser la opción más rápida, pero es un servicio externo; Azure requiere credenciales y cuota mensual."
               }
             >
               <select
@@ -237,7 +238,7 @@ export function SettingsPage() {
           <div className="panel-head">
             <div>
               <p className="eyebrow">Apariencia</p>
-              <h2>Tu espacio</h2>
+              <h2>Apariencia</h2>
             </div>
           </div>
           <div className="panel-body settings-section">

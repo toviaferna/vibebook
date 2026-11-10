@@ -1,5 +1,5 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
@@ -39,9 +39,14 @@ export const queryKeys = {
 };
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: queryKeys.books(params),
-    queryFn: () => api.listBooks({ ...params, limit: 100 }),
+    queryFn: ({ pageParam }) => api.listBooks({ ...params, limit: 60, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((total, page) => total + page.items.length, 0);
+      return loaded < lastPage.total ? loaded : undefined;
+    },
   });
 }
 
@@ -296,6 +301,12 @@ export function useJob(jobId: string | null | undefined) {
     queryKey: queryKeys.job(jobId ?? ""),
     queryFn: () => api.getJob(jobId as string),
     enabled: Boolean(jobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status === "completed" || status === "failed" || status === "cancelled"
+        ? false
+        : 1_500;
+    },
   });
 }
 

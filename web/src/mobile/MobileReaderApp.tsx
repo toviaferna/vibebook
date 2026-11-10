@@ -207,7 +207,8 @@ export function MobileReaderApp() {
       </section>
 
       <p className="mobile-foot">
-        Android lector-only: no convierte, no usa Python y no requiere internet.
+        En Android podés leer, escuchar y convertir libros cortos. Para libros largos, usá la
+        computadora.
       </p>
     </div>
   );

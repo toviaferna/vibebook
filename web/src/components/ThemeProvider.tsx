@@ -1,6 +1,6 @@
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
-import { useSettings } from "../api/queries";
+import { useSettings, useUpdateSettings } from "../api/queries";
 import {
   applyTheme,
   readStoredThemeMode,
@@ -18,6 +18,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const settings = useSettings();
+  const updateSettings = useUpdateSettings();
   const [mode, setModeState] = useState<ThemeMode>(() => readStoredThemeMode());
 
   useEffect(() => {
@@ -37,11 +38,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     });
   }, [mode]);
 
-  return (
-    <ThemeContext.Provider value={{ mode, setMode: setModeState }}>
-      {children}
-    </ThemeContext.Provider>
+  const setMode = useCallback(
+    (next: ThemeMode) => {
+      setModeState(next);
+      storeThemeMode(next);
+      updateSettings.mutate({ theme_mode: next });
+    },
+    [updateSettings],
   );
+
+  return <ThemeContext.Provider value={{ mode, setMode }}>{children}</ThemeContext.Provider>;
 }
 
 export function useThemeMode(): ThemeContextValue {

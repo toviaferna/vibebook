@@ -8,6 +8,8 @@ import type { ManifestChapter } from "../../../api/types";
 interface OriginalEpubViewProps {
   bookId: string;
   chapter: ManifestChapter;
+  initialCfi?: string | null;
+  onCfiChange?: (cfi: string) => void;
 }
 
 export function sanitize(contents: Contents) {
@@ -56,8 +58,17 @@ async function displayChapter(
   rendition: Rendition,
   sourceHref: string | null,
   sourceFragment: string | null,
+  initialCfi?: string | null,
 ) {
   let target: string | undefined;
+  if (initialCfi) {
+    try {
+      await rendition.display(initialCfi);
+      return;
+    } catch {
+      // Fall back to the manifest location below.
+    }
+  }
   if (sourceHref) {
     try {
       const section = book.spine.get(sourceHref);
@@ -76,11 +87,20 @@ async function displayChapter(
   }
 }
 
-export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
+export function OriginalEpubView({
+  bookId,
+  chapter,
+  initialCfi,
+  onCfiChange,
+}: OriginalEpubViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const lastHref = useRef<string | null | undefined>(undefined);
+  const cfiChangeRef = useRef(onCfiChange);
+  const initialCfiRef = useRef(initialCfi);
+  cfiChangeRef.current = onCfiChange;
+  initialCfiRef.current = initialCfi;
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const sourceHref = chapter.segments[0]?.source_href ?? null;
@@ -91,6 +111,12 @@ export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
     let cancelled = false;
     let book: Book | null = null;
     let rendition: Rendition | null = null;
+    const onRelocated = (location: { start?: { cfi?: string } }) => {
+      const cfi = location.start?.cfi;
+      if (cfi) {
+        cfiChangeRef.current?.(cfi);
+      }
+    };
 
     async function load() {
       if (!containerRef.current) {
@@ -113,6 +139,7 @@ export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
           allowScriptedContent: false,
         });
         rendition.hooks.content.register(sanitize);
+        rendition.on("relocated", onRelocated);
         bookRef.current = book;
         renditionRef.current = rendition;
         await book.ready;
@@ -131,6 +158,7 @@ export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
     void load();
     return () => {
       cancelled = true;
+      rendition?.off("relocated", onRelocated);
       rendition?.destroy();
       book?.destroy();
       bookRef.current = null;
@@ -146,17 +174,23 @@ export function OriginalEpubView({ bookId, chapter }: OriginalEpubViewProps) {
     if (lastHref.current === targetKey) {
       return;
     }
+    const firstDisplay = lastHref.current === undefined;
     lastHref.current = targetKey;
-    void displayChapter(bookRef.current, renditionRef.current, sourceHref, sourceFragment).catch(
-      (displayError) => {
-        setError(
-          displayError instanceof Error
-            ? displayError.message
-            : "No se pudo mostrar este capítulo del EPUB.",
-        );
-        setStatus("error");
-      },
-    );
+    const cfi = firstDisplay ? initialCfiRef.current : null;
+    void displayChapter(
+      bookRef.current,
+      renditionRef.current,
+      sourceHref,
+      sourceFragment,
+      cfi,
+    ).catch((displayError) => {
+      setError(
+        displayError instanceof Error
+          ? displayError.message
+          : "No se pudo mostrar este capítulo del EPUB.",
+      );
+      setStatus("error");
+    });
   }, [sourceFragment, sourceHref, status, targetKey]);
 
   return (
