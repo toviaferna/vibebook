@@ -33,7 +33,7 @@ def create_app(
     library = Library(settings.library_dir)
     db = Database(settings.library_dir / ".vibebook.db")
     ambience_library = AmbienceLibrary(settings.library_dir / "ambience", db)
-    plugins = PluginRegistry(settings.library_dir)
+    plugins = PluginRegistry(settings.library_dir, allow_local=settings.allow_local_plugins)
     activity = BookActivity()
     resolved_factory = provider_factory or (
         lambda engine: plugins.make_provider(engine, allow_fake=settings.allow_fake)

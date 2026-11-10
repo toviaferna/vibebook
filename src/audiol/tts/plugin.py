@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import base64
 import binascii
+import ipaddress
 import json
 import os
 import re
+import socket
 import wave
 from pathlib import Path
 from typing import Literal
@@ -88,11 +90,13 @@ class PluginProvider:
         token: str | None = None,
         timeout: float = 120.0,
         max_chars: int = 400,
+        allow_local: bool = False,
     ) -> None:
-        self.url = normalize_plugin_url(url)
+        self.url = normalize_plugin_url(url, allow_local=allow_local)
         self.token = token
         self.timeout = timeout
         self.max_chars = max_chars
+        self.allow_local = allow_local
 
     def synthesize(
         self,
@@ -108,6 +112,7 @@ class PluginProvider:
         if len(text) > self.max_chars:
             raise ValueError(f"The plugin accepts at most {self.max_chars} characters")
         rate = validate_rate(rate)
+        self.url = normalize_plugin_url(self.url, allow_local=self.allow_local)
 
         payload = {
             "text": text,
@@ -123,12 +128,15 @@ class PluginProvider:
                 headers=self._headers(),
                 timeout=self.timeout,
                 stream=True,
+                allow_redirects=False,
             ) as response:
                 content = _read_limited(response, MAX_RESPONSE_BYTES, RuntimeError)
                 status = response.status_code
         except requests.RequestException as exc:
             raise RuntimeError(f"Could not reach the plugin: {exc}") from exc
 
+        if 300 <= status < 400:
+            raise RuntimeError("The plugin returned an unexpected redirect")
         if status >= 400:
             message = _error_message(content)
             if status < 500:
@@ -169,12 +177,23 @@ class PluginProvider:
         return {"X-Vibebook-Plugin-Token": self.token} if self.token else {}
 
 
-def normalize_plugin_url(url: str) -> str:
+def normalize_plugin_url(url: str, allow_local: bool = False) -> str:
     parsed = urlparse(url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise PluginError("The plugin URL must be an absolute http(s) URL")
-    if parsed.scheme == "http" and (parsed.hostname or "").lower() not in LOCAL_HOSTS:
+    if parsed.username or parsed.password:
+        raise PluginError("The plugin URL must not contain credentials")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise PluginError("The plugin URL must include a host")
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    local_host = host in LOCAL_HOSTS or (literal is not None and literal.is_loopback)
+    if parsed.scheme == "http" and not local_host:
         raise PluginError("Remote plugins must use HTTPS")
+    _validate_plugin_host(host, parsed.port, allow_local=allow_local)
     path = parsed.path.rstrip("/")
     if path.endswith("/v1"):
         path = path[:-3]
@@ -186,22 +205,79 @@ def normalize_plugin_url(url: str) -> str:
     return normalized
 
 
-def fetch_plugin_info(url: str, token: str | None = None, timeout: float = 10.0) -> PluginInfo:
-    body = _get_json(f"{normalize_plugin_url(url)}/v1/info", token, timeout)
+def _validate_plugin_host(host: str, port: int | None, *, allow_local: bool) -> None:
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    addresses = {literal} if literal is not None else _resolve_host(host, port)
+    for address in addresses:
+        if address.is_global:
+            continue
+        if allow_local and address.is_loopback:
+            continue
+        raise PluginError("The plugin host resolves to a private or reserved address")
+
+
+def _resolve_host(
+    host: str, port: int | None
+) -> set[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    try:
+        records = socket.getaddrinfo(host, port or 443, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise PluginError("The plugin host could not be resolved") from exc
+    addresses = set()
+    for record in records:
+        try:
+            addresses.add(ipaddress.ip_address(record[4][0]))
+        except ValueError:
+            continue
+    if not addresses:
+        raise PluginError("The plugin host could not be resolved")
+    return addresses
+
+
+def fetch_plugin_info(
+    url: str,
+    token: str | None = None,
+    timeout: float = 10.0,
+    allow_local: bool = False,
+) -> PluginInfo:
+    body = _get_json(
+        f"{normalize_plugin_url(url, allow_local=allow_local)}/v1/info", token, timeout, allow_local
+    )
     try:
         return PluginInfo.model_validate(body)
     except ValueError as exc:
         raise PluginError(f"Invalid VEP manifest: {exc}") from exc
 
 
-def fetch_plugin_health(url: str, token: str | None = None, timeout: float = 10.0) -> dict:
-    return _get_json(f"{normalize_plugin_url(url)}/v1/health", token, timeout)
+def fetch_plugin_health(
+    url: str,
+    token: str | None = None,
+    timeout: float = 10.0,
+    allow_local: bool = False,
+) -> dict:
+    return _get_json(
+        f"{normalize_plugin_url(url, allow_local=allow_local)}/v1/health",
+        token,
+        timeout,
+        allow_local,
+    )
 
 
 def fetch_plugin_voices(
-    url: str, token: str | None = None, timeout: float = 10.0
+    url: str,
+    token: str | None = None,
+    timeout: float = 10.0,
+    allow_local: bool = False,
 ) -> list[PluginVoiceSpec]:
-    body = _get_json(f"{normalize_plugin_url(url)}/v1/voices", token, timeout)
+    body = _get_json(
+        f"{normalize_plugin_url(url, allow_local=allow_local)}/v1/voices",
+        token,
+        timeout,
+        allow_local,
+    )
     voices = body.get("voices", body)
     if not isinstance(voices, list):
         raise PluginError("The plugin returned invalid voices")
@@ -211,14 +287,23 @@ def fetch_plugin_voices(
         raise PluginError(f"Invalid plugin voices: {exc}") from exc
 
 
-def _get_json(url: str, token: str | None, timeout: float) -> dict:
+def _get_json(url: str, token: str | None, timeout: float, allow_local: bool = False) -> dict:
+    normalize_plugin_url(url, allow_local=allow_local)
     headers = {"X-Vibebook-Plugin-Token": token} if token else {}
     try:
-        with requests.get(url, headers=headers, timeout=timeout, stream=True) as response:
+        with requests.get(
+            url,
+            headers=headers,
+            timeout=timeout,
+            stream=True,
+            allow_redirects=False,
+        ) as response:
             content = _read_limited(response, MAX_INFO_BYTES, PluginError)
             status = response.status_code
     except requests.RequestException as exc:
         raise PluginError(f"Could not reach the plugin: {exc}") from exc
+    if 300 <= status < 400:
+        raise PluginError("The plugin returned an unexpected redirect")
     if status >= 400:
         raise PluginError(f"The plugin returned HTTP {status}")
     try:

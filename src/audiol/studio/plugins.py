@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -50,13 +51,15 @@ class PluginListFile(BaseModel):
 
 
 class PluginRegistry:
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, allow_local: bool = False) -> None:
         self.directory = directory
         self.manifests_path = directory / "plugins.json"
         self.secrets_path = directory / "secrets.json"
+        self.allow_local = allow_local
         self._lock = threading.RLock()
         self._records: dict[str, PluginRecord] = {}
         self._secrets: dict[str, str] = {}
+        self._corrupt = False
         self._load()
 
     def records(self) -> list[PluginRecord]:
@@ -82,9 +85,9 @@ class PluginRegistry:
         return self.token(plugin_id) is not None
 
     def add(self, url: str, token: str | None = None) -> PluginRecord:
-        normalized = normalize_plugin_url(url)
+        normalized = normalize_plugin_url(url, allow_local=self.allow_local)
         token = token.strip() if token else None
-        info = fetch_plugin_info(normalized, token=token)
+        info = fetch_plugin_info(normalized, token=token, allow_local=self.allow_local)
         if info.id in ENGINES:
             raise PluginError(f"The plugin id {info.id} is reserved by a built-in engine")
         with self._lock:
@@ -135,7 +138,9 @@ class PluginRegistry:
 
     def refresh(self, plugin_id: str) -> PluginRecord:
         record = self.get(plugin_id)
-        info = fetch_plugin_info(record.url, token=self.token(plugin_id))
+        info = fetch_plugin_info(
+            record.url, token=self.token(plugin_id), allow_local=self.allow_local
+        )
         with self._lock:
             current = self.get(plugin_id)
             updated = current.model_copy(update={"info": info, "updated_at": _now()})
@@ -157,15 +162,20 @@ class PluginRegistry:
             token=self.token(engine),
             timeout=record.info.limits.timeout_seconds,
             max_chars=record.info.limits.max_chars,
+            allow_local=self.allow_local,
         )
 
     def test(self, plugin_id: str) -> dict:
         record = self.get(plugin_id)
         started = time.perf_counter()
-        health = fetch_plugin_health(record.url, token=self.token(plugin_id))
+        health = fetch_plugin_health(
+            record.url, token=self.token(plugin_id), allow_local=self.allow_local
+        )
         if health.get("ok") is False:
             raise PluginError("The plugin health check failed")
-        voices = fetch_plugin_voices(record.url, token=self.token(plugin_id))
+        voices = fetch_plugin_voices(
+            record.url, token=self.token(plugin_id), allow_local=self.allow_local
+        )
         if not voices:
             raise PluginError("The plugin does not expose any voices")
         provider = self.make_provider(plugin_id)
@@ -193,6 +203,8 @@ class PluginRegistry:
                 }
             except (OSError, ValueError):
                 logger.warning("Could not read plugin manifests", exc_info=True)
+                self._backup_corrupt(self.manifests_path)
+                self._corrupt = True
                 self._records = {}
         if self.secrets_path.is_file():
             try:
@@ -205,9 +217,23 @@ class PluginRegistry:
                     }
             except (OSError, ValueError):
                 logger.warning("Could not read plugin secrets", exc_info=True)
+                self._backup_corrupt(self.secrets_path)
+                self._corrupt = True
                 self._secrets = {}
 
+    def _backup_corrupt(self, path: Path) -> None:
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
+        target = path.with_name(f"{path.name}.corrupt-{stamp}")
+        try:
+            shutil.copy2(path, target)
+        except OSError:
+            logger.warning("Could not back up the corrupt plugin file %s", path, exc_info=True)
+
     def _save(self) -> None:
+        if self._corrupt:
+            raise PluginError(
+                "The plugin registry is corrupt; fix or remove the .corrupt backup before saving"
+            )
         self.directory.mkdir(parents=True, exist_ok=True)
         _write_json(
             self.manifests_path,
