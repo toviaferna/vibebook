@@ -21,7 +21,8 @@ export function VoicePicker({
   onPreview,
 }: VoicePickerProps) {
   return (
-    <div className="voice-grid" role="radiogroup" aria-label="Voces disponibles">
+    <fieldset className="voice-grid" aria-label="Voces disponibles">
+      <legend className="sr-only">Voces disponibles</legend>
       {voices.map((voice) => {
         const label = voiceLabel(voice);
         const available = engine === "fake" || voice.engines.includes(engine);
@@ -63,6 +64,6 @@ export function VoicePicker({
           </div>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

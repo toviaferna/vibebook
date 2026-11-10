@@ -115,6 +115,9 @@ export function useAudioPlayer(
       audio.removeEventListener("ratechange", onRateChange);
       audio.removeEventListener("volumechange", onVolumeChange);
       audio.removeEventListener("error", onError);
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
     };
   }, [audio]);
 

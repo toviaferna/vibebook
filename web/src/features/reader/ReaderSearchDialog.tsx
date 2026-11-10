@@ -11,7 +11,7 @@ interface ReaderSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bookId: string;
-  onSelect: (chapterIndex: number, positionMs: number) => void;
+  onSelect: (chapterIndex: number, positionMs: number, charOffset: number) => void;
 }
 
 export function ReaderSearchDialog({
@@ -92,7 +92,7 @@ export function ReaderSearchDialog({
                     type="button"
                     className="search-result"
                     onClick={() => {
-                      onSelect(result.chapter_index, result.position_ms);
+                      onSelect(result.chapter_index, result.position_ms, result.char_offset);
                       onOpenChange(false);
                     }}
                   >

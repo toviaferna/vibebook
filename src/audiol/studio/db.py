@@ -517,6 +517,7 @@ class Database:
         page_count: int | None,
         percent: float,
         cfi: str | None,
+        sequence: int | None = None,
     ) -> dict:
         now = _now()
         with self._connect() as connection:
@@ -524,8 +525,13 @@ class Database:
                 """
                 INSERT INTO reading_state (
                     book_id, chapter_index, char_offset, page_index,
-                    page_count, percent, cfi, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    page_count, percent, cfi, sequence, updated_at
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?,
+                    COALESCE(?, (SELECT COALESCE(MAX(sequence), 0) + 1
+                                  FROM reading_state WHERE book_id = ?)),
+                    ?
+                )
                 ON CONFLICT(book_id) DO UPDATE SET
                     chapter_index=excluded.chapter_index,
                     char_offset=excluded.char_offset,
@@ -533,7 +539,9 @@ class Database:
                     page_count=excluded.page_count,
                     percent=excluded.percent,
                     cfi=excluded.cfi,
+                    sequence=excluded.sequence,
                     updated_at=excluded.updated_at
+                WHERE excluded.sequence > reading_state.sequence
                 """,
                 (
                     book_id,
@@ -543,6 +551,8 @@ class Database:
                     page_count,
                     percent,
                     cfi,
+                    sequence,
+                    book_id,
                     now,
                 ),
             )

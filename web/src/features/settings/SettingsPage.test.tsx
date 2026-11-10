@@ -13,7 +13,7 @@ describe("SettingsPage", () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />);
 
-    expect(await screen.findByText("Preferencias del taller")).toBeInTheDocument();
+    expect(await screen.findByText("Preferencias")).toBeInTheDocument();
     await user.click(screen.getByRole("radio", { name: "Oscuro" }));
 
     expect(document.documentElement.dataset.theme).toBe("dark");
@@ -23,7 +23,7 @@ describe("SettingsPage", () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsPage />);
 
-    await screen.findByText("Preferencias del taller");
+    await screen.findByText("Preferencias");
     await user.click(screen.getByRole("radio", { name: "Noche" }));
 
     expect(screen.getByRole("radio", { name: "Noche" })).toBeChecked();

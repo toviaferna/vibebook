@@ -96,7 +96,7 @@ export function ProgressPanel({
           <CheckCircle2 size={18} />
           <div>
             <strong>Conversión completa.</strong>
-            <p>El M4B y los archivos del lector ya están listos.</p>
+            <p>La conversión terminó. Ya podés escuchar el libro.</p>
           </div>
         </div>
       ) : null}

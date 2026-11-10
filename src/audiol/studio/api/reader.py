@@ -81,11 +81,31 @@ def _chapter_data(manifest: dict, chapter_index: int) -> dict:
 
 
 def _chapter_text_length(chapter: dict) -> int:
-    return sum(
-        len(str(segment.get("text", "")))
-        for segment in chapter.get("segments", [])
-        if isinstance(segment, dict)
-    )
+    offsets, lengths = _paragraph_offsets(chapter)
+    if not offsets:
+        return 0
+    last = max(offsets)
+    return offsets[last] + lengths.get(last, 0)
+
+
+def _paragraph_offsets(chapter: dict) -> tuple[dict[int, int], dict[int, int]]:
+    paragraphs: dict[int, list[str]] = {}
+    for segment in chapter.get("segments", []):
+        if not isinstance(segment, dict):
+            continue
+        index = int(segment.get("paragraph_index", 0))
+        paragraphs.setdefault(index, []).append(str(segment.get("text", "")))
+    offsets: dict[int, int] = {}
+    lengths: dict[int, int] = {}
+    total = 0
+    for index in sorted(paragraphs):
+        text = " ".join(" ".join(paragraphs[index]).split())
+        if not text:
+            continue
+        offsets[index] = total
+        lengths[index] = len(text)
+        total += len(text) + 1
+    return offsets, lengths
 
 
 def _audio_path(request: Request, record: BookRecord, chapter: dict):
@@ -175,11 +195,13 @@ def _search_results(
         chapter_index = int(chapter.get("index", 0))
         chapter_title = str(chapter.get("title", ""))
         positions = _segment_positions(request, record, chapter)
+        paragraph_offsets, _ = _paragraph_offsets(chapter)
         for segment in chapter.get("segments", []):
             text = segment.get("text")
             if not isinstance(text, str):
                 continue
             segment_id = str(segment.get("id", ""))
+            paragraph_index = int(segment.get("paragraph_index", 0))
             folded, mapping = _fold(text)
             cursor = 0
             while len(results) < limit:
@@ -195,6 +217,7 @@ def _search_results(
                         position_ms=positions.get(segment_id, 0),
                         excerpt=_excerpt(text, offset, len(query)),
                         offset=offset,
+                        char_offset=paragraph_offsets.get(paragraph_index, 0),
                     )
                 )
                 cursor = index + max(1, len(folded_query))
@@ -440,6 +463,7 @@ def get_reading_state(request: Request, book_id: str) -> ReadingStateResponse:
             page_count=None,
             percent=0.0,
             cfi=None,
+            sequence=0,
             updated_at=None,
         )
     return ReadingStateResponse(
@@ -450,6 +474,7 @@ def get_reading_state(request: Request, book_id: str) -> ReadingStateResponse:
         page_count=int(state["page_count"]) if state.get("page_count") is not None else None,
         percent=float(state["percent"]),
         cfi=state.get("cfi"),
+        sequence=int(state.get("sequence") or 0),
         updated_at=state.get("updated_at"),
     )
 
@@ -477,6 +502,7 @@ def set_reading_state(
         payload.page_count,
         payload.percent,
         payload.cfi,
+        payload.sequence,
     )
     return ReadingStateResponse(
         book_id=record.id,
@@ -486,6 +512,7 @@ def set_reading_state(
         page_count=int(state["page_count"]) if state.get("page_count") is not None else None,
         percent=float(state["percent"]),
         cfi=state.get("cfi"),
+        sequence=int(state.get("sequence") or 0),
         updated_at=state.get("updated_at"),
     )
 

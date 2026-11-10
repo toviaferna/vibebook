@@ -165,7 +165,7 @@ export function ReaderPlayer({
               onChange={(event) => onSleep(Number(event.target.value))}
               title="Temporizador"
             >
-              <option value={0}>Sin timer</option>
+              <option value={0}>Sin temporizador</option>
               <option value={15}>15 min</option>
               <option value={30}>30 min</option>
               <option value={60}>60 min</option>

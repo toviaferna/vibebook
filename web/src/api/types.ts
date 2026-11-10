@@ -425,6 +425,7 @@ export interface ReadingState {
   page_count: number | null;
   percent: number;
   cfi: string | null;
+  sequence: number;
   updated_at: string | null;
 }
 
@@ -435,6 +436,7 @@ export interface ReadingStateInput {
   page_count: number | null;
   percent: number;
   cfi?: string | null;
+  sequence?: number;
 }
 
 export interface ReadingBookmark {
@@ -476,6 +478,7 @@ export interface SearchResult {
   position_ms: number;
   excerpt: string;
   offset: number;
+  char_offset: number;
 }
 
 export interface SearchResponse {

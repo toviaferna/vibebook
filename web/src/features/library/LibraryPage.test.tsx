@@ -48,6 +48,32 @@ describe("LibraryPage", () => {
     expect(screen.queryByText("El Lazarillo de Tormes")).not.toBeInTheDocument();
   });
 
+  it("carga más de una página de libros", async () => {
+    const extra = {
+      ...sampleBook,
+      id: "libro-61",
+      title: "Libro sesenta y uno",
+    };
+    server.use(
+      http.get("*/api/books", ({ request }) => {
+        const offset = Number(new URL(request.url).searchParams.get("offset") ?? 0);
+        return HttpResponse.json({
+          items: offset === 0 ? [sampleBook] : [extra],
+          total: 61,
+          limit: 60,
+          offset,
+        });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LibraryPage />);
+
+    await screen.findByText("61 libros");
+    await user.click(screen.getByRole("button", { name: "Cargar más libros" }));
+
+    expect((await screen.findAllByText("Libro sesenta y uno")).length).toBeGreaterThan(0);
+  });
+
   it("muestra el estado vacío", async () => {
     server.use(
       http.get("*/api/books", () =>

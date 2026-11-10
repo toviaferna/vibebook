@@ -63,6 +63,7 @@ def test_search_is_case_and_accent_insensitive(client, converted):
     assert first["segment_id"]
     assert "Lázaro" in first["excerpt"]
     assert first["position_ms"] >= 0
+    assert first["char_offset"] >= 0
 
 
 @requires_ffmpeg

@@ -32,6 +32,16 @@ interface BookReaderProps {
 
 const TURN_MS = 220;
 
+export function lastPageIndex(pageCount: number, spread: boolean): number {
+  if (pageCount === 0) {
+    return 0;
+  }
+  if (!spread) {
+    return pageCount - 1;
+  }
+  return pageCount % 2 === 0 ? pageCount - 2 : pageCount - 1;
+}
+
 function ReaderImage({
   bookId,
   image,
@@ -150,6 +160,9 @@ export function BookReader({
           (Number.parseFloat(styles.paddingLeft) || 0) -
           (Number.parseFloat(styles.paddingRight) || 0);
         const measure = (blocks: PageBlock[]) => {
+          const footer = document.createElement("footer");
+          footer.className = "book-page-number";
+          footer.textContent = "00";
           measureElement.replaceChildren(
             ...blocks.map((block) => {
               if (block.kind === "image") {
@@ -157,7 +170,12 @@ export function BookReader({
                 figure.className = "book-figure";
                 const placeholder = document.createElement("div");
                 placeholder.className = "book-figure-placeholder";
-                const size = imageDisplaySize(block.image, contentWidth, height, album);
+                const size = imageDisplaySize(
+                  block.image,
+                  contentWidth,
+                  Math.max(80, height - 40),
+                  album,
+                );
                 placeholder.style.width = `${size.width}px`;
                 placeholder.style.height = `${size.height}px`;
                 figure.appendChild(placeholder);
@@ -172,6 +190,7 @@ export function BookReader({
               paragraph.textContent = block.text;
               return paragraph;
             }),
+            footer,
           );
           return measureElement.scrollHeight;
         };
@@ -393,7 +412,7 @@ export function BookReader({
     ? pages.slice(pageIndex, pageIndex + 2)
     : pages.slice(pageIndex, pageIndex + 1);
   const atFirst = pageIndex === 0;
-  const lastPage = Math.max(0, pages.length - (spread ? 2 : 1));
+  const lastPage = lastPageIndex(pages.length, spread);
   const atLast = pages.length === 0 || pageIndex >= lastPage;
   const canPrevious = pages.length > 0 && (!atFirst || hasPreviousChapter);
   const canNext = pages.length > 0 && (!atLast || hasNextChapter);
