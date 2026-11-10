@@ -63,3 +63,15 @@ def test_clean_paragraphs_keeps_accents():
 
 def test_clean_paragraphs_removes_watermark():
     assert clean_paragraphs(["Hola.", "OceanofPDF.com", "Mundo."]) == ["Hola.", "Mundo."]
+
+
+def test_clean_paragraphs_keeps_page_numbers_and_repeated_dialogue_inside_the_book():
+    paragraphs = [f"Párrafo {index}." for index in range(60)]
+    paragraphs[30] = "42"
+    paragraphs[31] = "—Hola."
+    paragraphs[32] = "—Hola."
+
+    cleaned = clean_paragraphs(paragraphs)
+
+    assert "42" in cleaned
+    assert cleaned.count("—Hola.") == 2

@@ -91,12 +91,14 @@ class PluginProvider:
         timeout: float = 120.0,
         max_chars: int = 400,
         allow_local: bool = False,
+        fingerprint: str | None = None,
     ) -> None:
         self.url = normalize_plugin_url(url, allow_local=allow_local)
         self.token = token
         self.timeout = timeout
         self.max_chars = max_chars
         self.allow_local = allow_local
+        self.cache_fingerprint = fingerprint or self.url
 
     def synthesize(
         self,

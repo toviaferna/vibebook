@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from audiol.manifest import SEGMENTATION_VERSION
+
 
 def _book_dir(client, book_id: str) -> Path:
     return client.app.state.library.get(book_id).path
@@ -66,7 +68,7 @@ def test_resegment_applies_metadata_repair(client, imported):
     manifest = json.loads(
         (_book_dir(client, imported["id"]) / "manifest.json").read_text(encoding="utf-8")
     )
-    assert manifest["segmentation_version"] == 2
+    assert manifest["segmentation_version"] == SEGMENTATION_VERSION
     assert manifest["chapters"][0]["segments"][0]["text"] != "Viejo texto roto"
     assert client.get(f"/api/books/{imported['id']}").status_code == 200
 

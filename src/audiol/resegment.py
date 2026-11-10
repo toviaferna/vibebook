@@ -202,14 +202,32 @@ def restore_resegmentation(book_dir: Path, backup_id: str | None = None) -> dict
         raise ResegmentError(f"No existe la copia de seguridad: {backup_id}")
 
     restored: list[str] = []
+    backup_files = {
+        source.relative_to(backup_dir).as_posix()
+        for source in backup_dir.rglob("*")
+        if source.is_file() and source.name != BACKUP_META
+    }
+    for folder, pattern in (
+        (book_dir / "audio" / "chapters", "*.mp3"),
+        (book_dir / "timings", "chapter_*.json"),
+    ):
+        if not folder.is_dir():
+            continue
+        for target in folder.glob(pattern):
+            relative = target.relative_to(book_dir).as_posix()
+            if relative not in backup_files:
+                target.unlink(missing_ok=True)
+    for target in book_dir.glob("*.m4b"):
+        if target.relative_to(book_dir).as_posix() not in backup_files:
+            target.unlink(missing_ok=True)
     for source in sorted(backup_dir.rglob("*")):
         if not source.is_file() or source.name == BACKUP_META:
             continue
-        relative = source.relative_to(backup_dir)
-        target = book_dir / relative
+        relative_path = source.relative_to(backup_dir)
+        target = book_dir / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
-        restored.append(relative.as_posix())
+        restored.append(relative_path.as_posix())
     return {"backup_id": backup_id, "restored": restored}
 
 
@@ -398,6 +416,7 @@ def _repair_audio(
     engine = str(manifest.get("engine") or "edge")
     style = str(manifest.get("style") or "neutral")
     rate = str(manifest.get("rate") or "-10%")
+    fingerprint = str(manifest.get("provider_fingerprint") or "")
     timings_available = any(
         isinstance(chapter, dict) and chapter.get("timing")
         for chapter in manifest.get("chapters", [])
@@ -430,7 +449,7 @@ def _repair_audio(
         segment_files: list[Path] = []
         segment_words: list[list] = []
         for segment in chapter.segments:
-            key = cache_key(segment, voice, engine, style, rate)
+            key = cache_key(segment, voice, engine, style, rate, fingerprint)
             path, duration, was_cached = _ensure_segment_audio(
                 segments_dir,
                 segment,
@@ -614,6 +633,7 @@ def _create_backup(
     engine = str(manifest.get("engine") or "edge")
     style = str(manifest.get("style") or "neutral")
     rate = str(manifest.get("rate") or "-10%")
+    fingerprint = str(manifest.get("provider_fingerprint") or "")
     for index, old_chapter in old_by_index.items():
         new_chapter = new_by_index.get(index)
         new_segments = (
@@ -623,7 +643,7 @@ def _create_backup(
             new_segment = new_segments.get(old_segment.id)
             if new_segment is not None and new_segment.text == old_segment.text:
                 continue
-            old_key = cache_key(old_segment, voice, engine, style, rate)
+            old_key = cache_key(old_segment, voice, engine, style, rate, fingerprint)
             for path in _segment_audio_files(book_dir, old_segment.id, old_key):
                 _copy_file(path, backup_dir / path.relative_to(book_dir))
                 timing = segment_timing_path(path)
@@ -658,6 +678,7 @@ def _prune_stale_segments(
     engine = str(manifest.get("engine") or "edge")
     style = str(manifest.get("style") or "neutral")
     rate = str(manifest.get("rate") or "-10%")
+    fingerprint = str(manifest.get("provider_fingerprint") or "")
     new_by_index = {chapter.index: chapter for chapter in new_book.chapters}
     for old_chapter in old_book.chapters:
         new_chapter = new_by_index.get(old_chapter.index)
@@ -668,9 +689,9 @@ def _prune_stale_segments(
             new_segment = new_segments.get(old_segment.id)
             if new_segment is not None and new_segment.text == old_segment.text:
                 continue
-            old_key = cache_key(old_segment, voice, engine, style, rate)
+            old_key = cache_key(old_segment, voice, engine, style, rate, fingerprint)
             if new_segment is not None:
-                new_key = cache_key(new_segment, voice, engine, style, rate)
+                new_key = cache_key(new_segment, voice, engine, style, rate, fingerprint)
                 if new_key == old_key:
                     continue
             for path in _segment_audio_files(book_dir, old_segment.id, old_key, suffix=suffix):

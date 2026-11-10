@@ -21,6 +21,8 @@ class Segment:
     chunk_index: int = 0
     source_href: str | None = None
     source_fragment: str | None = None
+    boundary: str = "paragraph"
+    continuation: bool = False
 
 
 @dataclass

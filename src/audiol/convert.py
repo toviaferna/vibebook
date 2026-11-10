@@ -15,7 +15,7 @@ from audiol.assemble import (
     probe_duration,
     require_ffmpeg,
 )
-from audiol.chunk import chunk_text
+from audiol.chunk import chunk_text_parts
 from audiol.clean import clean_paragraph_items
 from audiol.manifest import load_manifest, write_manifest
 from audiol.models import Book, Chapter, Segment, WordTiming, make_segment_id
@@ -74,16 +74,18 @@ def prepare_book(book: Book, max_chars: int = 400) -> Book:
         paragraphs = clean_paragraph_items((segment.text, segment) for segment in chapter.segments)
         segments: list[Segment] = []
         for paragraph_index, (paragraph, source) in enumerate(paragraphs, start=1):
-            for chunk_index, text in enumerate(chunk_text(paragraph, max_chars=max_chars)):
+            for chunk_index, chunk in enumerate(chunk_text_parts(paragraph, max_chars=max_chars)):
                 segments.append(
                     Segment(
                         id=make_segment_id(chapter.index, paragraph_index, chunk_index),
                         chapter_index=chapter.index,
                         paragraph_index=paragraph_index,
-                        text=text,
+                        text=chunk.text,
                         chunk_index=chunk_index,
                         source_href=source.source_href,
                         source_fragment=source.source_fragment,
+                        boundary=chunk.boundary,
+                        continuation=chunk.continuation,
                     )
                 )
         if segments:
@@ -119,8 +121,15 @@ def render_markdown(book: Book) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def cache_key(segment: Segment, voice: str, engine: str, style: str, rate: str) -> str:
-    payload = f"{segment.text}|{voice}|{engine}|{style}|{rate}".encode()
+def cache_key(
+    segment: Segment,
+    voice: str,
+    engine: str,
+    style: str,
+    rate: str,
+    fingerprint: str = "",
+) -> str:
+    payload = f"{segment.text}|{voice}|{engine}|{style}|{rate}|{fingerprint}".encode()
     return hashlib.sha256(payload).hexdigest()[:16]
 
 
@@ -196,6 +205,7 @@ def convert(
             )
     job_id = uuid4().hex
     staging = new_staging_dir(out_dir, job_id)
+    provider_fingerprint = str(getattr(provider, "cache_fingerprint", "") or "")
 
     try:
         result = _convert_core(
@@ -218,6 +228,7 @@ def convert(
             cover=cover,
             source_epub=source_epub,
             max_chars=max_chars,
+            provider_fingerprint=provider_fingerprint,
         )
         backup = backup_book_state(out_dir, job_id)
         commit_staged_book(staging, out_dir, backup)
@@ -301,6 +312,7 @@ def _convert_core(
     cover: str | None,
     source_epub: str | None,
     max_chars: int,
+    provider_fingerprint: str,
 ) -> ConversionResult:
     audio_dir = out_dir / "audio"
     segments_dir = audio_dir / "segments"
@@ -317,6 +329,9 @@ def _convert_core(
     chapter_files: list[Path] = []
     chapter_durations: list[int] = []
     timing_offset_ms = calibrate_encoder_delay_ms() if capture_timings else 0
+    timing_config_hash = hashlib.sha256(f"{voice}|{engine}|{style}|{rate}".encode()).hexdigest()[
+        :16
+    ]
 
     def emit(event: ProgressEvent) -> None:
         if on_progress is not None:
@@ -341,7 +356,7 @@ def _convert_core(
             if should_cancel is not None and should_cancel():
                 raise ConversionCancelled()
 
-            key = cache_key(segment, voice, engine, style, rate)
+            key = cache_key(segment, voice, engine, style, rate, provider_fingerprint)
             path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
             cached = False
             if not force:
@@ -432,6 +447,7 @@ def _convert_core(
                 segment_words,
                 chapter_duration_ms=assembly.total_ms,
                 timing_offset_ms=timing_offset_ms,
+                config_hash=timing_config_hash,
             )
             write_chapter_timing(timings_dir / f"chapter_{chapter.index:03d}.json", timing)
 
@@ -492,6 +508,7 @@ def _convert_core(
         max_chars=max_chars,
         m4b=m4b_name,
         preserve_from=previous_manifest,
+        provider_fingerprint=provider_fingerprint,
     )
     emit(
         ProgressEvent(

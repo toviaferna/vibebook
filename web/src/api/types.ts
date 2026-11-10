@@ -333,6 +333,8 @@ export interface ManifestSegment {
   text: string;
   source_href?: string | null;
   source_fragment?: string | null;
+  boundary?: string;
+  continuation?: boolean;
 }
 
 export interface ManifestChapter {

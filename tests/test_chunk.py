@@ -1,4 +1,4 @@
-from audiol.chunk import chunk_text, split_sentences
+from audiol.chunk import chunk_text, chunk_text_parts, split_sentences
 
 
 def test_split_sentences_keeps_abbreviations():
@@ -28,6 +28,25 @@ def test_chunk_text_cleans_split_words():
 def test_chunk_text_does_not_split_a_long_word():
     word = "palabra" * 20
     assert chunk_text(word, max_chars=50) == [word]
+
+
+def test_chunk_parts_mark_single_paragraph_short_text():
+    parts = chunk_text_parts("Hola mundo.", max_chars=400)
+
+    assert len(parts) == 1
+    assert parts[0].boundary == "paragraph"
+    assert parts[0].continuation is False
+
+
+def test_chunk_parts_mark_continuations_and_sentence_boundaries():
+    text = "Una. Dos. Tres."
+    parts = chunk_text_parts(text, max_chars=6)
+
+    assert len(parts) > 1
+    assert parts[0].boundary == "sentence"
+    assert parts[0].continuation is False
+    assert parts[1].continuation is True
+    assert parts[-1].boundary == "paragraph"
 
 
 def test_split_sentences_keeps_more_abbreviations():

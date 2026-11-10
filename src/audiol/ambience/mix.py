@@ -31,6 +31,9 @@ def mix_chapter(
     fade_in_ms: int = 1_500,
     fade_out_ms: int = 2_000,
     master_gain_db: float = -18,
+    bed_start_ms: int = 0,
+    bed_end_ms: int | None = None,
+    ducking_db: float = -12,
 ) -> Path:
     if bed_path is None and not effects:
         shutil.copy2(voice_path, output_path)
@@ -38,6 +41,9 @@ def mix_chapter(
     ffmpeg, _ = require_ffmpeg()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     duration_s = max(0.1, duration_ms / 1000)
+    bed_start_s = max(0.0, bed_start_ms / 1000)
+    bed_end_s = duration_s if bed_end_ms is None else min(duration_s, bed_end_ms / 1000)
+    bed_end_s = max(bed_start_s + 0.1, bed_end_s)
     command = [
         ffmpeg,
         "-nostdin",
@@ -53,15 +59,19 @@ def mix_chapter(
     index = 1
     if bed_path is not None:
         command.extend(["-stream_loop", "-1", "-i", str(bed_path)])
-        fade_out_start = max(0.0, duration_s - fade_out_ms / 1000)
+        bed_duration = bed_end_s - bed_start_s
+        fade_out_local = max(0.0, bed_duration - fade_out_ms / 1000)
         filters.append(
             f"[{index}:a]aformat=sample_rates=48000:channel_layouts=mono,"
-            f"volume={_db_to_gain(bed_gain_db):.4f},atrim=0:{duration_s:.3f},"
-            f"afade=t=in:st=0:d={fade_in_ms / 1000:.3f},"
-            f"afade=t=out:st={fade_out_start:.3f}:d={fade_out_ms / 1000:.3f}[bed]"
+            f"atrim={bed_start_s:.3f}:{bed_end_s:.3f},asetpts=PTS-STARTPTS,"
+            f"volume={_db_to_gain(bed_gain_db):.4f},"
+            f"afade=t=in:st=0:d={min(fade_in_ms / 1000, bed_duration):.3f},"
+            f"afade=t=out:st={fade_out_local:.3f}:d={fade_out_ms / 1000:.3f}[bed]"
         )
+        threshold = min(0.2, max(0.005, 0.03 * (abs(ducking_db) / 12)))
         filters.append(
-            "[bed][voice]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=400[ducked]"
+            f"[bed][voice]sidechaincompress=threshold={threshold:.4f}:ratio=8:"
+            "attack=20:release=400[ducked]"
         )
         mix_inputs.append("[ducked]")
         index += 1
@@ -170,6 +180,9 @@ def render_ambient_book(
             fade_in_ms=bed.fade_in_ms if bed else 0,
             fade_out_ms=bed.fade_out_ms if bed else 0,
             master_gain_db=settings.master_gain_db,
+            bed_start_ms=bed.start_ms if bed else 0,
+            bed_end_ms=bed.end_ms if bed else None,
+            ducking_db=settings.ducking_db,
         )
         chapter_files.append(output)
         chapter_titles.append(str(chapter.get("title") or f"Capítulo {index}"))

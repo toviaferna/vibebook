@@ -127,11 +127,11 @@ def _pick_effects(
 
 def _find_asset(assets: list[dict[str, Any]], tag: str, kind: str) -> dict[str, Any] | None:
     for asset in assets:
-        if asset.get("kind") != kind:
+        if asset.get("kind") != kind or not asset.get("approved"):
             continue
         tags = {str(item).lower() for item in asset.get("tags", [])}
-        prompt = str(asset.get("prompt", "")).lower()
-        if tag in tags or tag in prompt:
+        prompt_words = set(str(asset.get("prompt", "")).lower().split())
+        if tag in tags or tag in prompt_words:
             return asset
     return None
 

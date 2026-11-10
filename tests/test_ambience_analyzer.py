@@ -85,6 +85,7 @@ def _assets() -> list[dict]:
             "prompt": "rain soft",
             "tags": ["rain"],
             "duration_ms": 30_000,
+            "approved": True,
         },
         {
             "id": "door-1",
@@ -92,6 +93,7 @@ def _assets() -> list[dict]:
             "prompt": "door bell",
             "tags": ["door"],
             "duration_ms": 1_800,
+            "approved": True,
         },
     ]
 
@@ -140,6 +142,15 @@ def test_analyze_ignores_timing_paths_outside_the_book(tmp_path):
     _, plan = analyze_book(record.path, _assets())
 
     assert plan.chapters[0].effects == []
+
+
+def test_analyze_ignores_unapproved_assets(tmp_path):
+    record = _record(tmp_path)
+    assets = [{**asset, "approved": False} for asset in _assets()]
+
+    _, plan = analyze_book(record.path, assets)
+
+    assert plan.chapters == []
 
 
 def test_analyze_without_assets_returns_empty_plan(tmp_path):

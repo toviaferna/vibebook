@@ -37,12 +37,15 @@ def clean_text(text: str) -> str:
 
 
 def clean_paragraph_items[T](items: Iterable[tuple[str, T]]) -> list[tuple[str, T]]:
+    source = list(items)
+    edge = max(5, len(source) // 20)
     cleaned: list[tuple[str, T]] = []
-    for paragraph, payload in items:
+    for index, (paragraph, payload) in enumerate(source):
         paragraph = clean_text(paragraph)
         if not paragraph:
             continue
-        if PAGE_NUMBER.match(paragraph) or GUTENBERG.search(paragraph):
+        at_edge = index < edge or index >= len(source) - edge
+        if at_edge and (PAGE_NUMBER.match(paragraph) or GUTENBERG.search(paragraph)):
             continue
         if WATERMARK.match(paragraph):
             continue
@@ -59,7 +62,7 @@ def clean_paragraph_items[T](items: Iterable[tuple[str, T]]) -> list[tuple[str, 
                 )
                 cleaned[-1] = (clean_text(merged), previous_payload)
                 continue
-            if paragraph == previous:
+            if at_edge and paragraph == previous:
                 continue
         cleaned.append((paragraph, payload))
     return cleaned
