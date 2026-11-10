@@ -139,7 +139,7 @@ def test_plugin_preview(client, plugin_server):
 def test_plugin_job_validation(plugin_server, tmp_path):
     from audiol.studio.plugins import PluginRegistry
 
-    registry = PluginRegistry(tmp_path / "library")
+    registry = PluginRegistry(tmp_path / "library", allow_local=True)
     registry.add(plugin_server.url)
     manager = JobManager(
         object(),

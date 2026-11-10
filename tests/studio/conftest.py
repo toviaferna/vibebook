@@ -21,6 +21,7 @@ def settings(tmp_path: Path) -> Settings:
         library_dir=tmp_path / "library",
         token="test-token",
         allow_fake=True,
+        allow_local_plugins=True,
         max_upload_bytes=2 * 1024 * 1024,
         max_archive_entries=100,
         max_uncompressed_bytes=4 * 1024 * 1024,

@@ -12,6 +12,7 @@ class Settings:
     token: str | None = None
     allow_fake: bool = False
     dev: bool = False
+    allow_local_plugins: bool = False
     web_dist: Path | None = None
     max_upload_bytes: int = 200 * 1024 * 1024
     max_archive_entries: int = 5000
