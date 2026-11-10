@@ -9,11 +9,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { apiUrl } from "../../api/client";
 import type { Job } from "../../api/types";
 import { Button } from "../../components/Button";
 import { ProgressBar } from "../../components/ProgressBar";
 import { StatusChip } from "../../components/StatusChip";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { formatEta, formatPercent, formatStage } from "../../lib/format";
 
 interface ProgressPanelProps {
@@ -36,6 +36,11 @@ export function ProgressPanel({
   onCancel,
   onResume,
 }: ProgressPanelProps) {
+  const m4bUrl = useMediaUrl(
+    bookId,
+    "m4b",
+    job?.status === "completed" ? `/api/books/${bookId}/m4b` : undefined,
+  );
   if (!job) {
     return (
       <div className="progress-panel" aria-live="polite">
@@ -117,10 +122,12 @@ export function ProgressPanel({
 
         {job.status === "completed" ? (
           <>
-            <a className="button button--primary" href={apiUrl(`/books/${bookId}/m4b`)} download>
-              <Download size={16} />
-              Descargar M4B
-            </a>
+            {m4bUrl ? (
+              <a className="button button--primary" href={m4bUrl} download>
+                <Download size={16} />
+                Descargar M4B
+              </a>
+            ) : null}
             <Link className="button button--primary" to={`/books/${bookId}/read`}>
               <BookOpen size={16} />
               Leer ahora

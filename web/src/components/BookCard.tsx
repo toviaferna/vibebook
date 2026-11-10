@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { apiUrl } from "../api/client";
 import type { Book } from "../api/types";
+import { useMediaUrl } from "../hooks/useMediaUrl";
 import { formatDuration, formatPercent } from "../lib/format";
 import { ProgressBar } from "./ProgressBar";
 import { StatusChip } from "./StatusChip";
@@ -17,12 +17,13 @@ export function BookCard({ book }: { book: Book }) {
   const reading = book.reading_progress > 0;
   const progress = reading ? book.reading_progress : book.progress;
   const progressLabel = reading ? "leído" : "escuchado";
+  const cover = useMediaUrl(book.id, "cover", book.cover_url);
 
   return (
     <Link className="book-card" to={`/books/${book.id}`}>
       <div className="book-cover">
-        {book.cover_url ? (
-          <img src={apiUrl(book.cover_url)} alt={`Portada de ${book.title}`} loading="lazy" />
+        {cover ? (
+          <img src={cover} alt={`Portada de ${book.title}`} loading="lazy" />
         ) : (
           <div className="cover-placeholder" aria-hidden="true">
             <span className="cover-placeholder-mark">VB · {initials || "LIBRO"}</span>

@@ -3,7 +3,8 @@ import { AlertTriangle, ArrowLeft, AudioLines, ShieldCheck } from "lucide-react"
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { api, apiUrl, errorMessage } from "../../api/client";
+import { api, errorMessage } from "../../api/client";
+import { mediaUrl } from "../../api/media";
 import {
   useBook,
   useCancelJob,
@@ -67,13 +68,18 @@ export function StudioPage() {
       setPreviewing(voiceId);
       setPreviewError(null);
     },
-    onSuccess: (preview) => {
+    onSuccess: async (preview) => {
       audioRef.current?.pause();
-      const audio = new Audio(apiUrl(preview.url));
-      audioRef.current = audio;
-      void audio.play().catch(() => {
-        setPreviewError("El navegador bloqueó la reproducción de la muestra.");
-      });
+      try {
+        const url = await mediaUrl("", "preview", preview.url);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        void audio.play().catch(() => {
+          setPreviewError("El navegador bloqueó la reproducción de la muestra.");
+        });
+      } catch {
+        setPreviewError("No se pudo preparar la muestra de voz.");
+      }
     },
     onError: (error) => setPreviewError(errorMessage(error)),
     onSettled: () => setPreviewing(null),

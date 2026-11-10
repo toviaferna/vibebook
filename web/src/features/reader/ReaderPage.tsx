@@ -12,7 +12,7 @@ import {
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import { apiUrl, errorMessage } from "../../api/client";
+import { errorMessage } from "../../api/client";
 import {
   useBookAmbience,
   useBookPreferences,
@@ -29,6 +29,7 @@ import {
 } from "../../api/queries";
 import type { ChapterTiming, ReadingBookmark } from "../../api/types";
 import { Button } from "../../components/Button";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { type ReaderPalette, readStoredReaderPalette, storeReaderPalette } from "../../lib/theme";
 import { alignSegment, findActive, findActiveWord } from "./alignment";
 import { type BookPageState, BookReader } from "./book/BookReader";
@@ -182,7 +183,11 @@ export function ReaderPage() {
     hasAudio: audioReady,
     volume: ambienceVolume,
   });
-  const audioSrc = id && audioReady ? apiUrl(`/books/${id}/audio/${chapterIndex}`) : undefined;
+  const audioSrc = useMediaUrl(
+    id,
+    "audio",
+    id && audioReady ? `/api/books/${id}/audio/${chapterIndex}` : undefined,
+  );
   const chapters = manifest?.chapters ?? [];
   const bookInitialOffset =
     bookOffsetOverride ??

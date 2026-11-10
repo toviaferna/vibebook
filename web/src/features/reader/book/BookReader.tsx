@@ -1,8 +1,8 @@
 ﻿import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type TouchEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { apiUrl } from "../../../api/client";
 import type { ManifestChapter, ManifestImage } from "../../../api/types";
+import { useMediaUrl } from "../../../hooks/useMediaUrl";
 import { chapterDisplayTitle } from "../chapterTitle";
 import { formatPageLabel, resolvePageMove } from "./navigation";
 import { clearPageCache, getCachedPages, pageCacheKey, setCachedPages } from "./pageCache";
@@ -31,6 +31,30 @@ interface BookReaderProps {
 }
 
 const TURN_MS = 220;
+
+function ReaderImage({
+  bookId,
+  image,
+  maxHeight,
+}: {
+  bookId: string;
+  image: ManifestImage;
+  maxHeight?: number;
+}) {
+  const src = useMediaUrl(bookId, "images", `/api/books/${bookId}/images/${image.id}`);
+  if (!src) {
+    return null;
+  }
+  return (
+    <img
+      src={src}
+      alt={image.alt}
+      loading="lazy"
+      decoding="async"
+      style={{ maxHeight: maxHeight ? `${maxHeight}px` : undefined }}
+    />
+  );
+}
 
 function imageDisplaySize(
   image: ManifestImage,
@@ -421,16 +445,10 @@ export function BookReader({
               {page.blocks.map((block) =>
                 block.kind === "image" ? (
                   <figure className="book-figure" key={block.image.id}>
-                    <img
-                      src={apiUrl(`/books/${bookId}/images/${block.image.id}`)}
-                      alt={block.image.alt}
-                      loading="lazy"
-                      decoding="async"
-                      style={{
-                        maxHeight: pageHeight
-                          ? `${pageHeight * (album ? 0.78 : 0.62)}px`
-                          : undefined,
-                      }}
+                    <ReaderImage
+                      bookId={bookId}
+                      image={block.image}
+                      maxHeight={pageHeight ? pageHeight * (album ? 0.78 : 0.62) : undefined}
                     />
                     {block.image.caption ? <figcaption>{block.image.caption}</figcaption> : null}
                   </figure>

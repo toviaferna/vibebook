@@ -287,7 +287,7 @@ def test_token_can_be_passed_in_query_for_media(unauth_client):
 
     response = unauth_client.get("/api/books?token=test-token")
 
-    assert response.status_code == 200
+    assert response.status_code == 401
 
 
 def test_tauri_origin_is_allowed_without_dev(tmp_path: Path):

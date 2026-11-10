@@ -176,6 +176,13 @@ export const server = setupServer(
     return HttpResponse.json({ ...samplePlugin, ...patch });
   }),
   http.get("*/api/voices", () => HttpResponse.json(sampleVoices)),
+  http.post("*/api/media/ticket", async ({ request }) => {
+    const body = (await request.json()) as { path: string };
+    return HttpResponse.json({
+      url: `${body.path}?ticket=test-ticket`,
+      expires_at: new Date(Date.now() + 300_000).toISOString(),
+    });
+  }),
   http.post("*/api/books/import", () =>
     HttpResponse.json({ ...sampleBook, status: "imported", duration_ms: null }, { status: 201 }),
   ),

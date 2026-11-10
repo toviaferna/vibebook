@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { apiUrl } from "../../../api/client";
+import { mediaUrl } from "../../../api/media";
 import type {
   AmbienceChapter,
   AmbienceEffect,
@@ -261,7 +261,8 @@ class SoundscapeEngine {
   ): Promise<AudioBuffer> {
     const existing = cache.get(assetId);
     if (existing) return existing;
-    const response = await fetch(apiUrl(`/api/ambience/assets/${assetId}/audio`));
+    const url = await mediaUrl("", "sound", `/api/ambience/assets/${assetId}/audio`);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error("No se pudo cargar un sonido del ambiente.");
     }

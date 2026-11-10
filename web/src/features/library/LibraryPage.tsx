@@ -2,7 +2,7 @@ import { AlertTriangle, Plus, RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { apiUrl, errorMessage } from "../../api/client";
+import { errorMessage } from "../../api/client";
 import { useBooks, useRescan } from "../../api/queries";
 import type { Book } from "../../api/types";
 import { BookCard } from "../../components/BookCard";
@@ -12,6 +12,7 @@ import { IconButton } from "../../components/IconButton";
 import { PageHeader } from "../../components/PageHeader";
 import { LibrarySkeleton } from "../../components/Skeleton";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { formatDuration, formatPercent, pluralize } from "../../lib/format";
 
 const SORT_OPTIONS = [
@@ -191,6 +192,7 @@ export function LibraryPage() {
 function ContinueBook({ book }: { book: Book }) {
   const reading = book.reading_progress > 0;
   const progress = reading ? book.reading_progress : book.progress;
+  const cover = useMediaUrl(book.id, "cover", book.cover_url);
   const chapter =
     reading && book.last_read_chapter_index ? ` · Capítulo ${book.last_read_chapter_index}` : "";
 
@@ -208,11 +210,7 @@ function ContinueBook({ book }: { book: Book }) {
       aria-label={reading ? "Continuar leyendo" : "Continuar escuchando"}
     >
       <div className="continue-cover" aria-hidden="true">
-        {book.cover_url ? (
-          <img src={apiUrl(book.cover_url)} alt="" />
-        ) : (
-          <span>{initials || "VB"}</span>
-        )}
+        {cover ? <img src={cover} alt="" /> : <span>{initials || "VB"}</span>}
       </div>
       <div className="continue-copy">
         <p className="eyebrow">Continuar</p>
