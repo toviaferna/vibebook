@@ -16,7 +16,7 @@ describe("BookDetailPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Leer y escuchar")).toBeInTheDocument();
     expect(screen.getByText("Abrir estudio")).toBeInTheDocument();
-    expect(screen.getByText("Descargar M4B")).toBeInTheDocument();
+    expect(await screen.findByText("Descargar M4B")).toBeInTheDocument();
     expect(screen.getByText("Segmentación del audio")).toBeInTheDocument();
   });
 
