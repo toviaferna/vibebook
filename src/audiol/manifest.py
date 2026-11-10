@@ -143,11 +143,14 @@ def write_manifest(
     timings_available: bool = True,
     max_chars: int = DEFAULT_MAX_CHARS,
     segmentation_version: int = SEGMENTATION_VERSION,
+    m4b: str | None = None,
+    preserve_from: dict | None = None,
 ) -> Path:
     if chapter_durations_ms is not None and len(chapter_durations_ms) != len(book.chapters):
         raise ValueError("chapter_durations_ms must have one duration per chapter")
 
     path = out_dir / "manifest.json"
+    previous = preserve_from if preserve_from is not None else _read_manifest_dict(path)
     now = datetime.now(UTC).isoformat()
     total_duration_ms = sum(chapter_durations_ms) if chapter_durations_ms is not None else None
     data = {
@@ -156,7 +159,7 @@ def write_manifest(
         "title": book.title,
         "author": book.author,
         "language": book.language,
-        "created_at": _existing_created_at(path) or now,
+        "created_at": _created_at_from(previous) or _existing_created_at(path) or now,
         "updated_at": now,
         "status": status,
         "voice": voice,
@@ -168,6 +171,7 @@ def write_manifest(
         "duration_ms": total_duration_ms,
         "cover": cover,
         "epub": source_epub,
+        "m4b": m4b,
         "toc": [asdict(node) for node in book.toc],
         "images": [
             {
@@ -211,6 +215,8 @@ def write_manifest(
             for position, chapter in enumerate(book.chapters)
         ],
     }
+    for key, value in previous.items():
+        data.setdefault(key, value)
     temporary = path.with_name(f"{path.name}.tmp")
     temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(temporary, path)
@@ -218,10 +224,18 @@ def write_manifest(
 
 
 def _existing_created_at(path: Path) -> str | None:
+    data = _read_manifest_dict(path)
+    return _created_at_from(data)
+
+
+def _read_manifest_dict(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return None
-    if isinstance(data, dict) and isinstance(data.get("created_at"), str):
-        return data["created_at"]
-    return None
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _created_at_from(data: dict) -> str | None:
+    value = data.get("created_at")
+    return value if isinstance(value, str) else None

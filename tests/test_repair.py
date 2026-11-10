@@ -161,6 +161,24 @@ def test_repair_book_skips_chapters_without_segment_audio(tmp_path):
 
 
 @requires_ffmpeg
+def test_repair_failure_preserves_previous_manifest(tmp_path, monkeypatch):
+    book_dir = _book(tmp_path)
+    manifest_before = (book_dir / "manifest.json").read_bytes()
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("timing failed")
+
+    monkeypatch.setattr("audiol.repair.write_chapter_timing", fail)
+
+    with pytest.raises(RuntimeError, match="timing failed"):
+        repair_book(book_dir)
+
+    assert (book_dir / "manifest.json").read_bytes() == manifest_before
+    assert not (book_dir / "audio" / "chapters" / "chapter_001.mp3").exists()
+    assert not list(book_dir.glob(".staging/*"))
+
+
+@requires_ffmpeg
 def test_repair_sync_cli(tmp_path, capsys):
     book_dir = _book(tmp_path)
 

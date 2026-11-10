@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
 from audiol.assemble import (
     build_m4b,
@@ -16,9 +17,17 @@ from audiol.assemble import (
 )
 from audiol.chunk import chunk_text
 from audiol.clean import clean_paragraph_items
-from audiol.manifest import write_manifest
+from audiol.manifest import load_manifest, write_manifest
 from audiol.models import Book, Chapter, Segment, WordTiming, make_segment_id
 from audiol.naming import slugify
+from audiol.storage import (
+    backup_book_state,
+    cleanup_staging,
+    commit_staged_book,
+    new_staging_dir,
+    prune_book_state,
+    recover_incomplete_commit,
+)
 from audiol.timing import (
     audio_duration_ms,
     build_chapter_timing_from_offsets,
@@ -173,17 +182,30 @@ def convert(
         raise ConversionCancelled()
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    recover_incomplete_commit(out_dir)
     resolved_book_id = book_id or slugify(book.title)
     cover, source_epub = _manifest_assets(out_dir)
     had_manifest = (out_dir / "manifest.json").exists()
+    previous_manifest: dict | None = None
+    if had_manifest:
+        try:
+            previous_manifest = load_manifest(out_dir / "manifest.json")
+        except ValueError:
+            logger.warning(
+                "Existing manifest is invalid; conversion will replace it", exc_info=True
+            )
+    job_id = uuid4().hex
+    staging = new_staging_dir(out_dir, job_id)
 
     try:
-        return _convert_core(
+        result = _convert_core(
             book=book,
             voice=voice,
             engine=engine,
             provider=provider,
             out_dir=out_dir,
+            staging=staging,
+            previous_manifest=previous_manifest,
             style=style,
             rate=rate,
             force=force,
@@ -197,7 +219,16 @@ def convert(
             source_epub=source_epub,
             max_chars=max_chars,
         )
+        backup = backup_book_state(out_dir, job_id)
+        commit_staged_book(staging, out_dir, backup)
+        try:
+            prune_book_state(out_dir, load_manifest(out_dir / "manifest.json"))
+        except Exception:
+            logger.warning("Could not prune stale book files", exc_info=True)
+        cleanup_staging(out_dir)
+        return result
     except ConversionCancelled:
+        cleanup_staging(out_dir)
         _write_terminal_manifest(
             book,
             out_dir,
@@ -214,6 +245,7 @@ def convert(
         )
         raise
     except KeyboardInterrupt:
+        cleanup_staging(out_dir)
         _write_terminal_manifest(
             book,
             out_dir,
@@ -230,6 +262,7 @@ def convert(
         )
         raise
     except BaseException:
+        cleanup_staging(out_dir)
         _write_terminal_manifest(
             book,
             out_dir,
@@ -254,6 +287,8 @@ def _convert_core(
     engine: str,
     provider: TTSProvider,
     out_dir: Path,
+    staging: Path,
+    previous_manifest: dict | None,
     style: str,
     rate: str,
     force: bool,
@@ -269,10 +304,12 @@ def _convert_core(
 ) -> ConversionResult:
     audio_dir = out_dir / "audio"
     segments_dir = audio_dir / "segments"
-    chapters_dir = audio_dir / "chapters"
-    timings_dir = out_dir / "timings"
+    chapters_dir = staging / "chapters"
+    timings_dir = staging / "timings"
+    m4b_dir = staging / "m4b"
     segments_dir.mkdir(parents=True, exist_ok=True)
     chapters_dir.mkdir(parents=True, exist_ok=True)
+    timings_dir.mkdir(parents=True, exist_ok=True)
 
     total_segments = sum(len(chapter.segments) for chapter in book.chapters)
     completed_segments = 0
@@ -425,12 +462,13 @@ def _convert_core(
         )
     )
 
-    m4b_path = out_dir / f"{slugify(book.title)}.m4b"
+    m4b_name = f"{slugify(book.title)}.m4b"
+    staged_m4b = m4b_dir / m4b_name
     build_m4b(
         chapter_files,
         [chapter.title for chapter in book.chapters],
         {"title": book.title, "author": book.author},
-        m4b_path,
+        staged_m4b,
         audio_dir,
     )
     if not capture_timings:
@@ -440,7 +478,7 @@ def _convert_core(
     duration_ms = sum(chapter_durations)
     write_manifest(
         book,
-        out_dir,
+        staging,
         voice,
         engine,
         style=style,
@@ -452,6 +490,8 @@ def _convert_core(
         source_epub=source_epub,
         timings_available=capture_timings,
         max_chars=max_chars,
+        m4b=m4b_name,
+        preserve_from=previous_manifest,
     )
     emit(
         ProgressEvent(
@@ -464,7 +504,7 @@ def _convert_core(
         )
     )
     return ConversionResult(
-        m4b_path=m4b_path,
+        m4b_path=out_dir / m4b_name,
         out_dir=out_dir,
         total_segments=total_segments,
         cached_segments=cached_segments,

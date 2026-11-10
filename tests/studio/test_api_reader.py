@@ -32,6 +32,21 @@ def wait_for_job(client, job_id: str, timeout: float = 30.0) -> dict:
     raise AssertionError(f"job {job_id} did not finish")
 
 
+def test_m4b_endpoint_uses_manifest_file(client, imported):
+    book_dir = client.app.state.library.get(imported["id"]).path
+    (book_dir / "old.m4b").write_bytes(b"old")
+    (book_dir / "new.m4b").write_bytes(b"new")
+    path = book_dir / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["m4b"] = "new.m4b"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    response = client.get(f"/api/books/{imported['id']}/m4b")
+
+    assert response.status_code == 200
+    assert response.content == b"new"
+
+
 def test_manifest_cache_reuses_until_the_file_changes(client, imported):
     _MANIFEST_CACHE.clear()
     path = client.app.state.library.get(imported["id"]).path / "manifest.json"

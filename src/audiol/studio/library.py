@@ -14,6 +14,7 @@ from audiol.convert import prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
 from audiol.manifest import load_manifest, write_manifest
 from audiol.naming import slugify
+from audiol.storage import recover_incomplete_commit
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,12 @@ class Library:
             if not resolved.is_relative_to(root):
                 logger.warning("Skipping library entry outside root: %s", child)
                 continue
+            try:
+                recover_incomplete_commit(resolved)
+            except Exception:
+                logger.warning(
+                    "Could not recover an incomplete conversion in %s", child, exc_info=True
+                )
             manifest_path = resolved / "manifest.json"
             if not manifest_path.is_file():
                 continue
