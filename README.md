@@ -338,6 +338,7 @@ Documentación:
 - [Desarrollo](docs/development.md)
 - [Release](docs/release.md)
 - [Rendimiento](docs/performance.md)
+- [Decisión de lenguaje](docs/language-decision.md)
 - [Linux y Flatpak](docs/linux.md)
 - [Android](docs/android.md)
 - [Seguridad](SECURITY.md)

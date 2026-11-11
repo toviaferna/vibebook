@@ -14,7 +14,11 @@ impacto en la escucha, no por dificultad.
 - Licencia definida: AGPL-3.0-only.
 - Android sigue como lector EPUB; el puente, audio local y on-device no están
   implementados.
-- Quedan la firma de binarios, las capturas finales y la verificación Flatpak.
+- [x] Release 0.6.0 publicado con 13 assets y checksums.
+- [x] Decisión de lenguaje documentada en `docs/language-decision.md`.
+- [ ] Flatpak verificado en Ubuntu 20.04/24.04.
+- [ ] APK probado en dispositivo Android.
+- [ ] Firma de binarios y capturas finales.
 
 ## Plataformas
 

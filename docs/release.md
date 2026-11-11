@@ -5,10 +5,12 @@ Linux y macOS. La release recomendada es **v0.6.0**, la ola de integridad,
 seguridad, lector P1 y audio versionado. Android se publica como APK lector-only
 experimental, firmado en CI.
 
-**Estado:** v0.6.0 incluye conversión atómica, tickets de medios, CSP de Tauri,
-persistencia de lectura con secuencia, paginación corregida, segmentación
-versionada y Flatpak. El APK sigue sin probarse en un dispositivo físico;
-SAF/SQLite/audio local y on-device quedan pendientes.
+**Estado:** v0.6.0 publicado el 2026-11-10 con 13 assets: Windows ZIP/NSIS/MSI,
+Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
+Incluye conversión atómica, tickets de medios, CSP de Tauri, persistencia de
+lectura con secuencia, paginación corregida, segmentación versionada y Flatpak.
+El APK sigue sin probarse en un dispositivo físico; SAF/SQLite/audio local y
+on-device quedan pendientes.
 
 ## Checklist previo
 
