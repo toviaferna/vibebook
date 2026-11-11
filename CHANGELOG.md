@@ -1,6 +1,51 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 — 2026-11-10
+
+Olas 1A, 1B, 2 y 3: integridad, seguridad, lector P1 y audio versionado.
+
+### Agregado
+
+- Conversión y reparación atómicas con staging, backup y recuperación de
+  commits incompletos.
+- Caché de paginación por libro, contenido, imágenes, viewport y tipografía.
+- Actividad única por libro con leases para conversión, ambiente, resegmentación,
+  restore, import y delete.
+- Migraciones SQLite numeradas con backup consistente y rollback.
+- Tickets HMAC de medios con TTL de 5 minutos.
+- CSP de producción y `devCsp` en Tauri.
+- Plugins: bloqueo de IPs privadas/link-local, sin redirects, loopback explícito.
+- Lector: secuencia monotónica, offsets de Texto, CFI de Original, búsqueda por
+  offset, temporizador persistente, limpieza de audio y pliego impar correcto.
+- Biblioteca paginada de a 60 libros.
+- Segmentos con `boundary`/`continuation`, timings con `text_hash`/`config_hash`
+  y cache fingerprint por proveedor.
+- Flatpak, matriz Linux y auditoría de seguridad.
+
+### Cambiado
+
+- El token del escritorio viaja por `stdin`; los hosts no loopback exigen token.
+- Los medios usan tickets; el token en query ya no se acepta.
+- Los assets de ambiente deben estar aprobados y se comparan por palabra.
+- La limpieza conserva números de página y diálogo fuera de front/back matter.
+- Copy de biblioteca, ajustes, estados y errores en español.
+
+### Corregido
+
+- Una reconversión fallida ya no mezcla audio viejo con nuevo.
+- `repair` elige audio por `cache_key` y rechaza ambigüedad.
+- Preferencias parciales ya no borran columnas.
+- El audio se detiene y libera al salir del lector.
+- El tema rápido persiste y los jobs tienen polling de respaldo.
+- El último pliego impar no repite página.
+- Los offsets del texto ya no son rechazados con 422.
+
+### Seguridad
+
+- ZIP con límite real de descompresión, ratio y rutas seguras.
+- Rutas de timing/audio contenidas en el libro.
+- Registro de plugins corrupto se respalda y no se sobrescribe.
+- `npm audit` y `pip-audit` sin vulnerabilidades conocidas.
 
 ## v0.5.0 — 2026-11-09
 

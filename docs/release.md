@@ -1,14 +1,14 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.5.0**, la ola de calidad de
-lectura, audio y rendimiento. Android se publica como APK lector-only
+Linux y macOS. La release recomendada es **v0.6.0**, la ola de integridad,
+seguridad, lector P1 y audio versionado. Android se publica como APK lector-only
 experimental, firmado en CI.
 
-**Estado:** v0.5.0 incluye la segmentación TTS corregida, la reparación
-incremental de audios viejos, la identidad **Biblioteca**, el lector responsive
-720p/768p/1080p y el arranque más liviano. El APK sigue sin probarse en un
-dispositivo físico; SAF/SQLite/audio local quedan pendientes.
+**Estado:** v0.6.0 incluye conversión atómica, tickets de medios, CSP de Tauri,
+persistencia de lectura con secuencia, paginación corregida, segmentación
+versionada y Flatpak. El APK sigue sin probarse en un dispositivo físico;
+SAF/SQLite/audio local y on-device quedan pendientes.
 
 ## Checklist previo
 
@@ -75,22 +75,21 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.5.0 -m "Vibebook v0.5.0 — lectura, audio y rendimiento"
-git push origin v0.5.0
+git tag -a v0.6.0 -m "Vibebook v0.6.0 — integridad, seguridad y lector P1"
+git push origin v0.6.0
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
 sin publicar si no es un tag.
 
-## Known issue v0.5.0
+## Known issue v0.5.0 (histórico)
 
-- El DMG **macOS arm64 nativo** no se publicó: GitHub Actions rechazó el runner
-  `macos-15` con el mensaje “recent account payments have failed or your
-  spending limit needs to be increased”. El DMG x64 está disponible y funciona
-  en Apple Silicon con Rosetta 2. Para completar el arm64:
+- El DMG **macOS arm64 nativo** no se publicó por el límite de gasto de GitHub.
+  En v0.6.0 se reintenta el runner `macos-15`; si vuelve a fallar, el Release
+  documenta la ausencia y publica x64. Para completar el arm64:
   1. restablecer el límite de gasto en GitHub Billing;
-  2. correr de nuevo el workflow `Release` sobre `v0.5.0`;
-  3. adjuntar `Vibebook_0.5.0_aarch64.dmg` y `checksums-macos-arm64.txt` si el
+  2. correr de nuevo el workflow `Release` sobre el tag;
+  3. adjuntar `Vibebook_0.6.0_aarch64.dmg` y `checksums-macos-arm64.txt` si el
      job `release` no los sube solo.
 
 ## Notas del release

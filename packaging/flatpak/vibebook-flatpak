@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+export PATH="/app/bin:/usr/lib/extensions/ffmpeg-full/bin:${PATH}"
+export VIBEBOOK_SIDECAR="${VIBEBOOK_SIDECAR:-/app/lib/vibebook/sidecar/vibebook-sidecar}"
+export VIBEBOOK_WEB_DIST="${VIBEBOOK_WEB_DIST:-/app/share/vibebook/web}"
+
+exec /app/bin/vibebook "$@"

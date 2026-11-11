@@ -7,9 +7,20 @@ impacto en la escucha, no por dificultad.
 
 - Core, Studio, lector sincronizado, búsqueda, marcadores, EPUB original y app
   Tauri están implementados.
+- Olas 1A, 1B, 2 y 3 cerradas: integridad, seguridad, lector P1 y audio
+  versionado.
+- Release 0.5.0 publicado; 0.6.0 prepara tickets de medios, CSP, Flatpak y
+  documentación de seguridad.
 - Licencia definida: AGPL-3.0-only.
-- Quedan el release público, la firma de binarios, las capturas finales y las
-  mejoras opcionales de rendimiento.
+- Android sigue como lector EPUB; el puente, audio local y on-device no están
+  implementados.
+- Quedan la firma de binarios, las capturas finales y la verificación Flatpak.
+
+## Plataformas
+
+- Linux: ver [`docs/linux.md`](linux.md) para la matriz Ubuntu 20.04/22.04/24.04,
+  AppImage, DEB y Flatpak.
+- Android: ver [`docs/android.md`](android.md).
 
 ## Decisión de voz
 

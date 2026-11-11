@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Vibebook
+Comment=Leer y escuchar EPUB en español
+Exec=vibebook-flatpak
+Icon=com.vibebook.Vibebook
+Terminal=false
+Type=Application
+Categories=Office;AudioVideo;Books;
+StartupNotify=true

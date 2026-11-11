@@ -7,6 +7,10 @@ también existe el alias `audiol`. La conversión es local-first: Piper si está
 instalado, eSpeak NG como fallback, y Edge/Azure solo como legado explícito. La
 salida es un M4B AAC con capítulos y metadata.
 
+El Studio usa un token local y tickets firmados de corta duración para los
+medios; el escritorio lo pasa por `stdin`, nunca por la línea de comandos. Ver
+[`SECURITY.md`](SECURITY.md) y [`docs/security-audit.md`](docs/security-audit.md).
+
 ## Instalación
 
 Requisitos:
@@ -334,6 +338,10 @@ Documentación:
 - [Desarrollo](docs/development.md)
 - [Release](docs/release.md)
 - [Rendimiento](docs/performance.md)
+- [Linux y Flatpak](docs/linux.md)
+- [Android](docs/android.md)
+- [Seguridad](SECURITY.md)
+- [Auditoría de seguridad](docs/security-audit.md)
 - [Changelog](CHANGELOG.md)
 - [Roadmap](docs/roadmap.md)
 - [Bake-off histórico](docs/archive/bakeoff-2026-10.md)

@@ -36,6 +36,8 @@ especialmente las de los componentes copyleft.
 | PyInstaller | GPL-2.0-or-later con excepción | Empaquetado del sidecar |
 | FFmpeg / ffprobe | Depende del build (LGPL/GPL) | Ensamblado y medición de audio |
 | Fraunces, Public Sans, Source Serif 4, IBM Plex Mono, Atkinson Hyperlegible | SIL Open Font License 1.1 | Tipografías de la UI |
+| GNOME Platform / SDK 46 | LGPL-2.1+ y componentes propios | Runtime Flatpak |
+| org.freedesktop.Platform.ffmpeg-full | Depende del build (LGPL/GPL) | ffmpeg dentro de Flatpak |
 
 ## Notas
 
