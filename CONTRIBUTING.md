@@ -10,6 +10,21 @@ Gracias por querer mejorar Vibebook. El proyecto se distribuye bajo
 - Creá una rama desde `main` con prefijo `feat/`, `fix/`, `docs/`, `chore/` o
   `refactor/`.
 - Si la rama ya tiene un PR abierto, seguí en esa rama y actualizá el PR.
+- No crees tags, versiones ni releases sin aprobación explícita del usuario.
+- Leé [`docs/git.md`](docs/git.md) antes de resolver conflictos.
+
+## Flujo de integración
+
+```powershell
+git fetch origin --prune
+git switch -c feat/mi-cambio origin/main
+# trabajar y commitear
+uv run python scripts/git_preflight.py
+git push -u origin feat/mi-cambio
+```
+
+Para actualizar una rama ya pusheada, usá `git merge --no-ff origin/main` y
+resolvé los conflictos con revisión. No uses force push en ramas con PR.
 
 ## Entorno
 

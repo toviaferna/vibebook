@@ -1,4 +1,4 @@
-.PHONY: sync test lint format typecheck check build run web-install web-dev web-build web-test web-lint web-check check-all sidecar
+.PHONY: sync test lint format typecheck check build run web-install web-dev web-build web-test web-lint web-check check-all sidecar preflight
 
 sync:
 	uv sync
@@ -41,6 +41,9 @@ web-lint:
 web-check: web-lint web-test web-build
 
 check-all: check web-check
+
+preflight:
+	uv run python scripts/git_preflight.py
 
 sidecar:
 	cd web && npm run build
