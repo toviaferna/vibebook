@@ -317,14 +317,6 @@ export function BookReader({
     activeWordIndex !== null && activeWordIndex >= 0 && activeWordOffsets
       ? (activeWordOffsets[activeWordIndex] ?? activeRange?.start)
       : activeRange?.start;
-  const rawActivePage = activeOffset === undefined ? null : pageIndexForOffset(pages, activeOffset);
-  const activePage =
-    rawActivePage === null
-      ? null
-      : Math.min(
-          spread && rawActivePage % 2 === 1 ? rawActivePage - 1 : rawActivePage,
-          lastPageIndex(pages.length, spread),
-        );
   const visibleBook = bookRect
     ? {
         left: renderedSpread ? bookRect.left : bookRect.left + bookRect.width / 2,
@@ -679,9 +671,7 @@ export function BookReader({
                           highlight={highlight}
                           karaoke={karaoke && hasKaraoke}
                           activeSegmentId={pageActiveSegmentId}
-                          activeWordIndex={
-                            pageActiveSegmentId && activePage === index ? activeWordIndex : null
-                          }
+                          activeWordIndex={pageActiveSegmentId ? activeWordIndex : null}
                         />
                       </Page>
                     );

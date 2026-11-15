@@ -105,9 +105,9 @@
 
 .reader-layout {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: clamp(var(--space-4), 3vw, var(--space-7));
-  width: min(1380px, 100%);
+  width: min(1880px, 100%);
   margin: 0 auto;
   padding: var(--space-5) clamp(var(--space-3), 3vw, var(--space-6)) 0;
 }
@@ -203,8 +203,8 @@
 }
 
 .book-reader {
-  --book-max-height: clamp(320px, min(68vh, calc(100vh - 350px)), 820px);
-  width: min(1280px, 100%);
+  --book-max-height: clamp(320px, min(72vh, calc(100vh - 250px)), 1080px);
+  width: min(1680px, 100%);
   margin: 0 auto;
   padding: var(--space-4) var(--space-3) var(--space-6);
 }
@@ -218,7 +218,7 @@
 
 .book-viewport {
   position: relative;
-  width: max(600px, min(100%, 1120px, calc(var(--book-max-height) * 1.463414634)));
+  width: max(600px, min(100%, 1580px, calc(var(--book-max-height) * 1.463414634)));
   max-width: 100%;
   max-height: var(--book-max-height);
   aspect-ratio: 1200 / 820;
