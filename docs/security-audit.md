@@ -38,9 +38,7 @@ Fecha: 2026-11-10. Alcance: backend Python, Studio, shell Tauri y cliente web.
    Linux y revisar la consola del WebView.
 3. **Flatpak**: el sidecar y ffmpeg dentro del sandbox no se probaron en un
    host Linux real.
-4. **Android**: el APK está firmado y verificado, pero no se probó en hardware;
-   SAF/SQLite/audio local siguen pendientes.
-5. **HTTP plano en LAN**: el token protege autenticación, no confidencialidad.
+4. **HTTP plano en LAN**: el token protege autenticación, no confidencialidad.
 6. **Tickets en memoria**: reiniciar el sidecar invalida tickets; es aceptable
    por el TTL corto.
 
