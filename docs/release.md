@@ -5,11 +5,12 @@ Linux y macOS. La release recomendada es **v0.7.0**, la ola del lector
 realista y el pipeline de audio concurrente. Android se publica como APK
 lector-only experimental, firmado en CI.
 
-**Estado:** v0.7.0 en preparación. Incluye el lector con OpenPageFlip, Libro
-como modo por defecto en escritorio, paginación que llena la página en curso,
-síntesis TTS concurrente, ensamblado solapado, caché de duraciones y métricas de
-conversión. El APK sigue sin probarse en un dispositivo físico; SAF/SQLite/audio
-local y on-device quedan pendientes.
+**Estado:** v0.7.0 publicado el 2026-11-15 con 13 assets: Windows ZIP/NSIS/MSI,
+Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
+Incluye el lector con OpenPageFlip, Libro por defecto en escritorio, paginación
+con medición real, síntesis TTS concurrente, ensamblado solapado, caché de
+duraciones y staging seguro. El APK sigue sin probarse en un dispositivo físico;
+SAF/SQLite/audio local y on-device quedan pendientes.
 
 ## Checklist previo
 
@@ -76,8 +77,8 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.6.0 -m "Vibebook v0.6.0 — integridad, seguridad y lector P1"
-git push origin v0.6.0
+git tag -a v0.7.0 -m "Vibebook v0.7.0 — lector realista y audio concurrente"
+git push origin v0.7.0
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
@@ -98,8 +99,9 @@ sin publicar si no es un tag.
 El body del Release describe requisitos, artefactos y limitaciones. Después de
 publicarlo, revisar:
 
-- novedades: segmentación TTS, reparación incremental, Biblioteca, responsive,
-  rendimiento, ambientación, M4B, sync, Linux/macOS;
+- novedades: lector OpenPageFlip, Libro por defecto en escritorio, paginación
+  con medición real, audio concurrente, caché de duraciones, staging seguro,
+  segmentación TTS, reparación incremental, Biblioteca, responsive y rendimiento;
 - requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
 - limitaciones: sin firma, sin Android todavía, sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;
