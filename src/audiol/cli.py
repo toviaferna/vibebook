@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import json
 import sys
 from importlib.metadata import version
@@ -129,7 +130,17 @@ def _normalize_rate_args(argv: list[str]) -> list[str]:
     return normalized
 
 
+def _configure_console() -> None:
+    """Keep Unicode titles readable when stdout is redirected on Windows."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            with contextlib.suppress(OSError, ValueError):
+                reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _configure_console()
     raw_argv = sys.argv[1:] if argv is None else list(argv)
     args = build_parser().parse_args(_normalize_rate_args(raw_argv))
 

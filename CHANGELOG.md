@@ -30,16 +30,9 @@
   ebooklib, que descartaba los acentos sin declaración antes de decodificar.
 - El título de capítulo generado vuelve a decir "Capítulo N" en vez de una
   cadena con codificación rota.
-  (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
-  editables para copiar y pegar.
-- La importación de EPUB decodifica el XHTML de forma determinista: BOM y
-  declaración primero, UTF-8 antes de CP1252. Los libros viejos en Windows-1252
-  o con una declaración Latin-1 incorrecta ya no convierten `á`, `é`, `í`, `ó`,
-  `ú` y `ñ` en `?` ni en mojibake.
-- La lectura usa los bytes originales del XHTML en vez de la reserialización de
-  ebooklib, que descartaba los acentos sin declaración antes de decodificar.
-- El título de capítulo generado vuelve a decir “Capítulo N” en vez de una
-  cadena con codificación rota.
+- El CLI configura stdout/stderr a UTF-8 en Windows para que los acentos no se
+  pierdan al redirigir la salida.
+- Un test de regresión detecta mojibake en el código fuente.
 
 ## v0.7.0 — 2026-11-15
 
