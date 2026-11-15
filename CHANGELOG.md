@@ -1,5 +1,13 @@
 # Changelog
 
+## Sin publicar
+
+### Corregido
+
+- Preferencias ya no desborda con rutas de biblioteca largas: la ruta se parte
+  dentro del panel y los formularios conservan su columna sin pisar el panel de
+  Apariencia.
+
 ## v0.7.0 — 2026-11-15
 
 ### Agregado
