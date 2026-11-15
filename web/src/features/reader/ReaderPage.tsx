@@ -47,6 +47,7 @@ import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSoundscape } from "./soundscape/useSoundscape";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useMediaSession } from "./useMediaSession";
+import { defaultReaderView, type ReaderView } from "./viewMode";
 import "../../styles/reader.css";
 
 type ReaderFont = "serif" | "sans" | "hyperlegible";
@@ -69,7 +70,7 @@ export function ReaderPage() {
   const manifest = manifestQuery.data;
   const settings = settingsQuery.data;
   const [chapterIndex, setChapterIndex] = useState(1);
-  const [view, setView] = useState<"book" | "album" | "text" | "original">("text");
+  const [view, setView] = useState<ReaderView>(defaultReaderView);
   const [tocOpen, setTocOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -282,7 +283,7 @@ export function ReaderPage() {
       return;
     }
     const preferred = preferencesQuery.data?.reader_mode;
-    setView(preferred ?? (chapterPayload.audio_ready ? "text" : "book"));
+    setView(preferred ?? defaultReaderView());
     viewInitialized.current = true;
   }, [chapterPayload, manifest, preferencesQuery.data?.reader_mode, preferencesQuery.isLoading]);
 

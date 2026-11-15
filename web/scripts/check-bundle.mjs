@@ -1,12 +1,15 @@
-import { readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
+const assets = path.join(dist, "assets");
 const jsBudget = 550 * 1024;
 const cssBudget = 60 * 1024;
+const readerJsBudget = 100 * 1024;
+const readerCssBudget = 8 * 1024;
 
 function assetPath(url) {
   const clean = url.split("?")[0].replace(/^\/+/, "");
@@ -74,6 +77,35 @@ function report(label, files, budget) {
 const jsTotal = report("JS", jsFiles, jsBudget);
 const cssTotal = report("CSS", cssFiles, cssBudget);
 
+function chunkFiles(prefix, suffix) {
+  return readdirSync(assets)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(suffix))
+    .map((name) => path.join(assets, name));
+}
+
+function reportChunk(label, files, budget) {
+  if (files.length === 0) {
+    console.error(`${label}: no se encontró el chunk.`);
+    process.exit(1);
+  }
+  let total = 0;
+  for (const file of files) {
+    const size = gzipSize(file);
+    const raw = statSync(file).size;
+    total += size;
+    console.log(
+      `${label} ${path.basename(file)}: ${(size / 1024).toFixed(1)} KiB gzip (${(raw / 1024).toFixed(1)} KiB raw)`,
+    );
+  }
+  console.log(
+    `${label} total: ${(total / 1024).toFixed(1)} KiB gzip / ${(budget / 1024).toFixed(0)} KiB budget`,
+  );
+  return total;
+}
+
+const readerJsTotal = reportChunk("Reader JS", chunkFiles("ReaderPage-", ".js"), readerJsBudget);
+const readerCssTotal = reportChunk("Reader CSS", chunkFiles("ReaderPage-", ".css"), readerCssBudget);
+
 let failed = false;
 if (jsTotal > jsBudget) {
   console.error(
@@ -83,6 +115,18 @@ if (jsTotal > jsBudget) {
 }
 if (cssTotal > cssBudget) {
   console.error(`Initial CSS exceeds budget by ${((cssTotal - cssBudget) / 1024).toFixed(1)} KiB.`);
+  failed = true;
+}
+if (readerJsTotal > readerJsBudget) {
+  console.error(
+    `Reader JavaScript exceeds budget by ${((readerJsTotal - readerJsBudget) / 1024).toFixed(1)} KiB.`,
+  );
+  failed = true;
+}
+if (readerCssTotal > readerCssBudget) {
+  console.error(
+    `Reader CSS exceeds budget by ${((readerCssTotal - readerCssBudget) / 1024).toFixed(1)} KiB.`,
+  );
   failed = true;
 }
 

@@ -20,6 +20,8 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 
 - JS inicial: ≤ 550 KiB gzip.
 - CSS inicial: ≤ 60 KiB gzip.
+- Chunk del lector: ≤ 100 KiB gzip.
+- CSS del lector: ≤ 8 KiB gzip.
 - Sidecar listo: ≤ 5,0 s.
 - UI interactiva: ≤ 3,0 s.
 - Listar 100 libros en caliente: ≤ 100 ms.
@@ -68,6 +70,27 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 - El lector libera `src` de audio al desmontar.
 - `npm run check:bundle` sigue dentro del presupuesto: 118,9 KiB JS y 8,4 KiB
   CSS.
+
+## N8 — lector realista (2026-11-15)
+
+| Métrica | Antes | Después |
+|---|---:|---:|
+| JS inicial | 118,9 KiB gzip | **118,9 KiB gzip** |
+| CSS inicial | 8,4 KiB gzip | **8,4 KiB gzip** |
+| Chunk del lector | 17,4 KiB gzip | **73,0 KiB gzip** |
+| CSS del lector | 4,2 KiB gzip | **4,8 KiB gzip** |
+
+- OpenPageFlip y Motion viven solo en el chunk lazy del lector; el arranque de
+  la biblioteca no cambia.
+- `check:bundle` ahora también falla si el chunk del lector supera 100 KiB gzip
+  o su CSS supera 8 KiB gzip.
+- El motor hace un giro 3D de hoja blanda con `requestAnimationFrame`; el
+  `prefers-reduced-motion` del sistema lo reduce a 0 ms.
+- La paginación se cachea por libro, contenido, imágenes, viewport, tipografía,
+  tamaño y modo álbum. El scroll y la selección de texto no se ven afectados.
+- El DOM del libro contiene una hoja por página; en capítulos largos se evita
+  recrear el contenido en cada giro y la selección de texto queda en el centro
+  de la página, fuera de la zona de arrastre del borde.
 
 ## N9 — pipeline de audio concurrente (2026-11-15)
 

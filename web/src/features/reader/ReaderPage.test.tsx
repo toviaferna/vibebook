@@ -58,6 +58,7 @@ describe("ReaderPage", () => {
     renderRoute("/books/lazarillo-1234/read", "/books/:id/read", <ReaderPage />);
 
     expect(await screen.findByRole("heading", { name: "Capítulo 1" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Libro" }));
     expect(
       await screen.findByRole("region", { name: "Lectura de Capítulo 1" }),
     ).toBeInTheDocument();

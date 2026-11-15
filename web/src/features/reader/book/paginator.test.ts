@@ -62,6 +62,22 @@ describe("paginator", () => {
     );
   });
 
+  it("rellena la página en curso partiendo el párrafo siguiente", () => {
+    const first = Array.from({ length: 18 }, () => "uno").join(" ");
+    const second = Array.from({ length: 20 }, () => "dos").join(" ");
+    const pages = paginateChapter(chapter([first, second]), [], measure, 40);
+
+    expect(measure(pages[0].blocks)).toBe(40);
+    expect(measure(pages[1].blocks)).toBe(40);
+    expect(
+      pages
+        .flatMap((page) => page.blocks.map((block) => block.text))
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    ).toBe(`${first} ${second}`);
+  });
+
   it("intercala imágenes después del párrafo anclado", () => {
     const source = chapter(["Antes de la figura.", "Después de la figura."]);
     const image: ManifestImage = {

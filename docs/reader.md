@@ -90,29 +90,34 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 
 ## Modo Libro
 
-El toggle **Libro / Texto / Original** agrega una vista paginada:
+El toggle **Libro / Texto / Original** agrega una vista paginada con un libro
+realista:
 
 - doble página en escritorio y una página en mobile;
+- tapas, lomo, canto de hojas y papel con textura, sin glassmorphism;
+- el giro lo resuelve **OpenPageFlip** (`@openpageflip/core` fijado a la versión
+  probada): click o arrastre desde el borde, swipe táctil y giro 3D de hoja
+  blanda; el centro de la página queda libre para seleccionar texto;
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
-  tipografía y tamaño;
+  tipografía y tamaño; la página en curso se llena partiendo el párrafo
+  siguiente, sin dejar media página en blanco;
 - navegación por botones, número/rango de página y “Fin del libro”;
 - al pasar la última página cruza al capítulo siguiente; al retroceder en la
   primera página va al capítulo anterior en su última página;
-- transición natural de 220 ms: la página entra con un slide corto y una sombra
-  de lomo, sin hoja 3D vacía;
 - flechas y PageUp/PageDown para pasar página;
-- swipe horizontal en mobile, ignorado si hay texto seleccionado;
+- `prefers-reduced-motion` desactiva el giro y la entrada del escenario;
 - cinta lateral para guardar la página actual;
-- marcadores de lectura con nota, listado y salto a capítulo/página;
-- `prefers-reduced-motion` desactiva la animación;
-- los libros importados abren en Libro por defecto; los que tienen audio abren
-  en Texto para conservar el karaoke.
+- marcadores de lectura con nota, listado y salto a capítulo/página.
 
-La referencia de producto es el page-turn de Kindle/Apple Books: un movimiento
-corto con sombra, no una hoja en blanco girando. Un curl 3D real necesita
-renderizar el contenido de la hoja y su reverso; en WebView el costo y la
-complejidad no se justifican para este lector. Por eso se reemplazó el giro 3D
-por un slide de 220 ms con sombra de lomo.
+**Libro es el modo por defecto en escritorio** (desde 981 px). En mobile y en
+ventanas angostas abre **Texto**, que sigue siendo el fallback accesible y el
+modo con karaoke palabra a palabra. Si el libro tiene una preferencia guardada,
+esa preferencia manda.
+
+La referencia de producto es KOReader por funciones y Apple Books por
+contención visual. El motor se mantiene aislado en `book/BookReader.tsx`; si una
+plataforma no puede medir o animar el libro, **Texto** sigue disponible desde la
+barra superior y no depende de OpenPageFlip.
 
 La posición de Libro se guarda en `reading-state` con capítulo, offset de
 carácter, página, total y porcentaje, independiente del estado de audio. Al
