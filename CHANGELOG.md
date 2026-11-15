@@ -13,9 +13,12 @@
 
 ### Corregido
 
-- Preferencias ya no desborda con rutas de biblioteca largas: la ruta se parte
-  dentro del panel y los formularios conservan su columna sin pisar el panel de
-  Apariencia.
+- Preferencias ya no desborda con rutas de biblioteca largas: el grid usa
+  `auto-fit` con `min-width: 0`, la ruta se parte dentro del panel y las filas
+  de resumen se envuelven.
+- El formulario de plugins alinea URL y token en dos columnas y deja el bot?n en
+  su propia fila; en pantallas angostas pasa a una columna.
+- Las opciones de tema y paleta se acomodan sin apretar las etiquetas.
 - La app de escritorio ya no muestra el men? contextual del navegador
   (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
   editables para copiar y pegar.
