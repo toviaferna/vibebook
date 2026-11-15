@@ -454,6 +454,7 @@ input[type="radio"] {
 
 .field {
   display: grid;
+  min-width: 0;
   gap: var(--space-2);
 }
 
@@ -561,6 +562,7 @@ input[type="radio"] {
 }
 
 .panel-body {
+  min-width: 0;
   padding: var(--space-5);
 }
 
@@ -1227,6 +1229,8 @@ input[type="radio"] {
 
 .summary-row {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
@@ -1240,6 +1244,8 @@ input[type="radio"] {
 }
 
 .summary-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 560;
   text-align: right;
 }
@@ -1474,7 +1480,13 @@ input[type="radio"] {
 
 .settings-section {
   display: grid;
+  min-width: 0;
   gap: var(--space-4);
+}
+
+.settings-path {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .settings-section h2 {
@@ -1485,7 +1497,11 @@ input[type="radio"] {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
   gap: var(--space-3);
-  align-items: end;
+  align-items: start;
+}
+
+.plugin-form > .button {
+  align-self: end;
 }
 
 .plugin-list {

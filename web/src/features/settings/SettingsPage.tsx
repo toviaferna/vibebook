@@ -225,7 +225,7 @@ export function SettingsPage() {
               </select>
             </Field>
             <Field label="Biblioteca" hint="La ruta se cambia al arrancar Studio con --library.">
-              <p className="mono muted">{settings.library_dir}</p>
+              <p className="settings-path mono muted">{settings.library_dir}</p>
             </Field>
             <div className="summary-row">
               <span>Azure</span>
