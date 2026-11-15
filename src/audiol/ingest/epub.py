@@ -134,7 +134,10 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
         # through lxml, which guesses UTF-8 for undeclared legacy documents and
         # replaces accented bytes before our decoder can see them.
         raw_content = item.content if isinstance(item.content, bytes) else item.get_content()
-        soup = BeautifulSoup(_decode_document(raw_content), "lxml")
+        decoded = _decode_document(raw_content)
+        if decoded.lstrip().startswith("<?xml"):
+            decoded = decoded.split("?>", 1)[1]
+        soup = BeautifulSoup(decoded, "lxml")
         if image_dir is not None:
             placements.extend(
                 extract_document_images(
