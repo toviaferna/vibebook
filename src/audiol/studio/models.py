@@ -98,6 +98,29 @@ class BookResponse(BaseModel):
     updated_at: str
 
 
+class CoverCandidate(BaseModel):
+    source: str
+    title: str
+    author: str
+    year: int | None = None
+    cover_url: str
+    preview_url: str
+    edition_url: str | None = None
+    score: float = 0.0
+
+
+class CoverSearchResponse(BaseModel):
+    book_id: str
+    query: str
+    items: list[CoverCandidate] = Field(default_factory=list)
+
+
+class CoverApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cover_url: str = Field(min_length=8, max_length=1000)
+
+
 class BookDetailResponse(BookResponse):
     state: BookStateResponse
     last_job: JobResponse | None = None

@@ -15,14 +15,15 @@ from audiol.ingest.epub import read_epub
 from audiol.manifest import load_manifest, write_manifest
 from audiol.naming import slugify
 from audiol.paths import UnsafePathError, safe_book_path
-from audiol.storage import recover_incomplete_commit
+from audiol.storage import recover_incomplete_commit, write_json_atomic
+from audiol.studio.covers import write_generated_cover
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_VOICE = "es-MX-JorgeNeural"
 DEFAULT_ENGINE = "edge"
 DEFAULT_RATE = "-10%"
-COVER_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+COVER_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
 
 
 class LibraryError(Exception):
@@ -91,6 +92,8 @@ class Library:
             except Exception:
                 logger.warning("Could not extract cover from %s", source, exc_info=True)
                 cover = None
+            if cover is None:
+                cover = write_generated_cover(book.title, book.author, temporary)
             write_manifest(
                 book,
                 temporary,
@@ -142,6 +145,23 @@ class Library:
             except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
                 logger.warning("Skipping invalid library entry %s: %s", child, exc)
         return records
+
+    def set_cover(self, book_id: str, payload: bytes) -> BookRecord:
+        record = self.get(book_id)
+        target = record.path / "cover.jpg"
+        temporary = record.path / f".cover-{uuid4().hex}.jpg"
+        try:
+            temporary.write_bytes(payload)
+            os.replace(temporary, target)
+            for suffix in COVER_SUFFIXES - {".jpg"}:
+                (record.path / f"cover{suffix}").unlink(missing_ok=True)
+            manifest_path = record.path / "manifest.json"
+            data = load_manifest(manifest_path)
+            data["cover"] = "cover.jpg"
+            write_json_atomic(manifest_path, data)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return self._record_from_dir(record.path)
 
     def get(self, book_id: str) -> BookRecord:
         root = self.root.resolve()

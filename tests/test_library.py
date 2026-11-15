@@ -24,7 +24,8 @@ def test_import_creates_book_folder_and_imported_manifest(library: Library, tiny
     assert record.path.is_dir()
     assert record.status == "imported"
     assert record.chapter_count == 2
-    assert record.cover_path is None
+    assert record.cover_path is not None
+    assert record.cover_path.name == "cover.svg"
     assert (record.path / "source.epub").exists()
     assert (record.path / "book.md").exists()
 
@@ -33,6 +34,7 @@ def test_import_creates_book_folder_and_imported_manifest(library: Library, tiny
     assert manifest["status"] == "imported"
     assert manifest["rate"] == "-10%"
     assert manifest["epub"] == "source.epub"
+    assert manifest["cover"] == "cover.svg"
     assert len(manifest["chapters"]) == 2
 
 
@@ -54,8 +56,15 @@ def test_import_extracts_cover(library: Library, cover_epub: Path):
     assert manifest["cover"] == "cover.jpg"
 
 
-def test_import_without_cover_returns_none(library: Library, tiny_epub: Path):
-    assert library.import_epub(tiny_epub).cover_path is None
+def test_import_without_cover_generates_an_editorial_cover(library: Library, tiny_epub: Path):
+    record = library.import_epub(tiny_epub)
+
+    assert record.cover_path is not None
+    assert record.cover_path.name == "cover.svg"
+    svg = record.cover_path.read_text(encoding="utf-8")
+    assert "<svg" in svg
+    assert "Libro de prueba" in svg
+    assert "BIBLIOTECA" in svg
 
 
 def test_import_rejects_invalid_epub(library: Library, tmp_path: Path):

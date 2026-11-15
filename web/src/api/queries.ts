@@ -6,6 +6,7 @@ import { api, apiUrl, authHeaders } from "./client";
 import type {
   AmbiencePlanUpdate,
   BookAmbience,
+  BookDetail,
   BookmarkInput,
   BookPreferences,
   ConversionInput,
@@ -56,6 +57,26 @@ export function useBook(bookId: string | undefined) {
     queryFn: () => api.getBook(bookId as string),
     enabled: Boolean(bookId),
     staleTime: 10_000,
+  });
+}
+
+export function useSearchBookCovers() {
+  return useMutation({
+    mutationFn: ({ bookId, query }: { bookId: string; query: string }) =>
+      api.searchBookCovers(bookId, query),
+  });
+}
+
+export function useApplyBookCover(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (coverUrl: string) => api.applyBookCover(bookId, coverUrl),
+    onSuccess: (book) => {
+      queryClient.setQueryData<BookDetail>(queryKeys.book(bookId), (current) =>
+        current ? { ...current, ...book } : undefined,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
   });
 }
 

@@ -4,8 +4,11 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
+from audiol.studio.api import books as books_api
 from audiol.studio.app import create_app
+from audiol.studio.cover_search import CoverHit
 from audiol.studio.settings import Settings
 from audiol.tts.fake import FakeProvider
 
@@ -24,7 +27,7 @@ def test_health(client):
 def test_import_and_list_books(client, imported):
     assert imported["status"] == "imported"
     assert imported["chapter_count"] == 2
-    assert imported["cover_url"] is None
+    assert imported["cover_url"] == f"/api/books/{imported['id']}/cover"
 
     response = client.get("/api/books")
     assert response.status_code == 200
@@ -193,6 +196,44 @@ def test_get_book_and_cover(client, cover_epub: Path):
     cover = client.get(book["cover_url"])
     assert cover.status_code == 200
     assert cover.headers["content-type"].startswith("image/")
+
+
+def test_cover_search_and_apply(client, imported, monkeypatch):
+    hit = CoverHit(
+        source="Open Library",
+        title="El libro de prueba",
+        author="Autora de prueba",
+        year=2020,
+        cover_url="https://covers.openlibrary.org/b/id/123-L.jpg",
+        edition_url="https://openlibrary.org/works/OL1W",
+        score=0.99,
+    )
+    monkeypatch.setattr(books_api, "search_covers", lambda title, author: [hit])
+    response = client.get(f"/api/books/{imported['id']}/cover/search")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["query"] == "Libro de prueba"
+    assert payload["items"][0]["preview_url"].startswith(
+        f"/api/books/{imported['id']}/cover/search/preview?url="
+    )
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (600, 900), (90, 40, 35)).save(buffer, format="JPEG")
+    monkeypatch.setattr(books_api, "download_cover", lambda url: buffer.getvalue())
+    preview = client.get(payload["items"][0]["preview_url"], follow_redirects=False)
+    assert preview.status_code == 200
+    assert preview.headers["content-type"] == "image/jpeg"
+
+    applied = client.post(
+        f"/api/books/{imported['id']}/cover",
+        json={"cover_url": hit.cover_url},
+    )
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["cover_url"] == f"/api/books/{imported['id']}/cover"
+    cover = client.get(applied.json()["cover_url"])
+    assert cover.status_code == 200
+    assert cover.headers["content-type"] == "image/jpeg"
+    assert (Path(client.app.state.settings.library_dir) / imported["id"] / "cover.jpg").is_file()
 
 
 def test_delete_blocked_by_book_activity(client, imported):

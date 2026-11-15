@@ -11,6 +11,7 @@ import type {
   BookPreferences,
   ChapterPayload,
   ConversionInput,
+  CoverSearchResponse,
   EngineList,
   Job,
   Manifest,
@@ -128,6 +129,15 @@ export const api = {
     return apiFetch<BookList>(`/books${suffix ? `?${suffix}` : ""}`);
   },
   getBook: (bookId: string) => apiFetch<BookDetail>(`/books/${bookId}`),
+  searchBookCovers: (bookId: string, query: string) =>
+    apiFetch<CoverSearchResponse>(
+      `/books/${bookId}/cover/search${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+    ),
+  applyBookCover: (bookId: string, coverUrl: string) =>
+    apiFetch<Book>(`/books/${bookId}/cover`, {
+      method: "POST",
+      body: JSON.stringify({ cover_url: coverUrl }),
+    }),
   getResegmentPlan: (bookId: string) => apiFetch<ResegmentPlan>(`/books/${bookId}/resegment`),
   repairSegments: (bookId: string, dryRun = false) =>
     apiFetch<ResegmentResult>(`/books/${bookId}/resegment`, {

@@ -77,6 +77,23 @@ export interface BookDetail extends Book {
   last_job: Job | null;
 }
 
+export interface CoverCandidate {
+  source: string;
+  title: string;
+  author: string;
+  year: number | null;
+  cover_url: string;
+  preview_url: string;
+  edition_url: string | null;
+  score: number;
+}
+
+export interface CoverSearchResponse {
+  book_id: string;
+  query: string;
+  items: CoverCandidate[];
+}
+
 export interface BookList {
   items: Book[];
   total: number;

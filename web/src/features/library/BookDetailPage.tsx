@@ -4,6 +4,7 @@ import {
   BookOpen,
   Download,
   Headphones,
+  Image as ImageIcon,
   RefreshCw,
   Trash2,
   Undo2,
@@ -38,6 +39,7 @@ import {
   formatStatus,
   pluralize,
 } from "../../lib/format";
+import { CoverSearchDialog } from "./CoverSearchDialog";
 import { DeleteBookDialog } from "./DeleteBookDialog";
 
 export function BookDetailPage() {
@@ -48,6 +50,7 @@ export function BookDetailPage() {
   const generateBeds = useGenerateAmbienceAssets();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const [ambienceJobId, setAmbienceJobId] = useState<string | null>(null);
   const ambienceJob = useAmbienceRenderJob(ambienceJobId);
   const startAmbienceRender = useStartAmbienceRender(id ?? "");
@@ -157,18 +160,24 @@ export function BookDetailPage() {
       <section className="panel">
         <div className="panel-body">
           <div className="detail-grid">
-            <div className="book-cover">
-              {cover ? (
-                <img src={cover} alt={`Portada de ${book.title}`} />
-              ) : (
-                <div className="cover-placeholder cover-placeholder--detail" aria-hidden="true">
-                  <span className="cover-placeholder-mark">
-                    VB · {book.title.slice(0, 2).toUpperCase()}
-                  </span>
-                  <strong>{book.title}</strong>
-                  <span className="cover-placeholder-author">{book.author}</span>
-                </div>
-              )}
+            <div className="cover-stack">
+              <div className="book-cover">
+                {cover ? (
+                  <img src={cover} alt={`Portada de ${book.title}`} />
+                ) : (
+                  <div className="cover-placeholder cover-placeholder--detail" aria-hidden="true">
+                    <span className="cover-placeholder-mark">
+                      VB · {book.title.slice(0, 2).toUpperCase()}
+                    </span>
+                    <strong>{book.title}</strong>
+                    <span className="cover-placeholder-author">{book.author}</span>
+                  </div>
+                )}
+              </div>
+              <Button variant="ghost" onClick={() => setCoverOpen(true)}>
+                <ImageIcon size={16} />
+                Buscar portada
+              </Button>
             </div>
             <div className="detail-meta">
               <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
@@ -463,6 +472,7 @@ export function BookDetailPage() {
         onOpenChange={setConfirmOpen}
         onDeleted={() => navigate("/")}
       />
+      <CoverSearchDialog book={book} open={coverOpen} onOpenChange={setCoverOpen} />
     </div>
   );
 }

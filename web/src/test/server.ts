@@ -155,6 +155,27 @@ export const server = setupServer(
     HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
   ),
   http.post("*/api/ambience/assets/generate", () => HttpResponse.json([])),
+  http.get("*/api/books/:id/cover/search", () =>
+    HttpResponse.json({
+      book_id: sampleBook.id,
+      query: sampleBook.title,
+      items: [
+        {
+          source: "Open Library",
+          title: sampleBook.title,
+          author: sampleBook.author,
+          year: 2020,
+          cover_url: "https://covers.openlibrary.org/b/id/123-L.jpg",
+          preview_url: "https://covers.openlibrary.org/b/id/123-L.jpg",
+          edition_url: "https://openlibrary.org/works/OL1W",
+          score: 0.99,
+        },
+      ],
+    }),
+  ),
+  http.post("*/api/books/:id/cover", () =>
+    HttpResponse.json({ ...sampleBook, cover_url: `/api/books/${sampleBook.id}/cover` }),
+  ),
   http.get("*/api/settings", () => HttpResponse.json(sampleSettings)),
   http.put("*/api/settings", async ({ request }) => {
     const patch = (await request.json()) as Record<string, unknown>;
