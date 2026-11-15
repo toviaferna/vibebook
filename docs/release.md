@@ -5,11 +5,12 @@ Linux y macOS. La release recomendada es **v0.8.0**, la ola de karaoke en Libro,
 paso automático de página y biblioteca accionable. Android se publica como APK
 lector-only experimental, firmado en CI.
 
-**Estado:** v0.8.0 preparada para el 2026-11-15. Incluye karaoke y auto-hojeo en
-Libro, una sola página en mobile, recorte del giro sin ensanchar el documento,
-acciones y borrado desde la biblioteca, decodificación EPUB determinista para
-conservar acentos y ñ, y Ajustes sin solapamientos. El APK sigue sin probarse en
-un dispositivo físico;
+**Estado:** v0.8.0 publicado el 2026-11-15 con 13 assets: Windows ZIP/NSIS/MSI,
+Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
+Incluye karaoke y auto-hojeo en Libro, una sola página en mobile, recorte del giro
+sin ensanchar el documento, acciones y borrado desde la biblioteca,
+decodificación EPUB determinista para conservar acentos y ñ, y Ajustes sin
+solapamientos. El APK sigue sin probarse en un dispositivo físico;
 SAF/SQLite/audio local y on-device quedan pendientes.
 
 ## Checklist previo
@@ -99,11 +100,13 @@ sin publicar si no es un tag.
 El body del Release describe requisitos, artefactos y limitaciones. Después de
 publicarlo, revisar:
 
-- novedades: lector OpenPageFlip, Libro por defecto en escritorio, paginación
-  con medición real, audio concurrente, caché de duraciones, staging seguro,
-  segmentación TTS, reparación incremental, Biblioteca, responsive y rendimiento;
+- novedades: karaoke y auto-hojeo en Libro, una página en mobile, giro sin
+  tambaleo, acciones y borrado desde la biblioteca, decodificación EPUB que
+  conserva acentos y ñ, Ajustes sin solapamientos, lector OpenPageFlip, audio
+  concurrente y caché de duraciones;
 - requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
-- limitaciones: sin firma, sin Android todavía, sin auto-update, Edge legado;
+- limitaciones: sin firma, APK Android experimental sin probar en dispositivo,
+  sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;
 - checksums por plataforma.
 
