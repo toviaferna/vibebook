@@ -104,7 +104,11 @@ function reportChunk(label, files, budget) {
 }
 
 const readerJsTotal = reportChunk("Reader JS", chunkFiles("ReaderPage-", ".js"), readerJsBudget);
-const readerCssTotal = reportChunk("Reader CSS", chunkFiles("ReaderPage-", ".css"), readerCssBudget);
+const readerCssTotal = reportChunk(
+  "Reader CSS",
+  chunkFiles("ReaderPage-", ".css"),
+  readerCssBudget,
+);
 
 let failed = false;
 if (jsTotal > jsBudget) {
