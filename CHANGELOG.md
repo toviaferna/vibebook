@@ -2,11 +2,23 @@
 
 ## Sin publicar
 
+### Agregado
+
+- Men? de acciones por libro en la biblioteca: bot?n visible al pasar el mouse o
+  tocar, y clic derecho sobre la tarjeta abre **Leer**, **Ver detalles** y
+  **Eliminar libro**.
+- Eliminar un libro desde la biblioteca pide confirmaci?n y borra EPUB, audio,
+  sincronizaci?n y estado de lectura; el detalle del libro tambi?n muestra la
+  acci?n en la cabecera.
+
 ### Corregido
 
 - Preferencias ya no desborda con rutas de biblioteca largas: la ruta se parte
   dentro del panel y los formularios conservan su columna sin pisar el panel de
   Apariencia.
+- La app de escritorio ya no muestra el men? contextual del navegador
+  (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
+  editables para copiar y pegar.
 
 ## v0.7.0 — 2026-11-15
 

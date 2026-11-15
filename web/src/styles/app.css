@@ -726,6 +726,132 @@ input[type="radio"] {
   padding-bottom: var(--space-2);
 }
 
+.book-card-shell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.book-card-shell > .book-card {
+  flex: 1;
+}
+
+.book-card-menu-trigger {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--line-strong) 80%, var(--ink));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 18%, transparent);
+  color: var(--ink-soft);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.book-card-shell:hover .book-card-menu-trigger,
+.book-card-shell:focus-within .book-card-menu-trigger,
+.book-card-menu-trigger[aria-expanded="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.book-card-menu-trigger:hover,
+.book-card-menu-trigger:focus-visible {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.book-card-menu-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .book-card-menu-trigger {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .book-card-menu-trigger {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.book-action-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+  background: transparent;
+}
+
+.book-action-menu {
+  position: fixed;
+  z-index: 90;
+  display: grid;
+  width: 208px;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-player);
+}
+
+.book-action-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--step-1);
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.book-action-menu-item:hover {
+  background: var(--surface);
+}
+
+.book-action-menu-item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  background: var(--surface);
+}
+
+.book-action-menu-item.is-danger {
+  color: var(--danger);
+}
+
+.book-action-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--line);
+}
+
 .book-card {
   display: flex;
   min-width: 0;
