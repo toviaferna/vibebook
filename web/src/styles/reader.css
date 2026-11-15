@@ -236,6 +236,14 @@
   isolation: isolate;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+}
+
+@supports (overflow: clip) {
+  .book-surface {
+    overflow: clip;
+    overflow-clip-margin: 28px;
+  }
 }
 
 .book-backdrop {
@@ -291,6 +299,31 @@
   z-index: 1;
   width: 100% !important;
   height: 100% !important;
+}
+
+.book-clip {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  overflow: hidden;
+}
+
+.book-word {
+  border-radius: 2px;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.book-word.is-segment-active {
+  background: color-mix(in srgb, var(--highlight) 32%, transparent);
+}
+
+.book-word.is-active {
+  background: var(--highlight-word);
+  color: var(--ink);
 }
 
 .book-spine {
@@ -559,6 +592,35 @@
 
 .book-nav .button {
   white-space: nowrap;
+}
+
+.book-karaoke {
+  gap: 0.45rem;
+  color: var(--ink-faint);
+  font-size: 0.78rem;
+}
+
+.book-karaoke-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.book-karaoke.is-active {
+  border-color: color-mix(in srgb, var(--highlight-word) 48%, var(--line));
+  color: var(--ink);
+}
+
+.book-karaoke.is-active .book-karaoke-dot {
+  background: var(--highlight-word);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--highlight-word) 24%, transparent);
+  opacity: 1;
+}
+
+.book-karaoke:disabled {
+  opacity: 0.45;
 }
 
 .book-end {

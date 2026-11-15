@@ -86,6 +86,9 @@ export function ReaderPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
   const [followSuspended, setFollowSuspended] = useState(false);
+  const [karaoke, setKaraoke] = useState(
+    () => window.localStorage.getItem("vibebook.reader-karaoke") !== "0",
+  );
   const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
   const [ambienceVolume, setAmbienceVolume] = useState(() => {
     const raw = window.localStorage.getItem("vibebook.ambience-volume");
@@ -245,6 +248,12 @@ export function ReaderPage() {
   useEffect(() => {
     window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
   }, [ambienceVolume]);
+
+  useEffect(() => {
+    window.localStorage.setItem("vibebook.reader-karaoke", karaoke ? "1" : "0");
+  }, [karaoke]);
+
+  const toggleKaraoke = useCallback(() => setKaraoke((current) => !current), []);
 
   const changePalette = useCallback(
     (next: ReaderPalette) => {
@@ -988,6 +997,11 @@ export function ReaderPage() {
                 album={view === "album"}
                 font={font}
                 size={size}
+                alignments={alignments}
+                activeSegmentId={activeSegmentId}
+                activeWordIndex={activeWordIndex}
+                follow={follow && !followSuspended}
+                karaoke={karaoke}
                 initialCharOffset={bookInitialOffset}
                 hasNextChapter={Boolean(nextChapter)}
                 hasPreviousChapter={Boolean(previousChapter)}
@@ -995,6 +1009,8 @@ export function ReaderPage() {
                 onPreviousChapter={goPreviousChapterFromPage}
                 onPageChange={handleBookPage}
                 onBookmark={handleBookBookmark}
+                onToggleKaraoke={toggleKaraoke}
+                onManualTurn={suspendFollow}
               />
             )
           ) : view === "original" ? (
@@ -1023,7 +1039,7 @@ export function ReaderPage() {
             />
           )}
 
-          {view === "text" && activeSegmentId && (followSuspended || !follow) ? (
+          {view !== "original" && activeSegmentId && (followSuspended || !follow) ? (
             <button
               type="button"
               className="reader-follow-float"
@@ -1032,7 +1048,7 @@ export function ReaderPage() {
                 setFollowSuspended(false);
               }}
             >
-              Volver al texto
+              {view === "text" ? "Volver al texto" : "Volver al audio"}
             </button>
           ) : null}
         </main>

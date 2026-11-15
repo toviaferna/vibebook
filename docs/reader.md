@@ -98,9 +98,16 @@ realista:
 - el giro lo resuelve **OpenPageFlip** (`@openpageflip/core` fijado a la versión
   probada): click o arrastre desde el borde, swipe táctil y giro 3D de hoja
   blanda; el centro de la página queda libre para seleccionar texto;
+- el giro dura 420 ms con una curva de salida suave y queda recortado dentro del
+  área del libro, sin ensanchar el documento ni mover el resto de la app;
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
   tipografía y tamaño; la página en curso se llena partiendo el párrafo
   siguiente, sin dejar media página en blanco;
+- **Karaoke:** el segmento activo y la palabra que suena se resaltan sobre la
+  página. El toggle **Karaoke** se apaga y se recuerda en `localStorage`;
+- **paso automático:** con **Seguir** activo, el audio avanza al pliego donde
+  continúa la lectura. Un giro manual pausa el seguimiento unos segundos para
+  poder releer;
 - navegación por botones, número/rango de página y “Fin del libro”;
 - al pasar la última página cruza al capítulo siguiente; al retroceder en la
   primera página va al capítulo anterior en su última página;
@@ -110,9 +117,9 @@ realista:
 - marcadores de lectura con nota, listado y salto a capítulo/página.
 
 **Libro es el modo por defecto en escritorio** (desde 981 px). En mobile y en
-ventanas angostas abre **Texto**, que sigue siendo el fallback accesible y el
-modo con karaoke palabra a palabra. Si el libro tiene una preferencia guardada,
-esa preferencia manda.
+ventanas angostas abre **Texto**, que sigue siendo el fallback accesible. Libro
+también resalta palabras cuando el timing es exacto y ofrece el mismo karaoke
+que Texto. Si el libro tiene una preferencia guardada, esa preferencia manda.
 
 La referencia de producto es KOReader por funciones y Apple Books por
 contención visual. El motor se mantiene aislado en `book/BookReader.tsx`; si una
