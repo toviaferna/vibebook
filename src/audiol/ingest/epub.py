@@ -1,4 +1,6 @@
+import codecs
 import logging
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -31,6 +33,68 @@ from audiol.ingest.structure import (
 from audiol.models import Book, Chapter, Segment, make_segment_id
 
 logger = logging.getLogger(__name__)
+
+_DECLARED_ENCODING = re.compile(
+    rb"""encoding\s*=\s*["']\s*([A-Za-z0-9._-]+)""",
+    re.IGNORECASE,
+)
+_META_CHARSET = re.compile(
+    rb"""charset\s*=\s*["']?\s*([A-Za-z0-9._-]+)""",
+    re.IGNORECASE,
+)
+_BOMS = (
+    (codecs.BOM_UTF8, "utf-8-sig"),
+    (codecs.BOM_UTF32_LE, "utf-32"),
+    (codecs.BOM_UTF32_BE, "utf-32"),
+    (codecs.BOM_UTF16_LE, "utf-16"),
+    (codecs.BOM_UTF16_BE, "utf-16"),
+)
+_UTF16_NAMES = {"utf-16", "utf16", "utf-16le", "utf-16be", "utf-32", "utf32"}
+
+
+def _decode_document(content: bytes | str) -> str:
+    """Decode XHTML deterministically instead of trusting a charset guess.
+
+    EPUBs should be UTF-8, but older Spanish books are often Windows-1252 and
+    some declare Latin-1 while actually containing UTF-8. Trying UTF-8 first
+    (after UTF-16/32 BOMs and declarations) preserves accents and ñ; only when
+    UTF-8 is invalid do we fall back to the declared legacy encoding.
+    """
+    if isinstance(content, str):
+        return content
+    for bom, encoding in _BOMS:
+        if content.startswith(bom):
+            return content.decode(encoding, errors="replace")
+
+    declared: str | None = None
+    head = content[:4096]
+    for pattern in (_DECLARED_ENCODING, _META_CHARSET):
+        match = pattern.search(head)
+        if match:
+            declared = match.group(1).decode("ascii", errors="ignore")
+            break
+
+    if declared and declared.lower() in _UTF16_NAMES:
+        try:
+            return content.decode(declared)
+        except (LookupError, UnicodeDecodeError):
+            pass
+
+    try:
+        return content.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+
+    if declared:
+        try:
+            return content.decode(declared)
+        except (LookupError, UnicodeDecodeError):
+            pass
+
+    try:
+        return content.decode("cp1252")
+    except UnicodeDecodeError:
+        return content.decode("utf-8", errors="replace")
 
 
 @dataclass(frozen=True)
@@ -66,7 +130,11 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
         if item_name.endswith(("nav.xhtml", "toc.xhtml")):
             continue
 
-        soup = BeautifulSoup(item.get_content(), "lxml")
+        # Use the raw bytes from the archive: EpubHtml.get_content() re-serializes
+        # through lxml, which guesses UTF-8 for undeclared legacy documents and
+        # replaces accented bytes before our decoder can see them.
+        raw_content = item.content if isinstance(item.content, bytes) else item.get_content()
+        soup = BeautifulSoup(_decode_document(raw_content), "lxml")
         if image_dir is not None:
             placements.extend(
                 extract_document_images(
@@ -135,7 +203,7 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
         chapter_title = entry_title or (selected_section.title if selected_section else "")
         generated_title = not bool(chapter_title)
         if not chapter_title:
-            chapter_title = f"CapÃƒÂ­tulo {chapter_index + 1}"
+            chapter_title = f"Capítulo {chapter_index + 1}"
         paragraphs = block_texts(selected_section.blocks) if selected_section else []
         if not paragraphs:
             paragraphs = extract_bare_text(soup)

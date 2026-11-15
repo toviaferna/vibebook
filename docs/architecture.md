@@ -100,6 +100,26 @@ blur decorativos se eliminaron para cuidar el rendimiento.
 Los assets importados quedan sin aprobar hasta que el usuario los escucha. El
 flujo base no requiere red, cuenta ni API paga.
 
+## Texto y codificación
+
+- El EPUB se lee desde los bytes crudos del ZIP. No se usa
+  `EpubHtml.get_content()`, porque re-serializa el XHTML con el charset que
+  adivine lxml y puede perder acentos antes de decodificar.
+- El decodificador prueba BOM UTF-8/16/32, declaración XML o `<meta charset>`,
+  luego UTF-8 estricto y solo después Windows-1252. Así un EPUB viejo en CP1252
+  o con una declaración Latin-1 incorrecta conserva `á`, `é`, `í`, `ó`, `ú` y
+  `ñ`.
+- `manifest.json`, `book.md`, timings, `durations.json` y ffmetadata se escriben
+  en UTF-8 sin BOM. Los JSON usan `ensure_ascii=False`; SQLite conserva Unicode
+  tal cual.
+- El slug ASCII se usa solo para nombres de carpeta; el título y el texto del
+  manifiesto conservan acentos, `ñ` y signos de apertura.
+- Los capítulos sin título usan `Capítulo N`. La cadena vive en el código fuente
+  y está cubierta por tests de regresión.
+- En Windows, el CLI reconfigura stdout/stderr a UTF-8. Si una consola vieja
+  muestra `?` o `Ã`, hay que revisar los bytes del archivo antes de asumir que
+  el manifiesto está corrupto.
+
 ## Pipeline
 
 ```text
