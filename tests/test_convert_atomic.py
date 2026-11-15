@@ -1,4 +1,6 @@
 import json
+import os
+import time
 from pathlib import Path
 
 import pytest
@@ -6,9 +8,14 @@ import pytest
 from audiol.convert import ConversionCancelled, convert, prepare_book
 from audiol.ingest.epub import read_epub
 from audiol.manifest import load_manifest
-from audiol.storage import recover_incomplete_commit
+from audiol.storage import STAGING_GRACE_SECONDS, recover_incomplete_commit
 from audiol.tools import find_binary
 from audiol.tts.fake import FakeProvider
+
+
+def _age_staging(path: Path) -> None:
+    old = time.time() - STAGING_GRACE_SECONDS - 60
+    os.utime(path, (old, old))
 
 
 def _has_ffmpeg() -> bool:
@@ -115,8 +122,24 @@ def test_orphan_staging_is_cleaned_without_touching_ready_book(tiny_epub: Path, 
     staging.mkdir(parents=True)
     (staging / "state.json").write_text(json.dumps({"state": "staging"}), encoding="utf-8")
     (staging / "basura.txt").write_text("x", encoding="utf-8")
+    _age_staging(staging)
 
     recover_incomplete_commit(out_dir)
 
     assert not staging.exists()
     assert (out_dir / "manifest.json").read_bytes() == manifest_before
+
+
+def test_active_staging_is_preserved_by_library_recovery(tmp_path: Path):
+    out_dir = tmp_path / "book"
+    staging = out_dir / ".staging" / "active"
+    chapters = staging / "chapters"
+    chapters.mkdir(parents=True)
+    (staging / "state.json").write_text(json.dumps({"state": "staging"}), encoding="utf-8")
+    chapter = chapters / "chapter_001.mp3"
+    chapter.write_bytes(b"half-written")
+
+    recover_incomplete_commit(out_dir)
+
+    assert staging.is_dir()
+    assert chapter.read_bytes() == b"half-written"

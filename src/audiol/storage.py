@@ -14,6 +14,10 @@ STATE_FILE = "state.json"
 META_FILE = "meta.json"
 PREVIOUS_MANIFEST = "manifest.previous.json"
 
+# A live conversion touches its staging tree as it writes chapters. Anything
+# quieter than this is treated as debris from a crash, not as an active job.
+STAGING_GRACE_SECONDS = 24 * 60 * 60
+
 
 def new_staging_dir(out_dir: Path, job_id: str) -> Path:
     staging = out_dir / STAGING_DIR / job_id
@@ -126,11 +130,24 @@ def prune_book_state(out_dir: Path, manifest: dict[str, Any]) -> None:
 
 
 def recover_incomplete_commit(out_dir: Path) -> None:
+    """Recover a crashed commit or clean old staging debris.
+
+    Library listings call this on every request, so a staging tree that is
+    still being written must be left alone. Only trees older than the grace
+    period are considered abandoned.
+    """
     staging_root = out_dir / STAGING_DIR
     if not staging_root.is_dir():
         return
+    now = time.time()
     for staging in sorted(staging_root.iterdir()):
         if not staging.is_dir():
+            continue
+        try:
+            age = now - staging.stat().st_mtime
+        except OSError:
+            continue
+        if age < STAGING_GRACE_SECONDS:
             continue
         state = _read_json(staging / STATE_FILE).get("state")
         if state == "committing":
