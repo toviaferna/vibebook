@@ -17,6 +17,8 @@ interface SoundscapeOptions {
   rate: number;
   hasAudio: boolean;
   volume: number;
+  bedVolume: number;
+  effectsVolume: number;
 }
 
 interface SoundscapeState {
@@ -42,17 +44,23 @@ export function useSoundscape({
   rate,
   hasAudio,
   volume,
+  bedVolume,
+  effectsVolume,
 }: SoundscapeOptions): SoundscapeState {
   const [active, setActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const engineRef = useRef<SoundscapeEngine | null>(null);
   const volumeRef = useRef(volume);
+  const bedVolumeRef = useRef(bedVolume);
+  const effectsVolumeRef = useRef(effectsVolume);
   const playingRef = useRef(playing);
   const timeRef = useRef(audioTimeMs);
   const rateRef = useRef(rate);
   const hasAudioRef = useRef(hasAudio);
 
   volumeRef.current = volume;
+  bedVolumeRef.current = bedVolume;
+  effectsVolumeRef.current = effectsVolume;
   playingRef.current = playing;
   timeRef.current = audioTimeMs;
   rateRef.current = rate;
@@ -74,6 +82,7 @@ export function useSoundscape({
       .then(() => {
         if (cancelled) return;
         engine.setVolume(volumeRef.current);
+        engine.setMix(bedVolumeRef.current, effectsVolumeRef.current);
         engine.start(
           hasAudioRef.current ? timeRef.current : 0,
           hasAudioRef.current ? playingRef.current : true,
@@ -88,7 +97,7 @@ export function useSoundscape({
       });
     return () => {
       cancelled = true;
-      engine.dispose();
+      engine.dispose(true);
       if (engineRef.current === engine) {
         engineRef.current = null;
       }
@@ -98,6 +107,10 @@ export function useSoundscape({
   useEffect(() => {
     engineRef.current?.setVolume(volume);
   }, [volume]);
+
+  useEffect(() => {
+    engineRef.current?.setMix(bedVolume, effectsVolume);
+  }, [bedVolume, effectsVolume]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -127,16 +140,21 @@ export function useSoundscape({
 class SoundscapeEngine {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
+  private bedBus: GainNode | null = null;
+  private effectsBus: GainNode | null = null;
   private bedSource: AudioBufferSourceNode | null = null;
   private bedBuffer: AudioBuffer | null = null;
   private cues: EffectCue[] = [];
   private timers: number[] = [];
   private settings = { master_gain_db: -18, ducking_db: -12 };
   private volume = 1;
+  private bedMix = 0.7;
+  private effectsMix = 0.8;
   private playing = false;
   private hasAudio = false;
   private rate = 1;
   private lastTimeMs = 0;
+  private disposed = false;
 
   async load(
     chapter: AmbienceChapter,
@@ -150,6 +168,11 @@ class SoundscapeEngine {
     this.context = new AudioContext();
     this.master = this.context.createGain();
     this.master.connect(this.context.destination);
+    this.bedBus = this.context.createGain();
+    this.effectsBus = this.context.createGain();
+    this.bedBus.connect(this.master);
+    this.effectsBus.connect(this.master);
+    this._applyMix();
     const buffers = new Map<string, AudioBuffer>();
     if (chapter.bed) {
       this.bedBuffer = await this._loadBuffer(chapter.bed.asset_id, buffers);
@@ -173,6 +196,7 @@ class SoundscapeEngine {
     this.playing = playing;
     this.lastTimeMs = fromMs;
     this.setVolume(this.volume);
+    this.setMix(this.bedMix, this.effectsMix);
     if (this.bedBuffer) {
       this.bedSource = this.context.createBufferSource();
       this.bedSource.buffer = this.bedBuffer;
@@ -180,7 +204,7 @@ class SoundscapeEngine {
       const bedGain = this.context.createGain();
       bedGain.gain.value = dbToGain(-24);
       this.bedSource.connect(bedGain);
-      bedGain.connect(this.master);
+      bedGain.connect(this.bedBus ?? this.master);
       const offset = (fromMs / 1000) % this.bedBuffer.duration;
       this.bedSource.start(0, offset);
     }
@@ -191,6 +215,12 @@ class SoundscapeEngine {
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
     this._applyMasterGain();
+  }
+
+  setMix(bed: number, effects: number): void {
+    this.bedMix = Math.max(0, Math.min(1, bed));
+    this.effectsMix = Math.max(0, Math.min(1, effects));
+    this._applyMix();
   }
 
   setPlaying(playing: boolean): void {
@@ -215,14 +245,29 @@ class SoundscapeEngine {
     }
   }
 
-  dispose(): void {
+  dispose(fade = false): void {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
     this.clearTimers();
     this.bedSource?.stop();
     this.bedSource?.disconnect();
     this.bedSource = null;
-    void this.context?.close();
+    if (fade && this.master && this.context) {
+      this.master.gain.cancelScheduledValues(this.context.currentTime);
+      this.master.gain.setTargetAtTime(0.0001, this.context.currentTime, 0.08);
+      const context = this.context;
+      window.setTimeout(() => {
+        void context.close();
+      }, 450);
+    } else {
+      void this.context?.close();
+    }
     this.context = null;
     this.master = null;
+    this.bedBus = null;
+    this.effectsBus = null;
   }
 
   private restartEffects(fromMs: number): void {
@@ -244,8 +289,15 @@ class SoundscapeEngine {
     const gain = this.context.createGain();
     gain.gain.value = dbToGain(cue.gainDb);
     source.connect(gain);
-    gain.connect(this.master);
+    gain.connect(this.effectsBus ?? this.master);
     source.start();
+  }
+
+  private _applyMix(): void {
+    if (!this.context) return;
+    const now = this.context.currentTime;
+    this.bedBus?.gain.setTargetAtTime(this.bedMix, now, 0.04);
+    this.effectsBus?.gain.setTargetAtTime(this.effectsMix, now, 0.04);
   }
 
   private _applyMasterGain(): void {

@@ -29,6 +29,12 @@ import { VoicePicker } from "./VoicePicker";
 const ACTIVE = new Set(["queued", "running", "cancelling"]);
 const RESUMABLE = new Set(["cancelled", "interrupted", "failed"]);
 const SAMPLE = "Hola. Así va a sonar tu próximo audiolibro en Vibebook.";
+const VOICE_PRESETS = [
+  { id: "claro", label: "Claro", rate: "-5%", style: "neutral", note: "Ágil y limpio" },
+  { id: "calido", label: "Cálido", rate: "-10%", style: "chat", note: "Cercano, conversado" },
+  { id: "dramatico", label: "Dramático", rate: "-15%", style: "sad", note: "Pausado, intenso" },
+  { id: "susurro", label: "Susurro", rate: "-20%", style: "whispering", note: "Íntimo, lento" },
+];
 
 export function StudioPage() {
   const { id } = useParams<{ id: string }>();
@@ -302,6 +308,38 @@ export function StudioPage() {
               onSelect={changeVoice}
               onPreview={(voiceId) => previewMutation.mutate(voiceId)}
             />
+
+            <section className="voice-presets" aria-label="Perfiles de lectura">
+              <div className="voice-presets-head">
+                <span className="label">Perfiles rápidos</span>
+                <span className="hint">Ajustan velocidad y estilo; la voz no cambia.</span>
+              </div>
+              <div className="voice-presets-grid">
+                {VOICE_PRESETS.map((preset) => {
+                  const supported =
+                    Boolean(selectedEngine?.supports_styles) &&
+                    Boolean(selectedVoice?.styles.includes(preset.style));
+                  const active =
+                    rate === preset.rate && style === (supported ? preset.style : "neutral");
+                  return (
+                    <button
+                      type="button"
+                      className={`voice-preset${active ? " is-active" : ""}`}
+                      key={preset.id}
+                      aria-pressed={active}
+                      disabled={locked}
+                      onClick={() => {
+                        setRate(preset.rate);
+                        setStyle(supported ? preset.style : "neutral");
+                      }}
+                    >
+                      <strong>{preset.label}</strong>
+                      <span>{preset.note}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
             <div className="rate-row">
               <div className="rate-head">
