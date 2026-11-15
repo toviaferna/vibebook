@@ -67,6 +67,21 @@ def test_import_without_cover_generates_an_editorial_cover(library: Library, tin
     assert "BIBLIOTECA" in svg
 
 
+def test_scan_generates_a_cover_for_a_legacy_book(library: Library, tiny_epub: Path):
+    record = library.import_epub(tiny_epub)
+    manifest_path = record.path / "manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data.pop("cover", None)
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+    (record.path / "cover.svg").unlink()
+
+    scanned = library.get(record.id)
+
+    assert scanned.cover_path is not None
+    assert scanned.cover_path.name == "cover.svg"
+    assert load_manifest(manifest_path)["cover"] == "cover.svg"
+
+
 def test_import_rejects_invalid_epub(library: Library, tmp_path: Path):
     invalid = tmp_path / "invalid.epub"
     invalid.write_text("not an epub", encoding="utf-8")

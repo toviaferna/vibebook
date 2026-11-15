@@ -227,14 +227,24 @@ class Library:
             updated_at = created_at
 
         cover_path = _cover_path(book_dir, data.get("cover"))
+        title = str(data.get("title", ""))
+        author = str(data.get("author", "Desconocido"))
+        if cover_path is None:
+            try:
+                cover_path = write_generated_cover(title, author, book_dir)
+                data["cover"] = cover_path.name
+                write_json_atomic(manifest_path, data)
+            except OSError:
+                logger.warning("Could not generate a cover for %s", book_dir, exc_info=True)
+                cover_path = None
         status = data.get("status")
         if not isinstance(status, str):
             status = "ready" if _has_audio(book_dir, chapters) else "imported"
 
         return BookRecord(
             id=str(data.get("id") or book_dir.name),
-            title=str(data.get("title", "")),
-            author=str(data.get("author", "Desconocido")),
+            title=title,
+            author=author,
             language=str(data.get("language", "es")),
             path=book_dir,
             cover_path=cover_path,
