@@ -4,24 +4,42 @@
 
 ### Agregado
 
-- Men? de acciones por libro en la biblioteca: bot?n visible al pasar el mouse o
+- Menú de acciones por libro en la biblioteca: botón visible al pasar el mouse o
   tocar, y clic derecho sobre la tarjeta abre **Leer**, **Ver detalles** y
   **Eliminar libro**.
-- Eliminar un libro desde la biblioteca pide confirmaci?n y borra EPUB, audio,
-  sincronizaci?n y estado de lectura; el detalle del libro tambi?n muestra la
-  acci?n en la cabecera.
+- Eliminar un libro desde la biblioteca pide confirmación y borra EPUB, audio,
+  sincronización y estado de lectura; el detalle del libro también muestra la
+  acción en la cabecera.
 
 ### Corregido
 
 - Preferencias ya no desborda con rutas de biblioteca largas: el grid usa
   `auto-fit` con `min-width: 0`, la ruta se parte dentro del panel y las filas
   de resumen se envuelven.
-- El formulario de plugins alinea URL y token en dos columnas y deja el bot?n en
+- El formulario de plugins alinea URL y token en dos columnas y deja el botón en
   su propia fila; en pantallas angostas pasa a una columna.
 - Las opciones de tema y paleta se acomodan sin apretar las etiquetas.
-- La app de escritorio ya no muestra el men? contextual del navegador
+- La app de escritorio ya no muestra el menú contextual del navegador
   (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
   editables para copiar y pegar.
+- La importación de EPUB decodifica el XHTML de forma determinista: BOM y
+  declaración primero, UTF-8 antes de CP1252. Los libros viejos en Windows-1252
+  o con una declaración Latin-1 incorrecta ya no convierten `á`, `é`, `í`, `ó`,
+  `ú` y `ñ` en `?` ni en mojibake.
+- La lectura usa los bytes originales del XHTML en vez de la reserialización de
+  ebooklib, que descartaba los acentos sin declaración antes de decodificar.
+- El título de capítulo generado vuelve a decir "Capítulo N" en vez de una
+  cadena con codificación rota.
+  (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
+  editables para copiar y pegar.
+- La importación de EPUB decodifica el XHTML de forma determinista: BOM y
+  declaración primero, UTF-8 antes de CP1252. Los libros viejos en Windows-1252
+  o con una declaración Latin-1 incorrecta ya no convierten `á`, `é`, `í`, `ó`,
+  `ú` y `ñ` en `?` ni en mojibake.
+- La lectura usa los bytes originales del XHTML en vez de la reserialización de
+  ebooklib, que descartaba los acentos sin declaración antes de decodificar.
+- El título de capítulo generado vuelve a decir “Capítulo N” en vez de una
+  cadena con codificación rota.
 
 ## v0.7.0 — 2026-11-15
 
