@@ -210,17 +210,29 @@ jobs:
 
             ### Novedades
 
+            - **Karaoke en Libro:** el párrafo y la palabra que suena se resaltan
+              sobre la página, con un toggle que se recuerda entre sesiones.
+            - **Paso automático de página:** con Seguir activo, el audio avanza al
+              pliego donde continúa la lectura. Un giro manual pausa el
+              seguimiento unos segundos para poder releer.
+            - **Sin tambaleo:** el giro dura 420 ms con easing suave y queda
+              recortado dentro del libro, sin ensanchar el documento ni mover el
+              resto de la app.
+            - **Mobile legible:** la vista Libro elige el pliego por la orientación
+              real del motor y muestra una sola página en pantallas angostas.
+            - **Biblioteca accionable:** clic derecho y botón ⋯ con Leer, Ver
+              detalles y Eliminar libro; el borrado pide confirmación y también
+              está en la cabecera del detalle.
+            - **Acentos y ñ:** la importación EPUB decodifica el XHTML de forma
+              determinista y conserva á, é, í, ó, ú y ñ en libros UTF-8 y
+              Windows-1252.
+            - **Ajustes sin solapamientos:** rutas largas, formularios de plugins y
+              opciones de tema se acomodan sin pisar paneles.
             - **Lector realista:** modo Libro con tapas, lomo, canto de hojas y
-              giro 3D de OpenPageFlip; doble página en escritorio y una en mobile.
-            - **Libro por defecto en escritorio**; Texto sigue siendo el default
-              mobile y el fallback accesible con karaoke palabra a palabra.
-            - Paginación que llena la página en curso partiendo el párrafo
-              siguiente, con medición contra el DOM real de la página.
+              giro 3D de OpenPageFlip; doble página en escritorio.
             - **Audio más rápido:** síntesis concurrente acotada por motor,
               ensamblado del capítulo anterior en paralelo y caché de duraciones
-              por segmento. Medición sintética: 3,49 s → 1,94 s.
-            - Métricas de conversión y `VIBEBOOK_TTS_CONCURRENCY` para reducir la
-              concurrencia en equipos limitados.
+              por segmento.
             - El staging de una conversión activa ya no se borra al listar la
               biblioteca.
 

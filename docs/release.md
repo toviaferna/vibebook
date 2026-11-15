@@ -1,15 +1,15 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.7.0**, la ola del lector
-realista y el pipeline de audio concurrente. Android se publica como APK
+Linux y macOS. La release recomendada es **v0.8.0**, la ola de karaoke en Libro,
+paso automático de página y biblioteca accionable. Android se publica como APK
 lector-only experimental, firmado en CI.
 
-**Estado:** v0.7.0 publicado el 2026-11-15 con 13 assets: Windows ZIP/NSIS/MSI,
-Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
-Incluye el lector con OpenPageFlip, Libro por defecto en escritorio, paginación
-con medición real, síntesis TTS concurrente, ensamblado solapado, caché de
-duraciones y staging seguro. El APK sigue sin probarse en un dispositivo físico;
+**Estado:** v0.8.0 preparada para el 2026-11-15. Incluye karaoke y auto-hojeo en
+Libro, una sola página en mobile, recorte del giro sin ensanchar el documento,
+acciones y borrado desde la biblioteca, decodificación EPUB determinista para
+conservar acentos y ñ, y Ajustes sin solapamientos. El APK sigue sin probarse en
+un dispositivo físico;
 SAF/SQLite/audio local y on-device quedan pendientes.
 
 ## Checklist previo
@@ -77,8 +77,8 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.7.0 -m "Vibebook v0.7.0 — lector realista y audio concurrente"
-git push origin v0.7.0
+git tag -a v0.8.0 -m "Vibebook v0.8.0 - karaoke en Libro y biblioteca accionable"
+git push origin v0.8.0
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
