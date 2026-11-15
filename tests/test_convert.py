@@ -1,4 +1,5 @@
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -173,6 +174,10 @@ def test_convert_writes_manifest_and_audio(tiny_epub: Path, tmp_path: Path):
     assert result.total_segments == 2
     assert result.cached_segments == 0
     assert result.duration_ms > 0
+    assert result.concurrency >= 1
+    assert result.synth_ms >= 0
+    assert result.assembly_ms >= 0
+    assert result.duration_cache_hits == 0
     assert (out_dir / "manifest.json").exists()
     assert provider.calls == 2
     manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -317,6 +322,46 @@ def _two_segment_book() -> Book:
 
 
 @requires_ffmpeg
+def test_convert_reuses_cached_durations(tiny_epub: Path, tmp_path: Path):
+    book = prepare_book(read_epub(tiny_epub))
+    out_dir = tmp_path / "book"
+
+    first = convert(book, "es-MX-JorgeNeural", "fake", FakeProvider(), out_dir)
+    second = convert(book, "es-MX-JorgeNeural", "fake", FakeProvider(), out_dir)
+
+    assert first.duration_cache_hits == 0
+    assert second.cached_segments == first.total_segments
+    assert second.duration_cache_hits == second.cached_segments
+    assert (out_dir / "audio" / "segments" / "durations.json").is_file()
+
+
+class BarrierProvider(FakeProvider):
+    max_concurrency = 2
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.barrier = threading.Barrier(2)
+        self.threads: set[int] = set()
+        self.lock = threading.Lock()
+
+    def synthesize(self, text, voice, out_path, style="neutral", rate="+0%"):
+        with self.lock:
+            self.threads.add(threading.get_ident())
+        self.barrier.wait(timeout=10)
+        return super().synthesize(text, voice, out_path, style, rate)
+
+
+@requires_ffmpeg
+def test_convert_overlaps_segments_with_provider_concurrency(tmp_path: Path):
+    provider = BarrierProvider()
+
+    result = convert(_two_segment_book(), "es-MX-JorgeNeural", "fake", provider, tmp_path / "book")
+
+    assert result.concurrency == 2
+    assert len(provider.threads) == 2
+
+
+@requires_ffmpeg
 def test_convert_cancels_between_segments_without_losing_cache(tmp_path: Path):
     book = _two_segment_book()
     out_dir = tmp_path / "book"
@@ -340,8 +385,9 @@ def test_convert_cancels_between_segments_without_losing_cache(tmp_path: Path):
             should_cancel=lambda: cancelled,
         )
 
-    assert events[-1].completed_segments == 1
-    assert len(list((out_dir / "audio" / "segments").glob("*.wav"))) == 1
+    segment_files = list((out_dir / "audio" / "segments").glob("*.wav"))
+    assert 1 <= len(segment_files) <= 2
+    assert 1 <= events[-1].completed_segments <= 2
     assert not (out_dir / "audio" / "chapters" / "chapter_001.mp3").exists()
     manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "interrupted"
@@ -350,9 +396,9 @@ def test_convert_cancels_between_segments_without_losing_cache(tmp_path: Path):
     second = CountingProvider()
     result = convert(book, "es-MX-JorgeNeural", "fake", second, out_dir)
 
-    assert second.calls == 1
     assert result.total_segments == 2
-    assert result.cached_segments == 1
+    assert result.cached_segments == len(segment_files)
+    assert second.calls == 2 - len(segment_files)
     assert result.m4b_path.exists()
     manifest = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "ready"

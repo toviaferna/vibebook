@@ -25,6 +25,7 @@ DEFAULT_TIMEOUT_SECONDS = 120.0
 class PiperProvider:
     name = "piper"
     audio_suffix = ".wav"
+    max_concurrency = 2
 
     def __init__(
         self,

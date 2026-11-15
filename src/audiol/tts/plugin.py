@@ -92,11 +92,13 @@ class PluginProvider:
         max_chars: int = 400,
         allow_local: bool = False,
         fingerprint: str | None = None,
+        max_concurrency: int = 1,
     ) -> None:
         self.url = normalize_plugin_url(url, allow_local=allow_local)
         self.token = token
         self.timeout = timeout
         self.max_chars = max_chars
+        self.max_concurrency = max(1, min(int(max_concurrency), 16))
         self.allow_local = allow_local
         self.cache_fingerprint = fingerprint or self.url
 
@@ -114,7 +116,6 @@ class PluginProvider:
         if len(text) > self.max_chars:
             raise ValueError(f"The plugin accepts at most {self.max_chars} characters")
         rate = validate_rate(rate)
-        self.url = normalize_plugin_url(self.url, allow_local=self.allow_local)
 
         payload = {
             "text": text,

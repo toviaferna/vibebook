@@ -10,6 +10,7 @@ from audiol.tts.base import AudioResult, validate_rate
 class FakeProvider:
     name = "fake"
     audio_suffix = ".wav"
+    max_concurrency = 8
 
     def __init__(self, sample_rate: int = 24000) -> None:
         self.sample_rate = sample_rate

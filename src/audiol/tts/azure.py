@@ -32,6 +32,7 @@ def _load_speech_sdk() -> Any | None:
 class AzureProvider:
     name = "azure"
     audio_suffix = ".mp3"
+    max_concurrency = 4
     key: str
     region: str
 

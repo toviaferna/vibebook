@@ -1,5 +1,24 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+
+- Síntesis TTS concurrente y acotada por motor (Piper 2, Edge 2, Azure 4,
+  plugin según su `max_concurrency`), con el ensamblado del capítulo anterior
+  solapado con la síntesis del siguiente.
+- Caché de duraciones por segmento en `audio/segments/durations.json`,
+  invalidada por tamaño y `mtime`, para evitar ffprobe/mutagen en
+  reconversiones.
+- Métricas de conversión: concurrencia, segmentos cacheados, tiempos de
+  síntesis/ensamblado y aciertos de la caché de duraciones.
+- `VIBEBOOK_TTS_CONCURRENCY` para reducir la concurrencia de un motor.
+
+### Corregido
+
+- El staging de una conversión activa ya no se borra cuando la biblioteca se
+  lista durante el job.
+
 ## v0.6.0 — 2026-11-10
 
 Olas 1A, 1B, 2 y 3: integridad, seguridad, lector P1 y audio versionado.

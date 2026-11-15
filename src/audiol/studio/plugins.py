@@ -164,6 +164,7 @@ class PluginRegistry:
             max_chars=record.info.limits.max_chars,
             allow_local=self.allow_local,
             fingerprint=f"{record.info.id}@{record.info.version}:{record.url}",
+            max_concurrency=record.info.limits.max_concurrency,
         )
 
     def test(self, plugin_id: str) -> dict:

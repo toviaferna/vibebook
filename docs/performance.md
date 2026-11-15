@@ -69,6 +69,22 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 - `npm run check:bundle` sigue dentro del presupuesto: 118,9 KiB JS y 8,4 KiB
   CSS.
 
+## N9 — pipeline de audio concurrente (2026-11-15)
+
+| Métrica | Antes | Después |
+|---|---:|---:|
+| Conversión sintética, 8 segmentos × 150 ms | 3,49 s | **1,94 s** |
+| Concurrencia | 1 | **4** (tope del proveedor) |
+| Ensamblado | en serie tras cada capítulo | **solapado con la síntesis del siguiente** |
+| Duraciones en reconversión | ffprobe/mutagen por segmento | **caché por tamaño + mtime** |
+
+- Medición local en Windows con un proveedor sintético que duerme 150 ms por
+  segmento: aísla el costo del pipeline, no la latencia real de Edge/Azure.
+- La concurrencia es adaptativa por motor y `VIBEBOOK_TTS_CONCURRENCY` solo
+  puede reducirla.
+- La caché de duraciones vive en `audio/segments/durations.json` y se invalida
+  por archivo; no cambia el contrato del manifiesto.
+
 ## Build
 
 El sidecar se empaqueta con PyInstaller en modo onefile
