@@ -1599,9 +1599,15 @@ input[type="radio"] {
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-4);
   align-items: start;
+}
+
+.settings-grid > *,
+.settings-section > *,
+.field {
+  min-width: 0;
 }
 
 .settings-section {
@@ -1610,9 +1616,20 @@ input[type="radio"] {
   gap: var(--space-4);
 }
 
-.settings-path {
+.settings-path,
+.settings-section .mono,
+.summary-row span,
+.summary-row strong,
+.plugin-item .hint {
   overflow-wrap: anywhere;
+}
+
+.settings-path {
   word-break: break-word;
+}
+
+.summary-row span {
+  min-width: 0;
 }
 
 .settings-section h2 {
@@ -1621,13 +1638,25 @@ input[type="radio"] {
 
 .plugin-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
 }
 
 .plugin-form > .button {
-  align-self: end;
+  grid-column: 1 / -1;
+  justify-self: end;
+}
+
+@media (max-width: 700px) {
+  .settings-grid,
+  .plugin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .plugin-form > .button {
+    justify-self: stretch;
+  }
 }
 
 .plugin-list {
@@ -1649,6 +1678,10 @@ input[type="radio"] {
   background: var(--surface-raised);
 }
 
+.plugin-item > div:first-child {
+  min-width: 0;
+}
+
 .plugin-item p {
   margin: 0;
 }
@@ -1661,7 +1694,7 @@ input[type="radio"] {
 
 .theme-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: var(--space-2);
 }
 
