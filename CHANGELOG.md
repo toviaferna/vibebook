@@ -4,6 +4,11 @@
 
 ### Agregado
 
+- **Karaoke en Libro:** el párrafo activo y la palabra que suena se resaltan
+  sobre la página, con un toggle **Karaoke** que se recuerda en `localStorage`.
+- **Paso automático de página:** con **Seguir** activo, el audio avanza al
+  pliego donde continúa la lectura; un giro manual pausa el seguimiento unos
+  segundos para poder releer.
 - Menú de acciones por libro en la biblioteca: botón visible al pasar el mouse o
   tocar, y clic derecho sobre la tarjeta abre **Leer**, **Ver detalles** y
   **Eliminar libro**.
@@ -13,6 +18,10 @@
 
 ### Corregido
 
+- La vista Libro decide el pliego por la orientación real del motor, así que en
+  mobile muestra una sola página en vez de comprimir dos.
+- El giro de página se recorta en el área del libro y ya no ensancha el
+  documento ni desplaza el resto de la app durante la animación.
 - Preferencias ya no desborda con rutas de biblioteca largas: el grid usa
   `auto-fit` con `min-width: 0`, la ruta se parte dentro del panel y las filas
   de resumen se envuelven.
