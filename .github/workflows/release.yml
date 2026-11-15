@@ -210,13 +210,19 @@ jobs:
 
             ### Novedades
 
-            - Segmentación TTS corregida: las palabras cortadas por guiones, spans
-              inline o bloques ya no se separan en dos audios.
-            - Reparación incremental: los libros viejos se re-segmentan y solo se
-              regenera el audio afectado, con copia de seguridad y rollback.
-            - Nueva identidad Biblioteca: pergamino, tinta, oxblood, latón y pizarra.
-            - Lector responsive real en 720p, 768p, 1080p, tablet y mobile.
-            - Arranque más liviano: ~118 KiB de JS inicial (antes ~156 KiB).
+            - **Lector realista:** modo Libro con tapas, lomo, canto de hojas y
+              giro 3D de OpenPageFlip; doble página en escritorio y una en mobile.
+            - **Libro por defecto en escritorio**; Texto sigue siendo el default
+              mobile y el fallback accesible con karaoke palabra a palabra.
+            - Paginación que llena la página en curso partiendo el párrafo
+              siguiente, con medición contra el DOM real de la página.
+            - **Audio más rápido:** síntesis concurrente acotada por motor,
+              ensamblado del capítulo anterior en paralelo y caché de duraciones
+              por segmento. Medición sintética: 3,49 s → 1,94 s.
+            - Métricas de conversión y `VIBEBOOK_TTS_CONCURRENCY` para reducir la
+              concurrencia en equipos limitados.
+            - El staging de una conversión activa ya no se borra al listar la
+              biblioteca.
 
             ### Requisitos
 
