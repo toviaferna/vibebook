@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { API_URL, ensureReadyBook } from "./helpers";
+import { API_URL, ensureReadyBook, resetReadingState } from "./helpers";
 
 function wavBuffer(seconds = 0.5, frequency = 440): Buffer {
   const rate = 24_000;
@@ -29,6 +29,7 @@ function wavBuffer(seconds = 0.5, frequency = 440): Buffer {
 test("analiza un plan y activa el ambiente del lector", async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: API_URL });
   const book = await ensureReadyBook(api, "e2e-reader.epub", "Ambiente E2E");
+  await resetReadingState(api, book.id);
 
   const assetResponse = await api.post("/api/ambience/assets/import", {
     multipart: {

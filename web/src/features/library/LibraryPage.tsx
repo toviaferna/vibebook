@@ -14,6 +14,7 @@ import { LibrarySkeleton } from "../../components/Skeleton";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { formatDuration, formatPercent, pluralize } from "../../lib/format";
+import { DeleteBookDialog } from "./DeleteBookDialog";
 
 const SORT_OPTIONS = [
   { value: "recent", label: "Recientes" },
@@ -48,6 +49,7 @@ export function LibraryPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("recent");
   const [filter, setFilter] = useState<LibraryFilter>("all");
+  const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const debouncedQuery = useDebouncedValue(query);
   const books = useBooks({ q: debouncedQuery, sort });
   const rescan = useRescan();
@@ -184,7 +186,7 @@ export function LibraryPage() {
       {filteredItems.length > 0 ? (
         <div className="book-grid">
           {filteredItems.map((book) => (
-            <BookCard book={book} key={book.id} />
+            <BookCard book={book} key={book.id} onDelete={setDeleteTarget} />
           ))}
         </div>
       ) : null}
@@ -196,6 +198,17 @@ export function LibraryPage() {
           </Button>
         </div>
       ) : null}
+
+      <DeleteBookDialog
+        book={deleteTarget}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+          }
+        }}
+        onDeleted={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -1,4 +1,3 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -19,7 +18,6 @@ import {
   useAnalyzeBookAmbience,
   useBook,
   useBookAmbience,
-  useDeleteBook,
   useGenerateAmbienceAssets,
   useRepairSegments,
   useResegmentBackups,
@@ -40,11 +38,11 @@ import {
   formatStatus,
   pluralize,
 } from "../../lib/format";
+import { DeleteBookDialog } from "./DeleteBookDialog";
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookQuery = useBook(id);
-  const deleteBook = useDeleteBook();
   const ambienceQuery = useBookAmbience(id);
   const analyzeAmbience = useAnalyzeBookAmbience(id ?? "");
   const generateBeds = useGenerateAmbienceAssets();
@@ -99,7 +97,6 @@ export function BookDetailPage() {
     );
   }
 
-  const deleteError = deleteBook.isError ? errorMessage(deleteBook.error) : null;
   const resegmentPlan = resegmentQuery.data;
   const backups = resegmentBackups.data ?? [];
   const repairError = repairSegments.isError
@@ -144,10 +141,16 @@ export function BookDetailPage() {
         title={book.title}
         subtitle={`${book.author} · ${book.language.toUpperCase()}`}
         actions={
-          <Link className="button button--ghost" to="/">
-            <ArrowLeft size={17} />
-            Biblioteca
-          </Link>
+          <>
+            <Button variant="ghost" onClick={() => setConfirmOpen(true)}>
+              <Trash2 size={16} />
+              Eliminar libro
+            </Button>
+            <Link className="button button--ghost" to="/">
+              <ArrowLeft size={17} />
+              Biblioteca
+            </Link>
+          </>
         }
       />
 
@@ -454,52 +457,12 @@ export function BookDetailPage() {
         </section>
       ) : null}
 
-      <section style={{ marginTop: "var(--space-6)" }}>
-        <Dialog.Root open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <Dialog.Trigger asChild>
-            <Button variant="danger">
-              <Trash2 size={16} />
-              Eliminar libro
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Portal>
-            <Dialog.Overlay className="dialog-overlay" />
-            <Dialog.Content className="dialog-content">
-              <Dialog.Title asChild>
-                <h2>¿Eliminar “{book.title}”?</h2>
-              </Dialog.Title>
-              <Dialog.Description asChild>
-                <p>
-                  Se borran el EPUB, el audio, los datos de sincronización y el estado de lectura.
-                  Esta acción no se puede deshacer.
-                </p>
-              </Dialog.Description>
-              {deleteError ? (
-                <div className="alert" role="alert" style={{ marginTop: "var(--space-4)" }}>
-                  <AlertTriangle size={18} />
-                  <span>{deleteError}</span>
-                </div>
-              ) : null}
-              <div className="dialog-actions">
-                <Dialog.Close asChild>
-                  <Button variant="ghost">Cancelar</Button>
-                </Dialog.Close>
-                <Button
-                  variant="danger"
-                  loading={deleteBook.isPending}
-                  onClick={() => {
-                    deleteBook.mutate(book.id, {
-                      onSuccess: () => navigate("/"),
-                    });
-                  }}
-                >
-                  Eliminar definitivamente
-                </Button>
-              </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-      </section>
+      <DeleteBookDialog
+        book={book}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onDeleted={() => navigate("/")}
+      />
     </div>
   );
 }

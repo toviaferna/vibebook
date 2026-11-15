@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   Bookmark,
   Headphones,
-  Highlighter,
   Keyboard,
   List,
   Maximize,
@@ -32,8 +31,8 @@ import { Button } from "../../components/Button";
 import { useMediaUrl } from "../../hooks/useMediaUrl";
 import { type ReaderPalette, readStoredReaderPalette, storeReaderPalette } from "../../lib/theme";
 import { alignSegment, findActive, findActiveWord } from "./alignment";
-import { type BookHighlight, type BookPageState, BookReader } from "./book/BookReader";
-import { chapterTextLength, segmentRanges } from "./book/paginator";
+import { type BookPageState, BookReader } from "./book/BookReader";
+import { chapterTextLength } from "./book/paginator";
 import { chapterDisplayTitle } from "./chapterTitle";
 import { OriginalEpubView } from "./original/OriginalEpubView";
 import { ReaderBookmarksDialog } from "./ReaderBookmarksDialog";
@@ -251,14 +250,6 @@ export function ReaderPage() {
     window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
   }, [ambienceVolume]);
 
-  const changePalette = useCallback(
-    (next: ReaderPalette) => {
-      setPalette(next);
-      savePreferences.mutate({ reader_palette: next });
-    },
-    [savePreferences],
-  );
-
   const changeBookKaraoke = useCallback(
     (enabled: boolean) => {
       setBookKaraoke(enabled);
@@ -270,6 +261,14 @@ export function ReaderPage() {
   const toggleBookKaraoke = useCallback(() => {
     changeBookKaraoke(!bookKaraoke);
   }, [bookKaraoke, changeBookKaraoke]);
+
+  const changePalette = useCallback(
+    (next: ReaderPalette) => {
+      setPalette(next);
+      savePreferences.mutate({ reader_palette: next });
+    },
+    [savePreferences],
+  );
 
   const changeView = useCallback(
     (next: "book" | "album" | "text" | "original") => {
@@ -588,20 +587,6 @@ export function ReaderPage() {
     ? (findActiveWord(activeAligned.words, timingTimeMs) ?? -1)
     : -1;
   const activeWord = activeAligned?.words[activeWordIndex];
-  const segmentOffsets = useMemo(() => (chapter ? segmentRanges(chapter) : new Map()), [chapter]);
-  const activeRange = activeSegmentId ? segmentOffsets.get(activeSegmentId) : undefined;
-  const activeWordToken =
-    activeAligned && activeWordIndex >= 0 ? activeAligned.tokens[activeWordIndex] : undefined;
-  const followOffset = activeRange ? activeRange.start + (activeWordToken?.start ?? 0) : null;
-  const bookHighlight: BookHighlight | null =
-    bookKaraoke && activeRange
-      ? {
-          start: activeRange.start,
-          end: activeRange.end,
-          wordStart: activeWordToken ? activeRange.start + activeWordToken.start : undefined,
-          wordEnd: activeWordToken ? activeRange.start + activeWordToken.end : undefined,
-        }
-      : null;
 
   useEffect(() => {
     if (!syncDebug) {
@@ -863,22 +848,6 @@ export function ReaderPage() {
               Original
             </button>
           </fieldset>
-          {view === "book" || view === "album" ? (
-            <button
-              type="button"
-              className="icon-button reader-karaoke-toggle"
-              aria-pressed={bookKaraoke}
-              aria-label={
-                bookKaraoke ? "Desactivar karaoke en el libro" : "Activar karaoke en el libro"
-              }
-              title={
-                bookKaraoke ? "Karaoke en el libro: activado" : "Karaoke en el libro: desactivado"
-              }
-              onClick={toggleBookKaraoke}
-            >
-              <Highlighter size={18} aria-hidden="true" />
-            </button>
-          ) : null}
           <button
             type="button"
             className="icon-button"
@@ -1035,16 +1004,19 @@ export function ReaderPage() {
                 album={view === "album"}
                 font={font}
                 size={size}
+                alignments={alignments}
+                activeSegmentId={activeSegmentId}
+                activeWordIndex={activeWordIndex}
+                follow={follow && !followSuspended}
+                karaoke={bookKaraoke}
                 initialCharOffset={bookInitialOffset}
-                activeOffset={followOffset}
-                highlight={bookHighlight}
-                autoPageTurn={follow && isPlaying && !followSuspended}
                 hasNextChapter={Boolean(nextChapter)}
                 hasPreviousChapter={Boolean(previousChapter)}
                 onNextChapter={goNextChapterFromPage}
                 onPreviousChapter={goPreviousChapterFromPage}
                 onPageChange={handleBookPage}
                 onBookmark={handleBookBookmark}
+                onToggleKaraoke={toggleBookKaraoke}
                 onManualTurn={suspendFollow}
               />
             )
@@ -1074,7 +1046,7 @@ export function ReaderPage() {
             />
           )}
 
-          {view === "text" && activeSegmentId && (followSuspended || !follow) ? (
+          {view !== "original" && activeSegmentId && (followSuspended || !follow) ? (
             <button
               type="button"
               className="reader-follow-float"
@@ -1083,7 +1055,7 @@ export function ReaderPage() {
                 setFollowSuspended(false);
               }}
             >
-              Volver al texto
+              {view === "text" ? "Volver al texto" : "Volver al audio"}
             </button>
           ) : null}
         </main>

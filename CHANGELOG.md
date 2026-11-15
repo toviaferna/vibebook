@@ -4,28 +4,57 @@
 
 ### Agregado
 
-- Karaoke en **Libro** y **Álbum**, activable desde la barra superior o los
-  ajustes de lectura y guardado por libro. Resalta el segmento y la palabra
-  activos sin volver a renderizar las demás páginas.
-- Paso automático de página en **Libro** sincronizado con la palabra que suena;
-  se pausa 5 s al hojear a mano y luego vuelve a la página del audio.
-- Preferencia `book_karaoke` por libro (migración 3) y fixture E2E de libro
-  largo para cubrir karaoke, auto-giro y estabilidad del lector.
+- **Karaoke en Libro:** el párrafo activo y la palabra que suena se resaltan
+  sobre la página, con un toggle **Karaoke** en la navegación y otro en los
+  ajustes de lectura. La preferencia se guarda por libro (`book_karaoke`,
+  migración 3).
+- **Paso automático de página:** con **Seguir** activo, el audio avanza al
+  pliego donde continúa la palabra que suena; un giro manual pausa el
+  seguimiento 5 s para poder releer.
+- Menú de acciones por libro en la biblioteca: botón visible al pasar el mouse o
+  tocar, y clic derecho sobre la tarjeta abre **Leer**, **Ver detalles** y
+  **Eliminar libro**.
+- Eliminar un libro desde la biblioteca pide confirmación y borra EPUB, audio,
+  sincronización y estado de lectura; el detalle del libro también muestra la
+  acción en la cabecera.
 
 ### Cambiado
 
-- El giro de página usa una curva `easeInOutCubic` de 520 ms, una sombra más
-  marcada y entrada solo por opacidad.
-- El escenario del libro recorta el desborde 3D y fija el viewport mobile, así
-  que el giro ya no redimensiona ni tambalea la app.
-- La navegación mantiene “Anterior”/“Siguiente” y reserva el alto del aviso de
-  fin de libro para no mover el layout al cambiar de página.
+- El giro de página dura 520 ms con `easeInOutCubic`, una sombra más marcada y
+  una entrada solo por opacidad.
+- El resaltado del libro envuelve únicamente el segmento activo; las demás
+  páginas siguen memorizadas y no se vuelven a renderizar con cada palabra.
 
 ### Corregido
 
-- La orientación inicial del libro se deriva de `computeLayout` en vez de
-  comparar un ancho que siempre equivale a dos páginas. En mobile ya no abre en
-  pliego ni muestra rangos de página incorrectos.
+- La vista Libro decide el pliego por la orientación real del motor, así que en
+  mobile muestra una sola página en vez de comprimir dos.
+- El giro de página se recorta en el área del libro y ya no ensancha el
+  documento ni desplaza el resto de la app durante la animación.
+- El botón flotante **Volver al audio** ya no agrega altura al documento cuando
+  aparece tras un giro manual.
+- El resaltado por palabra encuentra los segmentos de párrafos que no empiezan
+  en el offset cero, así que sigue la lectura en páginas interiores.
+- Preferencias ya no desborda con rutas de biblioteca largas: el grid usa
+  `auto-fit` con `min-width: 0`, la ruta se parte dentro del panel y las filas
+  de resumen se envuelven.
+- El formulario de plugins alinea URL y token en dos columnas y deja el botón en
+  su propia fila; en pantallas angostas pasa a una columna.
+- Las opciones de tema y paleta se acomodan sin apretar las etiquetas.
+- La app de escritorio ya no muestra el menú contextual del navegador
+  (Recargar, Inspeccionar, etc.) al hacer clic derecho; se conserva en campos
+  editables para copiar y pegar.
+- La importación de EPUB decodifica el XHTML de forma determinista: BOM y
+  declaración primero, UTF-8 antes de CP1252. Los libros viejos en Windows-1252
+  o con una declaración Latin-1 incorrecta ya no convierten `á`, `é`, `í`, `ó`,
+  `ú` y `ñ` en `?` ni en mojibake.
+- La lectura usa los bytes originales del XHTML en vez de la reserialización de
+  ebooklib, que descartaba los acentos sin declaración antes de decodificar.
+- El título de capítulo generado vuelve a decir "Capítulo N" en vez de una
+  cadena con codificación rota.
+- El CLI configura stdout/stderr a UTF-8 en Windows para que los acentos no se
+  pierdan al redirigir la salida.
+- Un test de regresión detecta mojibake en el código fuente.
 
 ## v0.7.0 — 2026-11-15
 

@@ -59,16 +59,16 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 
 ## Resaltado
 
-- En **Texto** el segmento activo se resalta siempre.
+- El segmento activo se resalta siempre.
 - La palabra activa se resalta solo si el timing es `exact` y la alineación
   texto↔palabra supera el 80 % de cobertura.
 - Si el timing es `estimated`, falta o tiene baja cobertura, se cae a resaltado
   por segmento sin romper el layout.
 - Un clic en una palabra o segmento hace seek y reproduce.
 - El texto se puede seleccionar; si hay una selección activa, el clic no salta.
-- En **Libro** y **Álbum** el resaltado se puede activar o desactivar con el
-  botón de resaltado de la barra superior o con “Resaltar palabras en el libro”
-  en los ajustes de lectura. La preferencia se guarda por libro (`book_karaoke`).
+- En **Libro** y **Álbum** el karaoke se activa o desactiva con el toggle de la
+  navegación o con “Resaltar palabras en el libro” en los ajustes. Se guarda por
+  libro (`book_karaoke`); un valor nulo significa activado.
 
 ## Controles
 
@@ -103,16 +103,20 @@ realista:
 - el giro lo resuelve **OpenPageFlip** (`@openpageflip/core` fijado a la versión
   probada): click o arrastre desde el borde, swipe táctil y giro 3D de hoja
   blanda; el centro de la página queda libre para seleccionar texto;
+- el giro dura 520 ms con `easeInOutCubic`, sombra reforzada y entrada solo por
+  opacidad; queda recortado dentro del área del libro, sin ensanchar el documento
+  ni mover el resto de la app;
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
   tipografía y tamaño; la página en curso se llena partiendo el párrafo
   siguiente, sin dejar media página en blanco;
+- **Karaoke:** el segmento activo y la palabra que suena se resaltan sobre la
+  página. Se activa o desactiva con el toggle **Karaoke** de la navegación o con
+  “Resaltar palabras en el libro” en los ajustes; se guarda por libro
+  (`book_karaoke`);
+- **paso automático:** con **Seguir** activo, la página avanza al pliego donde
+  continúa la palabra que suena. Un giro manual pausa el seguimiento 5 s y el
+  botón flotante **Volver al audio** permite reanudarlo sin mover el layout;
 - navegación por botones, número/rango de página y “Fin del libro”;
-- karaoke por segmento y palabra, activable por libro, que sigue la lectura sin
-  cambiar el tamaño ni el flujo de la página;
-- paso automático de página sincronizado con el audio; un giro manual suspende el
-  seguimiento durante 5 s;
-- el escenario recorta el desborde del giro 3D y mantiene fijo el viewport, para
-  que pasar página no redimensione el resto de la app;
 - al pasar la última página cruza al capítulo siguiente; al retroceder en la
   primera página va al capítulo anterior en su última página;
 - flechas y PageUp/PageDown para pasar página;
@@ -121,9 +125,9 @@ realista:
 - marcadores de lectura con nota, listado y salto a capítulo/página.
 
 **Libro es el modo por defecto en escritorio** (desde 981 px). En mobile y en
-ventanas angostas abre **Texto**, que sigue siendo el fallback accesible. Ambos
-modos resaltan el karaoke palabra a palabra cuando el timing lo permite. Si el
-libro tiene una preferencia guardada, esa preferencia manda.
+ventanas angostas abre **Texto**, que sigue siendo el fallback accesible. Libro
+también resalta palabras cuando el timing es exacto y ofrece el mismo karaoke
+que Texto. Si el libro tiene una preferencia guardada, esa preferencia manda.
 
 La referencia de producto es KOReader por funciones y Apple Books por
 contención visual. El motor se mantiene aislado en `book/BookReader.tsx`; si una

@@ -69,6 +69,68 @@ test("reproduce, resalta y persiste la posición", async ({ page, playwright }) 
   expect(paused).toBe(true);
 });
 
+test("en mobile hoja una página, sigue el audio y no desborda", async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: API_URL });
+  const book = await ensureReadyBook(api, "e2e-reader.epub", "Lector E2E");
+  await resetReadingState(api, book.id);
+  await api.put(`/api/books/${book.id}/preferences`, {
+    data: { reader_mode: "book", reader_size: 28 },
+  });
+
+  try {
+    await page.setViewportSize({ width: 390, height: 640 });
+    await page.goto(`/#/books/${book.id}/read`);
+    await expect(page.getByRole("region", { name: /Lectura de/ })).toBeVisible();
+
+    const nav = page.getByRole("navigation", { name: "Navegación de páginas" });
+    const label = nav.locator(".mono.muted");
+    await expect(label).toHaveText(/^Página 1 de \d+$/);
+    await expect(page.locator(".book-word").first()).toBeVisible();
+
+    const karaoke = nav.getByRole("button", { name: "Karaoke" });
+    await expect(karaoke).toHaveAttribute("aria-pressed", "true");
+
+    const follow = page.locator("button.reader-follow");
+    if ((await follow.getAttribute("aria-pressed")) === "false") {
+      await follow.click();
+    }
+    await page.waitForTimeout(700);
+    await page.getByRole("button", { name: "Reproducir" }).click();
+    await expect(label).toHaveText(/^Página 2 de \d+$/, { timeout: 12_000 });
+    await expect(page.locator(".book-word.is-active")).toBeVisible();
+    await page.getByRole("button", { name: "Pausar" }).click();
+
+    const overflow = page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let maximum = 0;
+          const start = performance.now();
+          const tick = () => {
+            maximum = Math.max(maximum, document.documentElement.scrollWidth);
+            if (performance.now() - start < 1_200) {
+              requestAnimationFrame(tick);
+            } else {
+              resolve(maximum);
+            }
+          };
+          tick();
+        }),
+    );
+    await nav.getByRole("button", { name: /siguiente/i }).click();
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    expect(await overflow).toBeLessThanOrEqual(viewportWidth + 1);
+
+    await karaoke.click();
+    await expect(karaoke).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator(".book-word")).toHaveCount(0);
+  } finally {
+    await api.put(`/api/books/${book.id}/preferences`, {
+      data: { reader_mode: "text", reader_size: 19, book_karaoke: true },
+    });
+    await api.dispose();
+  }
+});
+
 test("guarda la posición del texto y el CFI del original", async ({ page, playwright }) => {
   const api = await playwright.request.newContext({ baseURL: API_URL });
   const book = await ensureReadyBook(api, "e2e-reader.epub", "Lector E2E");

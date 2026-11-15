@@ -3,6 +3,30 @@
 La app local incluye una interfaz web para biblioteca, importación, conversión,
 lector sincronizado y ajustes, más una API para el lector.
 
+## Acciones de la biblioteca
+
+- Cada tarjeta tiene un botón **⋯** que aparece al pasar el mouse y queda visible
+  en pantallas táctiles.
+- Clic derecho sobre una tarjeta abre el mismo menú: **Leer**, **Ver detalles** y
+  **Eliminar libro**.
+- Eliminar pide confirmación y borra el EPUB, el audio, los datos de
+  sincronización y el estado de lectura. La misma acción está en la cabecera del
+  detalle del libro.
+- En la app empaquetada, el clic derecho no muestra el menú del navegador. En
+  campos de texto se conserva el menú nativo para copiar y pegar.
+
+## Importación y codificación
+
+- El XHTML se decodifica con una estrategia determinista: BOM UTF-8/16/32,
+  declaración XML o `<meta charset>`, y luego UTF-8 estricto antes de
+  Windows-1252. Un EPUB viejo en CP1252 o con una declaración Latin-1 incorrecta
+  conserva `á`, `é`, `í`, `ó`, `ú` y `ñ`.
+- La importación no depende de la detección automática de charset del parser,
+  que podía elegir una página de códigos inesperada.
+- La lectura usa los bytes originales del XHTML en vez de la reserialización de
+  ebooklib, que podía reemplazar los acentos antes de llegar al decodificador.
+- Los títulos de capítulo generados usan “Capítulo N” con acentuación correcta.
+
 ## Arranque
 
 ```powershell

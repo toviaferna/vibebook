@@ -12,6 +12,15 @@ La conversión es local; no hay cuenta ni servicio pago.
 | macOS | arm64 / x64 | Tauri | Sí | Sí | P2, unsigned |
 | Android | arm64 | Tauri mobile | No | No | P4, lector |
 
+## Shell
+
+- La app suprime el menú contextual del navegador (Recargar, Inspeccionar,
+  Guardar como, etc.). El clic derecho en una tarjeta de la biblioteca abre las
+  acciones de la app; en campos editables se conserva el menú nativo para
+  copiar y pegar.
+- La barra de título usa el tema de la app y el lector conserva su propia
+  paleta; no se mezclan.
+
 ## Windows
 
 - Instaladores NSIS/MSI y ZIP portable.

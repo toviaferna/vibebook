@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from ebooklib import epub
+
 from audiol.ingest.epub import read_epub
 
 
@@ -8,6 +10,29 @@ def test_read_epub_metadata(tiny_epub: Path):
     assert book.title == "Libro de prueba"
     assert book.author == "Autora"
     assert book.language.startswith("es")
+
+
+def test_generated_chapter_title_keeps_accents(tmp_path: Path):
+    book = epub.EpubBook()
+    book.set_identifier("audiol-test-untitled")
+    book.set_title("Libro sin títulos")
+    book.set_language("es")
+    book.add_author("Autora")
+    chapter = epub.EpubHtml(title="", file_name="only.xhtml", lang="es")
+    chapter.content = "<p>Texto sin encabezado, con canción y niño.</p>"
+    book.add_item(chapter)
+    book.toc = ()
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", chapter.id]
+    path = tmp_path / "untitled.epub"
+    epub.write_epub(str(path), book)
+
+    parsed = read_epub(path)
+
+    assert parsed.chapters[0].title == "Capítulo 1"
+    assert parsed.chapters[0].generated_title is True
+    assert parsed.chapters[0].segments[0].text == "Texto sin encabezado, con canción y niño."
 
 
 def test_read_epub_chapters_and_segments(tiny_epub: Path):

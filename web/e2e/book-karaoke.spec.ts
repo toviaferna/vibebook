@@ -11,7 +11,7 @@ test("el karaoke sigue la palabra y pasa la página sin mover la app", async ({
   await resetReadingState(api, book.id);
   await api.put("/api/settings", { data: { auto_scroll: true } });
   await api.put(`/api/books/${book.id}/preferences`, {
-    data: { reader_size: 28, book_karaoke: true },
+    data: { reader_mode: "book", reader_size: 28, book_karaoke: true },
   });
   await api.dispose();
 
@@ -20,11 +20,14 @@ test("el karaoke sigue la palabra y pasa la página sin mover la app", async ({
   await page.getByRole("button", { name: "Libro", exact: true }).click();
   await expect(page.locator(".book-page:visible").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Reproducir" }).click();
-  await expect(page.locator(".book-highlight-word").first()).toBeVisible({ timeout: 10_000 });
-
   const pageLabel = page.locator(".book-nav .mono");
   await expect(pageLabel).toHaveText(/^Página \d+ de \d+$/);
+  const karaoke = page.locator(".book-nav").getByRole("button", { name: "Karaoke" });
+  await expect(karaoke).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Reproducir" }).click();
+  await expect(page.locator(".book-word.is-active").first()).toBeVisible({ timeout: 10_000 });
+
   const firstLabel = await pageLabel.textContent();
   const geometry = () =>
     page.evaluate(() => {
@@ -42,7 +45,6 @@ test("el karaoke sigue la palabra y pasa la página sin mover la app", async ({
         scrollY: window.scrollY,
         nav: rect(".book-nav"),
         table: rect(".book-table"),
-        label: document.querySelector(".book-nav .mono")?.textContent,
       };
     });
   const before = await geometry();
@@ -64,15 +66,16 @@ test("el karaoke sigue la palabra y pasa la página sin mover la app", async ({
     .poll(async () => pageLabel.textContent(), { timeout: 8_000 })
     .not.toMatch(/^Página 1 de \d+$/);
 
-  const toggle = page.getByRole("button", { name: "Desactivar karaoke en el libro" });
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await toggle.click();
-  await expect(page.getByRole("button", { name: "Activar karaoke en el libro" })).toHaveAttribute(
-    "aria-pressed",
-    "false",
-  );
-  await expect(page.locator(".book-highlight-word")).toHaveCount(0);
+  await karaoke.click();
+  await expect(karaoke).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".book-word")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Activar karaoke en el libro" }).click();
-  await expect(page.locator(".book-highlight-word").first()).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".book-page:visible").first()).toBeVisible();
+  const karaokeAfterReload = page.locator(".book-nav").getByRole("button", { name: "Karaoke" });
+  await expect(karaokeAfterReload).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".book-word")).toHaveCount(0);
+  await expect(karaokeAfterReload).toBeEnabled();
+  await karaokeAfterReload.click();
+  await expect(page.locator(".book-word").first()).toBeVisible({ timeout: 10_000 });
 });

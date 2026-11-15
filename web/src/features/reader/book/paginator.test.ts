@@ -5,7 +5,6 @@ import {
   chapterTextLength,
   pageIndexForOffset,
   paginateChapter,
-  segmentRanges,
 } from "./paginator";
 
 function chapter(texts: string[]): ManifestChapter {
@@ -31,27 +30,17 @@ function measure(blocks: { text: string }[]): number {
 }
 
 describe("paginator", () => {
-  it("agrupa segmentos por pÃ¡rrafo y calcula offsets", () => {
-    const source = chapter(["Hola", "mundo", "AdiÃ³s"]);
+  it("agrupa segmentos por párrafo y calcula offsets", () => {
+    const source = chapter(["Hola", "mundo", "Adiós"]);
     source.segments[1] = { ...source.segments[1], paragraph_index: 1 };
     const paragraphs = chapterParagraphs(source);
 
-    expect(paragraphs.map((paragraph) => paragraph.text)).toEqual(["Hola mundo", "AdiÃ³s"]);
+    expect(paragraphs.map((paragraph) => paragraph.text)).toEqual(["Hola mundo", "Adiós"]);
     expect(paragraphs[0].startOffset).toBe(0);
     expect(paragraphs[1].startOffset).toBe("Hola mundo".length + 1);
     expect(chapterTextLength(chapter(["Hola mundo", "Adiós mundo"]))).toBe(
       "Hola mundo".length + 1 + "Adiós mundo".length,
     );
-  });
-
-  it("calcula rangos de segmento en el texto paginado", () => {
-    const source = chapter(["Hola", "mundo", "Adios"]);
-    source.segments[1] = { ...source.segments[1], paragraph_index: 1 };
-    const ranges = segmentRanges(source);
-
-    expect(ranges.get("c001p0001s00")).toEqual({ start: 0, end: 4 });
-    expect(ranges.get("c001p0002s00")).toEqual({ start: 5, end: 10 });
-    expect(ranges.get("c001p0003s00")).toEqual({ start: 11, end: 16 });
   });
 
   it("pagina sin perder texto y mantiene offsets", () => {
@@ -114,7 +103,7 @@ describe("paginator", () => {
     }
   });
 
-  it("encuentra la pÃ¡gina para un offset", () => {
+  it("encuentra la página para un offset", () => {
     const pages = [
       { blocks: [], startOffset: 0 },
       { blocks: [], startOffset: 100 },
