@@ -544,6 +544,10 @@
   box-shadow: none;
 }
 
+.book-page--measure .book-page-body {
+  flex: 0 0 auto;
+}
+
 .book-nav {
   display: flex;
   flex-wrap: wrap;
@@ -626,7 +630,7 @@
 
 @media (min-width: 641px) and (max-width: 1100px) {
   .book-reader {
-    --book-max-height: clamp(300px, min(62vh, calc(100vh - 420px)), 760px);
+    --book-max-height: clamp(300px, min(62vh, calc(100vh - 380px)), 760px);
   }
 }
 
@@ -1069,15 +1073,19 @@
   justify-self: start;
 }
 
-@media (max-width: 1100px) {
+@media (min-width: 641px) and (max-width: 1100px) {
   .reader-player-main {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .reader-player-meta {
+    display: none;
   }
 
   .reader-player-tools {
-    grid-column: 1 / -1;
-    justify-content: center;
-    margin-top: var(--space-1);
+    grid-column: auto;
+    justify-content: flex-end;
+    margin-top: 0;
   }
 
   .reader-toc-panel {

@@ -228,7 +228,7 @@ export function BookReader({
         const measureElement = document.createElement("div");
         measureElement.className = "book-page book-page--measure";
         measureElement.style.width = `${rect.pageWidth}px`;
-        measureElement.style.height = `${rect.height}px`;
+        measureElement.style.height = "auto";
         element.appendChild(measureElement);
         const styles = getComputedStyle(measureElement);
         const contentWidth =
@@ -242,8 +242,9 @@ export function BookReader({
           const footer = document.createElement("footer");
           footer.className = "book-page-number";
           footer.textContent = "00";
-          measureElement.replaceChildren(
-            runningHead,
+          const body = document.createElement("div");
+          body.className = "book-page-body";
+          body.append(
             ...blocks.map((block) => {
               if (block.kind === "image") {
                 const figure = document.createElement("figure");
@@ -270,8 +271,8 @@ export function BookReader({
               paragraph.textContent = block.text;
               return paragraph;
             }),
-            footer,
           );
+          measureElement.replaceChildren(runningHead, body, footer);
           return measureElement.scrollHeight;
         };
         nextPages = paginateChapter(chapter, images, measure, rect.height, bookId);
