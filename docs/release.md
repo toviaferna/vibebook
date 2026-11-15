@@ -1,16 +1,15 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.6.0**, la ola de integridad,
-seguridad, lector P1 y audio versionado. Android se publica como APK lector-only
-experimental, firmado en CI.
+Linux y macOS. La release recomendada es **v0.7.0**, la ola del lector
+realista y el pipeline de audio concurrente. Android se publica como APK
+lector-only experimental, firmado en CI.
 
-**Estado:** v0.6.0 publicado el 2026-11-10 con 13 assets: Windows ZIP/NSIS/MSI,
-Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
-Incluye conversión atómica, tickets de medios, CSP de Tauri, persistencia de
-lectura con secuencia, paginación corregida, segmentación versionada y Flatpak.
-El APK sigue sin probarse en un dispositivo físico; SAF/SQLite/audio local y
-on-device quedan pendientes.
+**Estado:** v0.7.0 en preparación. Incluye el lector con OpenPageFlip, Libro
+como modo por defecto en escritorio, paginación que llena la página en curso,
+síntesis TTS concurrente, ensamblado solapado, caché de duraciones y métricas de
+conversión. El APK sigue sin probarse en un dispositivo físico; SAF/SQLite/audio
+local y on-device quedan pendientes.
 
 ## Checklist previo
 

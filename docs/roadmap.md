@@ -15,6 +15,7 @@ impacto en la escucha, no por dificultad.
 - Android sigue como lector EPUB; el puente, audio local y on-device no están
   implementados.
 - [x] Release 0.6.0 publicado con 13 assets y checksums.
+- [ ] Release 0.7.0 en preparación: lector realista y audio concurrente.
 - [x] Decisión de lenguaje documentada en `docs/language-decision.md`.
 - [ ] Flatpak verificado en Ubuntu 20.04/24.04.
 - [ ] APK probado en dispositivo Android.
