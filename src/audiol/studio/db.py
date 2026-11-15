@@ -143,9 +143,14 @@ MIGRATION_2 = """
 ALTER TABLE reading_state ADD COLUMN sequence INTEGER NOT NULL DEFAULT 0;
 """
 
+MIGRATION_3 = """
+ALTER TABLE book_preferences ADD COLUMN book_karaoke INTEGER;
+"""
+
 MIGRATIONS: list[tuple[int, str]] = [
     (1, SCHEMA_V1),
     (2, MIGRATION_2),
+    (3, MIGRATION_3),
 ]
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 
@@ -617,7 +622,7 @@ class Database:
         if row is None:
             return None
         preferences = dict(row)
-        for key in ("page_turn", "ambience_enabled"):
+        for key in ("page_turn", "ambience_enabled", "book_karaoke"):
             value = preferences.get(key)
             if value is not None:
                 preferences[key] = bool(value)
@@ -631,12 +636,13 @@ class Database:
             "reader_size",
             "page_turn",
             "ambience_enabled",
+            "book_karaoke",
         }
         unknown = set(preferences) - allowed
         if unknown:
             raise ValueError(f"Unknown book preferences: {sorted(unknown)}")
         values = dict(preferences)
-        for key in ("page_turn", "ambience_enabled"):
+        for key in ("page_turn", "ambience_enabled", "book_karaoke"):
             if key in values and values[key] is not None:
                 values[key] = int(bool(values[key]))
         now = _now()
@@ -660,7 +666,7 @@ class Database:
         if row is None:
             raise KeyError(book_id)
         result = dict(row)
-        for key in ("page_turn", "ambience_enabled"):
+        for key in ("page_turn", "ambience_enabled", "book_karaoke"):
             value = result.get(key)
             if value is not None:
                 result[key] = bool(value)

@@ -59,13 +59,16 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 
 ## Resaltado
 
-- El segmento activo se resalta siempre.
+- En **Texto** el segmento activo se resalta siempre.
 - La palabra activa se resalta solo si el timing es `exact` y la alineación
   texto↔palabra supera el 80 % de cobertura.
 - Si el timing es `estimated`, falta o tiene baja cobertura, se cae a resaltado
   por segmento sin romper el layout.
 - Un clic en una palabra o segmento hace seek y reproduce.
 - El texto se puede seleccionar; si hay una selección activa, el clic no salta.
+- En **Libro** y **Álbum** el resaltado se puede activar o desactivar con el
+  botón de resaltado de la barra superior o con “Resaltar palabras en el libro”
+  en los ajustes de lectura. La preferencia se guarda por libro (`book_karaoke`).
 
 ## Controles
 
@@ -73,8 +76,10 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 - Velocidad (0,75× a 2×), volumen, mute y temporizador.
 - Media Session para controles del sistema.
 - Autoavance al terminar un capítulo.
-- El auto-scroll se pausa 5 s al scrollear manualmente y se reactiva con
-  “Volver al texto”.
+- En **Libro**, la página sigue a la palabra que suena mientras el audio está en
+  reproducción. Al hojear a mano el seguimiento se pausa 5 s y después vuelve a
+  la página del audio; en **Texto** el auto-scroll se pausa igual y se reactiva
+  con “Volver al texto”.
 
 ## Atajos
 
@@ -102,6 +107,12 @@ realista:
   tipografía y tamaño; la página en curso se llena partiendo el párrafo
   siguiente, sin dejar media página en blanco;
 - navegación por botones, número/rango de página y “Fin del libro”;
+- karaoke por segmento y palabra, activable por libro, que sigue la lectura sin
+  cambiar el tamaño ni el flujo de la página;
+- paso automático de página sincronizado con el audio; un giro manual suspende el
+  seguimiento durante 5 s;
+- el escenario recorta el desborde del giro 3D y mantiene fijo el viewport, para
+  que pasar página no redimensione el resto de la app;
 - al pasar la última página cruza al capítulo siguiente; al retroceder en la
   primera página va al capítulo anterior en su última página;
 - flechas y PageUp/PageDown para pasar página;
@@ -110,9 +121,9 @@ realista:
 - marcadores de lectura con nota, listado y salto a capítulo/página.
 
 **Libro es el modo por defecto en escritorio** (desde 981 px). En mobile y en
-ventanas angostas abre **Texto**, que sigue siendo el fallback accesible y el
-modo con karaoke palabra a palabra. Si el libro tiene una preferencia guardada,
-esa preferencia manda.
+ventanas angostas abre **Texto**, que sigue siendo el fallback accesible. Ambos
+modos resaltan el karaoke palabra a palabra cuando el timing lo permite. Si el
+libro tiene una preferencia guardada, esa preferencia manda.
 
 La referencia de producto es KOReader por funciones y Apple Books por
 contención visual. El motor se mantiene aislado en `book/BookReader.tsx`; si una
@@ -133,6 +144,11 @@ restaura la posición sin autoplay.
 
 La lectura usa `PUT /api/books/<id>/reading-state` y no pisa la posición del
 audio.
+
+Las preferencias del libro (`reader_mode`, paleta, tipografía, tamaño,
+`book_karaoke`) se guardan en `PUT /api/books/<id>/preferences`. Un
+`book_karaoke` nulo significa karaoke activado; el resto de las preferencias
+nulas heredan el ajuste global.
 
 ## Búsqueda y marcadores
 
@@ -159,8 +175,8 @@ sincronizado y el EPUB original renderizado con `epubjs` en un iframe aislado.
 ## Ajustes
 
 Tema claro/sepia/noche, tipografía editorial/sans/Atkinson Hyperlegible, tamaño
-de texto y seguimiento automático. Los ajustes se comparten con la API de
-settings del Studio.
+de texto, seguimiento automático y karaoke del libro. La apariencia y el karaoke
+se guardan por libro; el seguimiento toma `auto_scroll` de los ajustes globales.
 
 ## Diagnóstico de sincronización
 

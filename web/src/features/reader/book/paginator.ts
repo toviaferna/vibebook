@@ -1,4 +1,4 @@
-﻿import type { ManifestChapter, ManifestImage } from "../../../api/types";
+﻿import type { ManifestChapter, ManifestImage, ManifestSegment } from "../../../api/types";
 import { chapterSignature } from "./pageCache";
 
 export interface TextBlock {
@@ -231,6 +231,48 @@ function splitBlock(
       continuation: true,
     },
   };
+}
+
+export interface SegmentRange {
+  start: number;
+  end: number;
+}
+
+/**
+ * Character ranges for every segment, in the same coordinate space as
+ * BookPage.startOffset and the block offsets used by pagination.
+ */
+export function segmentRanges(chapter: ManifestChapter): Map<string, SegmentRange> {
+  const groups = new Map<number, ManifestSegment[]>();
+  for (const segment of chapter.segments) {
+    const group = groups.get(segment.paragraph_index) ?? [];
+    group.push(segment);
+    groups.set(segment.paragraph_index, group);
+  }
+
+  const ranges = new Map<string, SegmentRange>();
+  for (const paragraph of chapterParagraphs(chapter)) {
+    let cursor = 0;
+    for (const segment of groups.get(paragraph.paragraphIndex) ?? []) {
+      const text = segment.text.replace(/\s+/g, " ").trim();
+      if (!text) {
+        continue;
+      }
+      let index = paragraph.text.indexOf(text, cursor);
+      if (index < 0) {
+        index = paragraph.text.indexOf(text);
+      }
+      if (index < 0) {
+        continue;
+      }
+      ranges.set(segment.id, {
+        start: paragraph.startOffset + index,
+        end: paragraph.startOffset + index + text.length,
+      });
+      cursor = index + text.length;
+    }
+  }
+  return ranges;
 }
 
 export function pageIndexForOffset(pages: BookPage[], offset: number): number {

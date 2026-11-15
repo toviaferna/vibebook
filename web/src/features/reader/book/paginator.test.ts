@@ -5,6 +5,7 @@ import {
   chapterTextLength,
   pageIndexForOffset,
   paginateChapter,
+  segmentRanges,
 } from "./paginator";
 
 function chapter(texts: string[]): ManifestChapter {
@@ -41,6 +42,16 @@ describe("paginator", () => {
     expect(chapterTextLength(chapter(["Hola mundo", "Adiós mundo"]))).toBe(
       "Hola mundo".length + 1 + "Adiós mundo".length,
     );
+  });
+
+  it("calcula rangos de segmento en el texto paginado", () => {
+    const source = chapter(["Hola", "mundo", "Adios"]);
+    source.segments[1] = { ...source.segments[1], paragraph_index: 1 };
+    const ranges = segmentRanges(source);
+
+    expect(ranges.get("c001p0001s00")).toEqual({ start: 0, end: 4 });
+    expect(ranges.get("c001p0002s00")).toEqual({ start: 5, end: 10 });
+    expect(ranges.get("c001p0003s00")).toEqual({ start: 11, end: 16 });
   });
 
   it("pagina sin perder texto y mantiene offsets", () => {

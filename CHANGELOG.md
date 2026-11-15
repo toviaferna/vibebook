@@ -1,5 +1,32 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+
+- Karaoke en **Libro** y **Álbum**, activable desde la barra superior o los
+  ajustes de lectura y guardado por libro. Resalta el segmento y la palabra
+  activos sin volver a renderizar las demás páginas.
+- Paso automático de página en **Libro** sincronizado con la palabra que suena;
+  se pausa 5 s al hojear a mano y luego vuelve a la página del audio.
+- Preferencia `book_karaoke` por libro (migración 3) y fixture E2E de libro
+  largo para cubrir karaoke, auto-giro y estabilidad del lector.
+
+### Cambiado
+
+- El giro de página usa una curva `easeInOutCubic` de 520 ms, una sombra más
+  marcada y entrada solo por opacidad.
+- El escenario del libro recorta el desborde 3D y fija el viewport mobile, así
+  que el giro ya no redimensiona ni tambalea la app.
+- La navegación mantiene “Anterior”/“Siguiente” y reserva el alto del aviso de
+  fin de libro para no mover el layout al cambiar de página.
+
+### Corregido
+
+- La orientación inicial del libro se deriva de `computeLayout` en vez de
+  comparar un ancho que siempre equivale a dos páginas. En mobile ya no abre en
+  pliego ni muestra rangos de página incorrectos.
+
 ## v0.7.0 — 2026-11-15
 
 ### Agregado

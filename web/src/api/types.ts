@@ -470,6 +470,7 @@ export interface BookPreferences {
   reader_size: number | null;
   page_turn: boolean | null;
   ambience_enabled: boolean | null;
+  book_karaoke: boolean | null;
   updated_at: string | null;
 }
 

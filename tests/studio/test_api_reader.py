@@ -266,6 +266,7 @@ def test_book_preferences_defaults_and_roundtrip(client, imported):
             "reader_size": 21,
             "page_turn": True,
             "ambience_enabled": False,
+            "book_karaoke": False,
         },
     )
 
@@ -273,10 +274,12 @@ def test_book_preferences_defaults_and_roundtrip(client, imported):
     assert updated.json()["reader_mode"] == "book"
     assert updated.json()["reader_palette"] == "sepia"
     assert updated.json()["page_turn"] is True
+    assert updated.json()["book_karaoke"] is False
 
     fetched = client.get(f"/api/books/{imported['id']}/preferences")
     assert fetched.json()["reader_font"] == "hyperlegible"
     assert fetched.json()["reader_size"] == 21
+    assert fetched.json()["book_karaoke"] is False
 
 
 def test_original_epub_download(client, imported):

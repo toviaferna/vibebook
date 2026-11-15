@@ -579,6 +579,7 @@ def get_book_preferences(request: Request, book_id: str) -> BookPreferencesRespo
         reader_size=preferences.get("reader_size"),
         page_turn=preferences.get("page_turn"),
         ambience_enabled=preferences.get("ambience_enabled"),
+        book_karaoke=preferences.get("book_karaoke"),
         updated_at=preferences.get("updated_at"),
     )
 
@@ -602,5 +603,6 @@ def set_book_preferences(
         reader_size=preferences.get("reader_size"),
         page_turn=preferences.get("page_turn"),
         ambience_enabled=preferences.get("ambience_enabled"),
+        book_karaoke=preferences.get("book_karaoke"),
         updated_at=preferences.get("updated_at"),
     )
