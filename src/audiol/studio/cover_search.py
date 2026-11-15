@@ -6,7 +6,7 @@ import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import requests
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -89,7 +89,7 @@ def search_covers(title: str, author: str, limit: int = 8) -> list[CoverHit]:
 
 
 def _search_open_library(title: str, author: str) -> list[CoverHit]:
-    params = {
+    params: dict[str, str | int] = {
         "title": title,
         "author": author,
         "limit": 12,
@@ -142,9 +142,14 @@ def _search_google_books(title: str, author: str) -> list[CoverHit]:
     if author:
         query += f' inauthor:"{author}"'
     try:
+        params: dict[str, str | int] = {
+            "q": query,
+            "maxResults": 12,
+            "printType": "books",
+        }
         response = requests.get(
             "https://www.googleapis.com/books/v1/volumes",
-            params={"q": query, "maxResults": 12, "printType": "books"},
+            params=params,
             headers={"User-Agent": USER_AGENT},
             timeout=8,
         )
@@ -191,18 +196,7 @@ def _search_google_books(title: str, author: str) -> list[CoverHit]:
 
 
 def download_cover(url: str) -> bytes:
-    parsed = urlparse(url)
-    if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
-        raise CoverSearchError("La portada no viene de un servicio permitido.")
-    try:
-        response = requests.get(
-            url,
-            headers={"User-Agent": USER_AGENT},
-            timeout=12,
-            stream=True,
-        )
-    except requests.RequestException as exc:
-        raise CoverSearchError("No se pudo descargar la portada.") from exc
+    response = _request_image(url)
     if response.status_code != 200:
         raise CoverSearchError(f"El servicio de portadas devolvió {response.status_code}.")
     content_type = response.headers.get("content-type", "")
@@ -216,13 +210,37 @@ def download_cover(url: str) -> bytes:
     return normalize_cover(bytes(payload))
 
 
+def _request_image(url: str) -> requests.Response:
+    current = url
+    for _ in range(3):
+        parsed = urlparse(current)
+        if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
+            raise CoverSearchError("La portada no viene de un servicio permitido.")
+        try:
+            response = requests.get(
+                current,
+                headers={"User-Agent": USER_AGENT},
+                timeout=12,
+                stream=True,
+                allow_redirects=False,
+            )
+        except requests.RequestException as exc:
+            raise CoverSearchError("No se pudo descargar la portada.") from exc
+        location = response.headers.get("location")
+        if response.status_code in {301, 302, 303, 307, 308} and location:
+            current = urljoin(current, location)
+            continue
+        return response
+    raise CoverSearchError("La portada redirige demasiadas veces.")
+
+
 def normalize_cover(payload: bytes) -> bytes:
     try:
-        image = Image.open(io.BytesIO(payload))
-        image.load()
+        opened = Image.open(io.BytesIO(payload))
+        opened.load()
     except (UnidentifiedImageError, OSError) as exc:
         raise CoverSearchError("La portada descargada no es una imagen válida.") from exc
-    image = ImageOps.exif_transpose(image)
+    image: Image.Image = ImageOps.exif_transpose(opened)
     if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
         background = Image.new("RGB", image.size, (239, 230, 213))
         alpha = image.convert("RGBA")

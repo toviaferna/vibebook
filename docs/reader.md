@@ -60,10 +60,13 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 ## Resaltado
 
 - El segmento activo se resalta siempre.
-- La palabra activa se resalta solo si el timing es `exact` y la alineación
-  texto↔palabra supera el 80 % de cobertura.
-- Si el timing es `estimated`, falta o tiene baja cobertura, se cae a resaltado
-  por segmento sin romper el layout.
+- La palabra activa se resalta si hay timings (`exact` o `estimated`) y la
+  alineación texto↔palabra supera el 80 % de cobertura. Los timings estimados de
+  Piper usan la duración del segmento repartida por palabra.
+- Si faltan timings o la cobertura es baja, se cae a resaltado por segmento sin
+  romper el layout.
+- En Libro, la palabra activa se marca en la página izquierda o derecha según su
+  offset; el cambio de pliego no descarta el índice activo.
 - Un clic en una palabra o segmento hace seek y reproduce.
 - El texto se puede seleccionar; si hay una selección activa, el clic no salta.
 - En **Libro** y **Álbum** el karaoke se activa o desactiva con el toggle de la
@@ -100,6 +103,8 @@ El toggle **Libro / Texto / Original** agrega una vista paginada con un libro
 realista:
 
 - doble página en escritorio y una página en mobile;
+- el libro escala hasta 1680 px y aprovecha el ancho disponible en monitores 2K
+  sin dejar una columna angosta en el centro;
 - tapas, lomo, canto de hojas y papel con textura, sin glassmorphism;
 - el giro lo resuelve **OpenPageFlip** (`@openpageflip/core` fijado a la versión
   probada): click o arrastre desde el borde, swipe táctil y giro 3D de hoja

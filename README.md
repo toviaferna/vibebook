@@ -335,6 +335,10 @@ Documentación:
 
 - [Arquitectura](docs/architecture.md)
 - [Desarrollo](docs/development.md)
+- [Lector](docs/reader.md)
+- [Portadas](docs/covers.md)
+- [Ambiente](docs/ambience.md)
+- [Git](docs/git.md)
 - [Release](docs/release.md)
 - [Rendimiento](docs/performance.md)
 - [Decisión de lenguaje](docs/language-decision.md)

@@ -8,6 +8,17 @@
   (`book_karaoke`, migración 3) y también se edita desde los ajustes de lectura.
   El valor global de v0.8.0 (`localStorage`) queda como default para libros sin
   preferencia.
+- Portadas generadas para libros sin arte: composición editorial determinista
+  con título, autor y paleta; la portada original se conserva cuando existe.
+- Búsqueda de portadas en Open Library y Google Books con coincidencia estricta
+  de título, vista previa same-origin y reemplazo seguro de la portada.
+- Voces favoritas persistentes, filtro de favoritas y perfiles rápidos de
+  lectura (Claro, Cálido, Dramático, Susurro) en Studio.
+- Mezcla de ambiente con faders independientes para cama sonora y efectos, con
+  fundido de salida.
+- EPUB de prueba editorial con portada, página de título, cinco capítulos,
+  diálogos, metadatos e ilustración interna.
+- Preflight de Git y normalización de finales de línea.
 
 ### Cambiado
 
@@ -15,6 +26,8 @@
   solo por opacidad.
 - El resaltado envuelve únicamente el segmento activo; las demás páginas siguen
   memorizadas y no se vuelven a renderizar con cada palabra.
+- El libro abierto y la columna del lector aprovechan el ancho disponible en
+  pantallas 2K en lugar de quedar limitados a 1380 px.
 
 ### Corregido
 
@@ -24,6 +37,16 @@
   en el offset cero.
 - El auto-giro usa el offset de la palabra activa, evita reintentos durante la
   animación y vuelve a la página del audio después de la pausa manual.
+- El karaoke de Libro sigue la palabra activa también en la página derecha del
+  pliego; antes el índice de palabra se descartaba al cambiar de página.
+- Los timings estimados de Piper ya no desactivan el resaltado palabra a palabra.
+- La importación deja de emitir `XMLParsedAsHTMLWarning` al quitar la declaración
+  XML antes del parser HTML.
+- La regla de aprobación previa a releases quedó escrita en `AGENTS.md`.
+
+### Eliminado
+
+- El objetivo Android, sus scripts, workflow, configuración y documentación.
 
 ## v0.8.0 — 2026-11-15
 
