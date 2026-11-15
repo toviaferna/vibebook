@@ -298,6 +298,15 @@ def _convert(args: argparse.Namespace) -> int:
         max_chars=args.max_chars,
     )
     print(f"M4B: {result.m4b_path}")
+    print(
+        f"Segmentos: {result.total_segments} "
+        f"({result.cached_segments} en caché) · concurrencia {result.concurrency}"
+    )
+    print(
+        f"Síntesis: {result.synth_ms / 1000:.1f}s · "
+        f"ensamblado: {result.assembly_ms / 1000:.1f}s · "
+        f"caché de duraciones: {result.duration_cache_hits}"
+    )
     return 0
 
 

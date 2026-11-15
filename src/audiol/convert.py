@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -17,6 +18,7 @@ from audiol.assemble import (
 )
 from audiol.chunk import chunk_text_parts
 from audiol.clean import clean_paragraph_items
+from audiol.duration_cache import SegmentDurationCache
 from audiol.manifest import load_manifest, write_manifest
 from audiol.models import Book, Chapter, Segment, WordTiming, make_segment_id
 from audiol.naming import slugify
@@ -36,7 +38,7 @@ from audiol.timing import (
     write_chapter_timing,
     write_word_timings,
 )
-from audiol.tts.base import AudioResult, TTSProvider
+from audiol.tts.base import AudioResult, TTSProvider, provider_concurrency
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,28 @@ class ConversionResult:
     total_segments: int
     cached_segments: int
     duration_ms: int
+    concurrency: int = 1
+    synth_ms: int = 0
+    assembly_ms: int = 0
+    duration_cache_hits: int = 0
+
+
+@dataclass(frozen=True)
+class SegmentAudio:
+    index: int
+    segment: Segment
+    path: Path
+    duration_ms: int
+    cached: bool
+    words: list[WordTiming]
+    synth_ms: int
+
+
+@dataclass(frozen=True)
+class ChapterAssembly:
+    path: Path
+    duration_ms: int
+    assembly_ms: int
 
 
 class ConversionCancelled(Exception):
@@ -291,6 +315,134 @@ def convert(
         raise
 
 
+def _synthesize_segment(
+    *,
+    index: int,
+    segment: Segment,
+    provider: TTSProvider,
+    voice: str,
+    engine: str,
+    style: str,
+    rate: str,
+    segments_dir: Path,
+    force: bool,
+    max_attempts: int,
+    retry_delay: float,
+    capture_timings: bool,
+    provider_fingerprint: str,
+    duration_cache: SegmentDurationCache,
+    should_cancel: Callable[[], bool] | None,
+) -> SegmentAudio:
+    started = time.perf_counter()
+    if should_cancel is not None and should_cancel():
+        raise ConversionCancelled()
+
+    key = cache_key(segment, voice, engine, style, rate, provider_fingerprint)
+    path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
+    cached = False
+    if not force:
+        if path.exists() and path.stat().st_size > 0:
+            cached = True
+        else:
+            fallback = next(segments_dir.glob(f"*_{key}{provider.audio_suffix}"), None)
+            if fallback is not None and fallback.stat().st_size > 0:
+                path = fallback
+                cached = True
+
+    duration_ms: int | None = None
+    if cached:
+        duration_ms = duration_cache.get(path)
+    if cached and duration_ms is None:
+        try:
+            duration_ms = measure_duration_ms(path)
+        except Exception:
+            logger.warning(
+                "Cached segment %s is invalid; re-synthesizing",
+                path,
+                exc_info=True,
+            )
+            path.unlink(missing_ok=True)
+            duration_cache.forget(path)
+            cached = False
+        else:
+            duration_cache.put(path, duration_ms)
+
+    if not cached:
+        temp_path = path.with_name(f"{path.name}.part")
+        try:
+            audio = synthesize_with_retries(
+                provider,
+                segment.text,
+                voice,
+                temp_path,
+                style,
+                rate,
+                max_attempts=max_attempts,
+                retry_delay=retry_delay,
+            )
+            try:
+                duration_ms = measure_duration_ms(temp_path)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Provider returned invalid audio for segment {segment.id}"
+                ) from exc
+            os.replace(temp_path, path)
+        except BaseException:
+            temp_path.unlink(missing_ok=True)
+            raise
+        duration_cache.put(path, duration_ms)
+        if capture_timings:
+            write_word_timings(segment_timing_path(path), audio.words)
+
+    if duration_ms is None:
+        raise RuntimeError(f"Could not determine duration for segment {segment.id}")
+    if should_cancel is not None and should_cancel():
+        raise ConversionCancelled()
+
+    words = read_word_timings(segment_timing_path(path)) if capture_timings else []
+    return SegmentAudio(
+        index=index,
+        segment=segment,
+        path=path,
+        duration_ms=duration_ms,
+        cached=cached,
+        words=words,
+        synth_ms=int(round((time.perf_counter() - started) * 1000)),
+    )
+
+
+def _assemble_chapter(
+    chapter: Chapter,
+    segments: list[SegmentAudio],
+    chapters_dir: Path,
+    timings_dir: Path,
+    audio_work_dir: Path,
+    capture_timings: bool,
+    timing_offset_ms: int,
+    timing_config_hash: str,
+) -> ChapterAssembly:
+    started = time.perf_counter()
+    chapter_path = chapters_dir / f"chapter_{chapter.index:03d}.mp3"
+    assembly = concat_pcm_to_mp3([item.path for item in segments], chapter_path, audio_work_dir)
+    chapter_duration = measure_duration_ms(chapter_path)
+    if capture_timings:
+        timing = build_chapter_timing_from_offsets(
+            chapter,
+            assembly.offsets_ms,
+            assembly.durations_ms,
+            [item.words for item in segments],
+            chapter_duration_ms=assembly.total_ms,
+            timing_offset_ms=timing_offset_ms,
+            config_hash=timing_config_hash,
+        )
+        write_chapter_timing(timings_dir / f"chapter_{chapter.index:03d}.json", timing)
+    return ChapterAssembly(
+        path=chapter_path,
+        duration_ms=chapter_duration,
+        assembly_ms=int(round((time.perf_counter() - started) * 1000)),
+    )
+
+
 def _convert_core(
     *,
     book: Book,
@@ -348,121 +500,108 @@ def _convert_core(
         )
     )
 
-    for chapter in book.chapters:
-        segment_files: list[Path] = []
-        segment_words: list[list[WordTiming]] = []
+    concurrency = provider_concurrency(provider)
+    duration_cache = SegmentDurationCache(segments_dir / "durations.json")
+    synth_ms = 0
+    assembly_ms = 0
+    chapter_jobs: list[tuple[Chapter, Future[ChapterAssembly]]] = []
 
-        for segment in chapter.segments:
+    with (
+        ThreadPoolExecutor(max_workers=concurrency, thread_name_prefix="tts") as synth_pool,
+        ThreadPoolExecutor(max_workers=1, thread_name_prefix="assemble") as assembly_pool,
+    ):
+        for chapter in book.chapters:
+            futures = [
+                synth_pool.submit(
+                    _synthesize_segment,
+                    index=index,
+                    segment=segment,
+                    provider=provider,
+                    voice=voice,
+                    engine=engine,
+                    style=style,
+                    rate=rate,
+                    segments_dir=segments_dir,
+                    force=force,
+                    max_attempts=max_attempts,
+                    retry_delay=retry_delay,
+                    capture_timings=capture_timings,
+                    provider_fingerprint=provider_fingerprint,
+                    duration_cache=duration_cache,
+                    should_cancel=should_cancel,
+                )
+                for index, segment in enumerate(chapter.segments)
+            ]
+            results: list[SegmentAudio] = []
+            try:
+                for synth_future in as_completed(futures):
+                    if should_cancel is not None and should_cancel():
+                        for pending in futures:
+                            pending.cancel()
+                        raise ConversionCancelled()
+                    item = synth_future.result()
+                    results.append(item)
+                    synth_ms += item.synth_ms
+                    completed_segments += 1
+                    if item.cached:
+                        cached_segments += 1
+                    emit(
+                        ProgressEvent(
+                            stage="synthesizing",
+                            completed_segments=completed_segments,
+                            total_segments=total_segments,
+                            chapter_index=chapter.index,
+                            chapter_title=chapter.title,
+                            segment_id=item.segment.id,
+                            text=item.segment.text,
+                            message=f"Sintetizando {completed_segments} de {total_segments}",
+                        )
+                    )
+            except BaseException:
+                for pending in futures:
+                    pending.cancel()
+                raise
+
             if should_cancel is not None and should_cancel():
                 raise ConversionCancelled()
 
-            key = cache_key(segment, voice, engine, style, rate, provider_fingerprint)
-            path = segments_dir / f"{segment.id}_{key}{provider.audio_suffix}"
-            cached = False
-            if not force:
-                if path.exists() and path.stat().st_size > 0:
-                    cached = True
-                else:
-                    fallback = next(segments_dir.glob(f"*_{key}{provider.audio_suffix}"), None)
-                    if fallback is not None and fallback.stat().st_size > 0:
-                        path = fallback
-                        cached = True
-
-            duration_ms: int | None = None
-            if cached:
-                try:
-                    duration_ms = measure_duration_ms(path)
-                except Exception:
-                    logger.warning(
-                        "Cached segment %s is invalid; re-synthesizing",
-                        path,
-                        exc_info=True,
-                    )
-                    path.unlink(missing_ok=True)
-                    cached = False
-
-            if not cached:
-                temp_path = path.with_name(f"{path.name}.part")
-                try:
-                    audio = synthesize_with_retries(
-                        provider,
-                        segment.text,
-                        voice,
-                        temp_path,
-                        style,
-                        rate,
-                        max_attempts=max_attempts,
-                        retry_delay=retry_delay,
-                    )
-                    try:
-                        duration_ms = measure_duration_ms(temp_path)
-                    except Exception as exc:
-                        raise RuntimeError(
-                            f"Provider returned invalid audio for segment {segment.id}"
-                        ) from exc
-                    os.replace(temp_path, path)
-                except BaseException:
-                    temp_path.unlink(missing_ok=True)
-                    raise
-                if capture_timings:
-                    write_word_timings(segment_timing_path(path), audio.words)
-
-            if duration_ms is None:
-                raise RuntimeError(f"Could not determine duration for segment {segment.id}")
-
-            segment_files.append(path)
-            segment_words.append(
-                read_word_timings(segment_timing_path(path)) if capture_timings else []
+            results.sort(key=lambda item: item.index)
+            chapter_jobs.append(
+                (
+                    chapter,
+                    assembly_pool.submit(
+                        _assemble_chapter,
+                        chapter,
+                        results,
+                        chapters_dir,
+                        timings_dir,
+                        audio_dir,
+                        capture_timings,
+                        timing_offset_ms,
+                        timing_config_hash,
+                    ),
+                )
             )
-            completed_segments += 1
-            if cached:
-                cached_segments += 1
+
+        for chapter, assembly_future in chapter_jobs:
+            assembled = assembly_future.result()
+            assembly_ms += assembled.assembly_ms
+            chapter_files.append(assembled.path)
+            chapter_durations.append(assembled.duration_ms)
             emit(
                 ProgressEvent(
-                    stage="synthesizing",
+                    stage="assembling",
                     completed_segments=completed_segments,
                     total_segments=total_segments,
                     chapter_index=chapter.index,
                     chapter_title=chapter.title,
-                    segment_id=segment.id,
-                    text=segment.text,
-                    message=f"Sintetizando {completed_segments} de {total_segments}",
+                    message=f"Ensamblando {chapter.title}",
                 )
             )
+            if should_cancel is not None and should_cancel():
+                raise ConversionCancelled()
 
-        if should_cancel is not None and should_cancel():
-            raise ConversionCancelled()
-
-        chapter_path = chapters_dir / f"chapter_{chapter.index:03d}.mp3"
-        assembly = concat_pcm_to_mp3(segment_files, chapter_path, audio_dir)
-        chapter_duration = measure_duration_ms(chapter_path)
-        chapter_files.append(chapter_path)
-        chapter_durations.append(chapter_duration)
-
-        if capture_timings:
-            timing = build_chapter_timing_from_offsets(
-                chapter,
-                assembly.offsets_ms,
-                assembly.durations_ms,
-                segment_words,
-                chapter_duration_ms=assembly.total_ms,
-                timing_offset_ms=timing_offset_ms,
-                config_hash=timing_config_hash,
-            )
-            write_chapter_timing(timings_dir / f"chapter_{chapter.index:03d}.json", timing)
-
-        emit(
-            ProgressEvent(
-                stage="assembling",
-                completed_segments=completed_segments,
-                total_segments=total_segments,
-                chapter_index=chapter.index,
-                chapter_title=chapter.title,
-                message=f"Ensamblando {chapter.title}",
-            )
-        )
-        if should_cancel is not None and should_cancel():
-            raise ConversionCancelled()
+    duration_cache.flush()
 
     if should_cancel is not None and should_cancel():
         raise ConversionCancelled()
@@ -520,12 +659,26 @@ def _convert_core(
             message="Listo",
         )
     )
+    logger.info(
+        "Converted %d segments with concurrency=%d (cached=%d, duration_cache_hits=%d, "
+        "synth=%.1fs, assembly=%.1fs)",
+        total_segments,
+        concurrency,
+        cached_segments,
+        duration_cache.hits,
+        synth_ms / 1000,
+        assembly_ms / 1000,
+    )
     return ConversionResult(
         m4b_path=out_dir / m4b_name,
         out_dir=out_dir,
         total_segments=total_segments,
         cached_segments=cached_segments,
         duration_ms=duration_ms,
+        concurrency=concurrency,
+        synth_ms=synth_ms,
+        assembly_ms=assembly_ms,
+        duration_cache_hits=duration_cache.hits,
     )
 
 

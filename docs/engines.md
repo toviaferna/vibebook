@@ -222,6 +222,34 @@ hay ninguno, falla con un mensaje que pide instalar Piper/eSpeak o pasar
 `--engine edge` explícitamente. El Studio muestra Edge como último recurso y
 permite cambiar el motor y la voz por defecto en Ajustes.
 
+## Concurrencia, caché y métricas
+
+La conversión sintetiza los segmentos de cada capítulo en un pool acotado y
+ensambla el capítulo anterior en paralelo. El límite lo declara el proveedor:
+
+| Motor | Concurrencia por defecto |
+|---|---:|
+| Piper | 2 procesos |
+| eSpeak NG | 1 |
+| Edge TTS | 2 (inicio de requests espaciado 1 s) |
+| Azure Speech | 4 |
+| Plugin VEP | `limits.max_concurrency` del plugin (1–16) |
+| Fake | 8 (solo pruebas) |
+
+`VIBEBOOK_TTS_CONCURRENCY` puede **reducir** el límite (por ejemplo a `1` para
+depurar o para una máquina muy limitada); nunca lo aumenta por encima de lo que
+declara el motor.
+
+Las duraciones de los segmentos se guardan en `audio/segments/durations.json`
+junto al tamaño y `mtime` de cada archivo. En una reconversión se evita llamar a
+mutagen/ffprobe para los segmentos que no cambiaron; si el archivo cambia, la
+entrada se invalida sola. Los segmentos siguen cacheándose por
+`cache_key`/fingerprint como antes.
+
+`vibebook convert` y el log del job reportan segmentos totales, cacheados,
+concurrencia, tiempo acumulado de síntesis/ensamblado y aciertos de la caché de
+duraciones.
+
 ## Variables de entorno
 
 | Variable | Uso |
@@ -233,6 +261,7 @@ permite cambiar el motor y la voz por defecto en Ajustes.
 | `VIBEBOOK_PIPER_ESPEAK_DATA` | Carpeta de datos de espeak-ng para Piper |
 | `VIBEBOOK_ESPEAK_BIN` | Ruta o nombre del binario eSpeak NG |
 | `VIBEBOOK_ESPEAK_PATH` | Carpeta que contiene `espeak-ng-data` |
+| `VIBEBOOK_TTS_CONCURRENCY` | Reduce la concurrencia de síntesis (nunca la aumenta) |
 
 ## Rendimiento
 

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 import time
 from pathlib import Path
 
@@ -14,12 +15,14 @@ logger = logging.getLogger(__name__)
 class EdgeProvider:
     name = "edge"
     audio_suffix = ".mp3"
+    max_concurrency = 2
     request_delay = 1.0
     cooldown_seconds = 60.0
     max_cooldowns = 4
 
     def __init__(self) -> None:
         self._last_request: float | None = None
+        self._request_lock = threading.Lock()
 
     def synthesize(
         self,
@@ -41,11 +44,16 @@ class EdgeProvider:
             )
 
         now = time.monotonic()
-        if self._last_request is not None:
-            wait = self.request_delay - (now - self._last_request)
-            if wait > 0:
-                time.sleep(wait)
-        self._last_request = time.monotonic()
+        with self._request_lock:
+            last = self._last_request
+            wait = 0.0
+            if last is not None:
+                wait = self.request_delay - (now - last)
+                self._last_request = last + self.request_delay if wait > 0 else now
+            else:
+                self._last_request = now
+        if wait > 0:
+            time.sleep(wait)
 
         out_path.parent.mkdir(parents=True, exist_ok=True)
         attempt = 0

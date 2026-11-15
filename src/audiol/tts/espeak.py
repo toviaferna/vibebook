@@ -25,6 +25,7 @@ class EspeakNotConfigured(ValueError):
 class EspeakProvider:
     name = "espeak"
     audio_suffix = ".wav"
+    max_concurrency = 1
 
     def __init__(
         self,
