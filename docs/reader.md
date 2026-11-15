@@ -68,7 +68,8 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 - El texto se puede seleccionar; si hay una selección activa, el clic no salta.
 - En **Libro** y **Álbum** el karaoke se activa o desactiva con el toggle de la
   navegación o con “Resaltar palabras en el libro” en los ajustes. Se guarda por
-  libro (`book_karaoke`); un valor nulo significa activado.
+  libro (`book_karaoke`); si el libro no tiene preferencia, se usa el valor
+  heredado de v0.8.0 en `localStorage` (activado por defecto).
 
 ## Controles
 
@@ -151,8 +152,9 @@ audio.
 
 Las preferencias del libro (`reader_mode`, paleta, tipografía, tamaño,
 `book_karaoke`) se guardan en `PUT /api/books/<id>/preferences`. Un
-`book_karaoke` nulo significa karaoke activado; el resto de las preferencias
-nulas heredan el ajuste global.
+`book_karaoke` nulo usa la preferencia heredada de v0.8.0 en `localStorage`
+(activada por defecto); el resto de las preferencias nulas heredan el ajuste
+global.
 
 ## Búsqueda y marcadores
 

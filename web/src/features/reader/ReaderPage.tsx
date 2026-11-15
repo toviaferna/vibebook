@@ -86,7 +86,9 @@ export function ReaderPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
   const [followSuspended, setFollowSuspended] = useState(false);
-  const [bookKaraoke, setBookKaraoke] = useState(true);
+  const [bookKaraoke, setBookKaraoke] = useState(
+    () => window.localStorage.getItem("vibebook.reader-karaoke") !== "0",
+  );
   const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
   const [ambienceVolume, setAmbienceVolume] = useState(() => {
     const raw = window.localStorage.getItem("vibebook.ambience-volume");

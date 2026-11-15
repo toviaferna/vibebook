@@ -6,6 +6,8 @@
 
 - La preferencia de karaoke de **Libro/Álbum** se guarda por libro
   (`book_karaoke`, migración 3) y también se edita desde los ajustes de lectura.
+  El valor global de v0.8.0 (`localStorage`) queda como default para libros sin
+  preferencia.
 
 ### Cambiado
 
