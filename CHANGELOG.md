@@ -4,13 +4,34 @@
 
 ### Agregado
 
+- La preferencia de karaoke de **Libro/Álbum** se guarda por libro
+  (`book_karaoke`, migración 3) y también se edita desde los ajustes de lectura.
+
+### Cambiado
+
+- El giro dura 520 ms con `easeInOutCubic`, una sombra más marcada y una entrada
+  solo por opacidad.
+- El resaltado envuelve únicamente el segmento activo; las demás páginas siguen
+  memorizadas y no se vuelven a renderizar con cada palabra.
+
+### Corregido
+
+- El botón flotante **Volver al audio** ya no agrega altura al documento cuando
+  aparece tras un giro manual.
+- El resaltado por palabra encuentra los segmentos de párrafos que no empiezan
+  en el offset cero.
+- El auto-giro usa el offset de la palabra activa, evita reintentos durante la
+  animación y vuelve a la página del audio después de la pausa manual.
+
+## v0.8.0 — 2026-11-15
+
+### Agregado
+
 - **Karaoke en Libro:** el párrafo activo y la palabra que suena se resaltan
-  sobre la página, con un toggle **Karaoke** en la navegación y otro en los
-  ajustes de lectura. La preferencia se guarda por libro (`book_karaoke`,
-  migración 3).
+  sobre la página, con un toggle **Karaoke** que se recuerda en `localStorage`.
 - **Paso automático de página:** con **Seguir** activo, el audio avanza al
-  pliego donde continúa la palabra que suena; un giro manual pausa el
-  seguimiento 5 s para poder releer.
+  pliego donde continúa la lectura; un giro manual pausa el seguimiento unos
+  segundos para poder releer.
 - Menú de acciones por libro en la biblioteca: botón visible al pasar el mouse o
   tocar, y clic derecho sobre la tarjeta abre **Leer**, **Ver detalles** y
   **Eliminar libro**.
@@ -18,23 +39,12 @@
   sincronización y estado de lectura; el detalle del libro también muestra la
   acción en la cabecera.
 
-### Cambiado
-
-- El giro de página dura 520 ms con `easeInOutCubic`, una sombra más marcada y
-  una entrada solo por opacidad.
-- El resaltado del libro envuelve únicamente el segmento activo; las demás
-  páginas siguen memorizadas y no se vuelven a renderizar con cada palabra.
-
 ### Corregido
 
 - La vista Libro decide el pliego por la orientación real del motor, así que en
   mobile muestra una sola página en vez de comprimir dos.
 - El giro de página se recorta en el área del libro y ya no ensancha el
   documento ni desplaza el resto de la app durante la animación.
-- El botón flotante **Volver al audio** ya no agrega altura al documento cuando
-  aparece tras un giro manual.
-- El resaltado por palabra encuentra los segmentos de párrafos que no empiezan
-  en el offset cero, así que sigue la lectura en páginas interiores.
 - Preferencias ya no desborda con rutas de biblioteca largas: el grid usa
   `auto-fit` con `min-width: 0`, la ruta se parte dentro del panel y las filas
   de resumen se envuelven.
