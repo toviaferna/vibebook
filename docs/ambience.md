@@ -43,6 +43,25 @@ checksum, approved, created_at, last_used_at, usage_count
 `rain`, `wind`, `sea`, `room`, `fire`, `night`. Usa `anoisesrc`, filtros de
 ffmpeg, fades de 1 s y Opus/Vorbis. Se generan a pedido, no al arrancar.
 
+## Panel del libro
+
+En **Detalle del libro → Sonido del libro** se configura el plan:
+
+1. **Generar camas** crea las seis camas procedurales.
+2. **Analizar capítulos** asigna camas y efectos por palabras clave.
+3. Cada capítulo permite elegir **Sin cama**, una cama de ambiente o una pista
+   de **música** importada, y ajustar su ganancia.
+4. **Mezcla global** controla el volumen del plan y el ducking de la voz.
+5. **Biblioteca de sonidos** permite importar música o ambientes propios con
+   licencia y título; los archivos importados se pueden borrar si no están en
+   uso.
+6. **Guardar plan** persiste el manifiesto; **Exportar ambientado** genera un
+   M4B con la mezcla.
+
+En el lector, el botón **Waves** enciende el ambiente y el panel **Mezcla**
+separa el volumen de la cama y de los efectos. La configuración del libro se
+mantiene; el volumen general se recuerda en `localStorage`.
+
 ## API
 
 ```text
@@ -63,7 +82,7 @@ POST   /api/books/{id}/ambience/analyze
 
 `ambience/plan.json` guarda por capítulo:
 
-- una cama (`bed`) opcional;
+- una cama (`bed`) opcional; puede ser `ambience` o `music`;
 - hasta 3 efectos (`effects`) con `segment_id` y `offset_ms`;
 - ganancia, fades, confianza y razón.
 

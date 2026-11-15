@@ -94,6 +94,6 @@ test("analiza un plan y activa el ambiente del lector", async ({ page, playwrigh
 
   await page.goto(`/#/books/${book.id}`);
   await page.getByRole("button", { name: "Exportar ambientado" }).click();
-  await expect(page.getByText("Preparando audio: Completado")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("Exportación: Completado")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("link", { name: "Descargar M4B ambientado" })).toBeVisible();
 });

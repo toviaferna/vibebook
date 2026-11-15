@@ -12,8 +12,18 @@
   con título, autor y paleta; la portada original se conserva cuando existe.
 - Búsqueda de portadas en Open Library y Google Books con coincidencia estricta
   de título, vista previa same-origin y reemplazo seguro de la portada.
-- Voces favoritas persistentes, filtro de favoritas y perfiles rápidos de
-  lectura (Claro, Cálido, Dramático, Susurro) en Studio.
+- Voces favoritas persistentes, filtro de favoritas y perfiles de lectura
+  (Claro, Cálido, Melancólico, Susurro) en Studio.
+- Panel **Ajustes → Proveedores en la nube** para guardar y probar claves de
+  Gemini, ElevenLabs y Azure. Las claves nunca se devuelven completas.
+- Motor **Gemini 3.8 Flash TTS** con estilos por `speech_metadata.style` y
+  timings estimados.
+- Motor **ElevenLabs** con timings exactos por carácter, etiquetas `[sad]` y
+  `[whispers]` en `eleven_v3`, y voces curadas para el plan gratuito.
+- Motor local **Kokoro-82M** en CPU, con descarga opcional del modelo de 354 MB
+  y verificación SHA-256.
+- Panel de ambiente por capítulo: cama o música, ganancia, mezcla global,
+  importación de audio y exportación M4B.
 - Mezcla de ambiente con faders independientes para cama sonora y efectos, con
   fundido de salida.
 - EPUB de prueba editorial con portada, página de título, cinco capítulos,
@@ -40,6 +50,10 @@
 - El karaoke de Libro sigue la palabra activa también en la página derecha del
   pliego; antes el índice de palabra se descartaba al cambiar de página.
 - Los timings estimados de Piper ya no desactivan el resaltado palabra a palabra.
+- Los presets de emoción solo se muestran cuando el motor y la voz declaran
+  estilos; Edge y los motores locales ofrecen únicamente perfiles de velocidad.
+- La velocidad de Gemini y ElevenLabs se aplica con ffmpeg y los timings exactos
+  de ElevenLabs se reescalan para seguir sincronizados.
 - La importación deja de emitir `XMLParsedAsHTMLWarning` al quitar la declaración
   XML antes del parser HTML.
 - La regla de aprobación previa a releases quedó escrita en `AGENTS.md`.

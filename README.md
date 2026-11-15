@@ -4,8 +4,9 @@ Generador de audiolibros en español latinoamericano a partir de EPUB.
 
 El paquete Python se llama `audiol`; el comando instalado es `vibebook` y
 también existe el alias `audiol`. La conversión es local-first: Piper si está
-instalado, eSpeak NG como fallback, y Edge/Azure solo como legado explícito. La
-salida es un M4B AAC con capítulos y metadata.
+instalado, Kokoro opcional en CPU, eSpeak NG como fallback, y Edge, Gemini,
+ElevenLabs o Azure solo si el usuario los configura. La salida es un M4B AAC con
+capítulos y metadata.
 
 El Studio usa un token local y tickets firmados de corta duración para los
 medios; el escritorio lo pasa por `stdin`, nunca por la línea de comandos. Ver
@@ -18,7 +19,10 @@ Requisitos:
 - `uv`, que gestiona Python 3.12 y las dependencias.
 - `ffmpeg` y `ffprobe`. Si no están en el sistema, `static-ffmpeg` los
   descarga la primera vez.
-- Azure es opcional: `AZURE_SPEECH_KEY` y `AZURE_SPEECH_REGION`.
+- Azure es opcional: clave y región se configuran en Ajustes → Proveedores.
+- Gemini TTS y ElevenLabs son opcionales: pegá la clave en Ajustes. Gemini tiene
+  free tier de 3 solicitudes/minuto; ElevenLabs incluye 10.000 créditos.
+- Kokoro es local y opcional: descarga un modelo de 354 MB la primera vez.
 - Piper es opcional: binario local y voz `es_MX-ald-medium`.
 - eSpeak NG es opcional: binario local y voz `es-419`; ver
   [docs/engines.md](docs/engines.md).
@@ -143,8 +147,8 @@ el sidecar/CLI usa `speech_synthesis_word_boundary` y conserva REST como fallbac
 | Opción | Default | Descripción |
 |---|---|---|
 | `--voice` | según el motor | Voz del catálogo |
-| `--engine` | local-first | `piper`, `espeak`, `edge`, `azure` o `fake` para tests |
-| `--style` | `neutral` | Estilo Azure; requiere `--engine azure` |
+| `--engine` | local-first | `piper`, `kokoro`, `espeak`, `edge`, `gemini`, `elevenlabs`, `azure` o `fake` para tests |
+| `--style` | `neutral` | Estilo de emoción; requiere un motor con estilos |
 | `--rate` | `-10%` | Velocidad entre `-100%` y `+100%` |
 | `--out` | `out/<nombre-del-epub>` | Carpeta de salida |
 | `--max-chars` | `400` | Tamaño máximo de cada segmento |
@@ -291,10 +295,14 @@ Más detalle en [docs/desktop.md](docs/desktop.md) y
 | `es-PY-MarioNeural` | `es-PY` | masculino | Edge | - |
 | `es-PY-TaniaNeural` | `es-PY` | femenino | Edge | - |
 | `es_MX-ald-medium` | `es-MX` | masculino | Piper | - |
+| `ef_dora` / `em_alex` / `em_santa` | `es-ES` | femenino/masculino | Kokoro | - |
+| `Kore` / `Orus` / `Puck` / `Charon` / `Aoede` / `Sulafat` | `es-419` | varios | Gemini | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
+| `Adam` / `Antoni` / `Arnold` / `Bella` | `es-419` | masculino/femenino | ElevenLabs | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
 | `es-419` | `es-419` | neutral | eSpeak NG | - |
 
-Edge solo admite estilo neutral. Los estilos requieren `--engine azure`. Piper y
-eSpeak NG no usan estilos y devuelven timing por segmento.
+Edge solo admite estilo neutral. Los estilos requieren Azure, Gemini o
+ElevenLabs. Piper, Kokoro y eSpeak NG no usan estilos y devuelven timing por
+segmento o estimado.
 
 Edge TTS es un servicio no oficial y puede limitar peticiones. Azure Speech
 incluye 0,5 M de caracteres al mes en la capa gratuita.
@@ -337,6 +345,7 @@ Documentación:
 - [Desarrollo](docs/development.md)
 - [Lector](docs/reader.md)
 - [Portadas](docs/covers.md)
+- [Proveedores TTS](docs/providers.md)
 - [Ambiente](docs/ambience.md)
 - [Git](docs/git.md)
 - [Release](docs/release.md)

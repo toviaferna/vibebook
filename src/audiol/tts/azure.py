@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
@@ -7,6 +6,7 @@ from xml.sax.saxutils import escape
 import requests
 
 from audiol.models import WordTiming
+from audiol.provider_keys import get_provider_key, get_provider_region
 from audiol.tts.base import AudioResult, validate_rate
 
 logger = logging.getLogger(__name__)
@@ -42,10 +42,10 @@ class AzureProvider:
         region: str | None = None,
         use_sdk: bool | None = None,
     ) -> None:
-        resolved_key = key or os.environ.get("AZURE_SPEECH_KEY")
-        resolved_region = region or os.environ.get("AZURE_SPEECH_REGION")
+        resolved_key = key or get_provider_key("azure")
+        resolved_region = region or get_provider_region("azure")
         if not resolved_key or not resolved_region:
-            raise ValueError("Azure requires AZURE_SPEECH_KEY and AZURE_SPEECH_REGION")
+            raise ValueError("Azure requires a key and region in Ajustes or AZURE_SPEECH_KEY")
         self.key = resolved_key
         self.region = resolved_region
         self.use_sdk = use_sdk

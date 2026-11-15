@@ -4,8 +4,11 @@ import pytest
 
 from audiol.tts.azure import AzureProvider
 from audiol.tts.edge import EdgeProvider
+from audiol.tts.elevenlabs import ElevenLabsProvider
 from audiol.tts.espeak import EspeakProvider
 from audiol.tts.fake import FakeProvider
+from audiol.tts.gemini import GeminiProvider
+from audiol.tts.kokoro import KokoroProvider
 from audiol.tts.piper import PiperProvider
 from audiol.tts.registry import (
     ENGINES,
@@ -21,7 +24,16 @@ from audiol.tts.registry import (
 def test_engine_ids_are_unique():
     ids = [engine.id for engine in list_engines()]
 
-    assert ids == ["piper", "espeak", "edge", "azure", "fake"]
+    assert ids == [
+        "piper",
+        "kokoro",
+        "espeak",
+        "edge",
+        "gemini",
+        "elevenlabs",
+        "azure",
+        "fake",
+    ]
     assert len(ids) == len(set(ids))
     assert set(ENGINES) == set(ids)
 
@@ -114,6 +126,39 @@ def test_edge_is_available():
     assert engine_available("edge") is True
 
 
+def test_kokoro_availability_uses_local_assets(monkeypatch):
+    monkeypatch.setattr("audiol.tts.registry.kokoro_ready", lambda: False)
+    assert engine_available("kokoro") is False
+
+    monkeypatch.setattr("audiol.tts.registry.kokoro_ready", lambda: True)
+    assert engine_available("kokoro") is True
+
+
+def test_cloud_engines_require_keys(monkeypatch):
+    assert engine_available("gemini") is False
+    assert engine_available("elevenlabs") is False
+
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "elevenlabs-key")
+
+    assert engine_available("gemini") is True
+    assert engine_available("elevenlabs") is True
+
+
+def test_make_provider_returns_cloud_engines(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "elevenlabs-key")
+
+    assert isinstance(make_provider("gemini"), GeminiProvider)
+    assert isinstance(make_provider("elevenlabs"), ElevenLabsProvider)
+
+
+def test_make_provider_returns_kokoro(monkeypatch):
+    monkeypatch.setattr("audiol.tts.registry.kokoro_ready", lambda: True)
+
+    assert isinstance(make_provider("kokoro"), KokoroProvider)
+
+
 def test_make_provider_returns_edge():
     assert isinstance(make_provider("edge"), EdgeProvider)
 
@@ -171,6 +216,9 @@ def test_preferred_engine_returns_none_without_local_engines(tmp_path: Path, mon
 
 def test_default_voice_for_engine():
     assert default_voice_for_engine("piper") == "es_MX-ald-medium"
+    assert default_voice_for_engine("kokoro") == "ef_dora"
+    assert default_voice_for_engine("gemini") == "Kore"
+    assert default_voice_for_engine("elevenlabs") == "pNInz6obpgDQGcFmaJgB"
     assert default_voice_for_engine("espeak") == "es-419"
     assert default_voice_for_engine("edge") == "es-MX-JorgeNeural"
     assert default_voice_for_engine("azure") == "es-MX-JorgeNeural"

@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT = Path(SPECPATH).resolve().parents[1]
 SRC = ROOT / "src"
@@ -21,6 +21,8 @@ for name in ("ffmpeg", "ffprobe"):
         raise SystemExit(str(exc)) from exc
 
 datas = [(str(WEB_DIST), "web/dist")]
+datas += collect_data_files("espeakng_loader")
+datas += collect_data_files("kokoro_onnx")
 PIPER_ROOT = ROOT / "packaging" / "piper"
 PIPER_BIN = PIPER_ROOT / "bin"
 if PIPER_BIN.is_dir():
@@ -45,7 +47,12 @@ analysis = Analysis(
     pathex=[str(SRC)],
     binaries=binaries,
     datas=datas,
-    hiddenimports=collect_submodules("audiol") + collect_submodules("uvicorn"),
+    hiddenimports=(
+        collect_submodules("audiol")
+        + collect_submodules("uvicorn")
+        + collect_submodules("phonemizer")
+        + collect_submodules("kokoro_onnx")
+    ),
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

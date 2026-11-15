@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, AudioLines, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, AudioLines, Download, Info, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import {
   useBook,
   useCancelJob,
   useEngines,
+  useInstallKokoroEngine,
   useJob,
   useJobEvents,
   useResumeJob,
@@ -29,12 +30,50 @@ import { VoicePicker } from "./VoicePicker";
 const ACTIVE = new Set(["queued", "running", "cancelling"]);
 const RESUMABLE = new Set(["cancelled", "interrupted", "failed"]);
 const SAMPLE = "Hola. Así va a sonar tu próximo audiolibro en Vibebook.";
-const VOICE_PRESETS = [
-  { id: "claro", label: "Claro", rate: "-5%", style: "neutral", note: "Ágil y limpio" },
-  { id: "calido", label: "Cálido", rate: "-10%", style: "chat", note: "Cercano, conversado" },
-  { id: "dramatico", label: "Dramático", rate: "-15%", style: "sad", note: "Pausado, intenso" },
-  { id: "susurro", label: "Susurro", rate: "-20%", style: "whispering", note: "Íntimo, lento" },
+interface VoicePreset {
+  id: string;
+  label: string;
+  rate: string;
+  note: string;
+  style?: string;
+}
+const STYLE_PRESETS: VoicePreset[] = [
+  { id: "neutral", label: "Claro", rate: "-5%", style: "neutral", note: "Neutro y limpio" },
+  { id: "chat", label: "Cálido", rate: "-10%", style: "chat", note: "Cercano, conversado" },
+  {
+    id: "cheerful",
+    label: "Alegre",
+    rate: "-5%",
+    style: "cheerful",
+    note: "Luz y entusiasmo",
+  },
+  { id: "excited", label: "Emocionado", rate: "+0%", style: "excited", note: "Energía alta" },
+  { id: "sad", label: "Melancólico", rate: "-15%", style: "sad", note: "Pausado, íntimo" },
+  {
+    id: "whispering",
+    label: "Susurro",
+    rate: "-20%",
+    style: "whispering",
+    note: "Muy bajo, lento",
+  },
 ];
+const SPEED_PRESETS: VoicePreset[] = [
+  { id: "natural", label: "Natural", rate: "-5%", note: "Ritmo cómodo" },
+  { id: "pausado", label: "Pausado", rate: "-15%", note: "Más aire entre frases" },
+  { id: "lento", label: "Lento", rate: "-25%", note: "Para seguir el texto" },
+  { id: "estudio", label: "Muy lento", rate: "-35%", note: "Lectura de estudio" },
+];
+const STYLE_LABELS: Record<string, string> = {
+  neutral: "Neutral",
+  chat: "Cálido",
+  cheerful: "Alegre",
+  excited: "Emocionado",
+  sad: "Melancólico",
+  whispering: "Susurro",
+  friendly: "Amable",
+  hopeful: "Esperanzado",
+  narration: "Narración",
+};
 
 export function StudioPage() {
   const { id } = useParams<{ id: string }>();
@@ -63,10 +102,20 @@ export function StudioPage() {
   const start = useStartConversion(id ?? "");
   const cancel = useCancelJob(id ?? "");
   const resume = useResumeJob(id ?? "");
+  const installKokoro = useInstallKokoroEngine();
   useJobEvents(jobId, id ?? "");
 
   const selectedVoice = voices.find((item) => item.id === voice);
   const selectedEngine = engines.find((item) => item.id === engine);
+  const styleCapable = Boolean(selectedEngine?.supports_styles);
+  const voiceStyles = selectedVoice?.styles ?? [];
+  const stylePresets = styleCapable
+    ? STYLE_PRESETS.filter(
+        (preset) => preset.style !== undefined && voiceStyles.includes(preset.style),
+      )
+    : [];
+  const showStylePresets = styleCapable && stylePresets.length > 0;
+  const presets = showStylePresets ? stylePresets : SPEED_PRESETS;
   const previewMutation = useMutation({
     mutationFn: (voiceId: string) =>
       api.previewVoice({ voice: voiceId, engine, style, rate, text: SAMPLE }),
@@ -309,18 +358,24 @@ export function StudioPage() {
               onPreview={(voiceId) => previewMutation.mutate(voiceId)}
             />
 
-            <section className="voice-presets" aria-label="Perfiles de lectura">
+            <section
+              className="voice-presets"
+              aria-label={showStylePresets ? "Perfiles de emoción" : "Perfiles de velocidad"}
+            >
               <div className="voice-presets-head">
-                <span className="label">Perfiles rápidos</span>
-                <span className="hint">Ajustan velocidad y estilo; la voz no cambia.</span>
+                <span className="label">
+                  {showStylePresets ? "Emociones" : "Perfiles de velocidad"}
+                </span>
+                <span className="hint">
+                  {showStylePresets
+                    ? "Cambian el estilo de la voz; la voz no cambia."
+                    : `${selectedEngine?.label ?? "Este motor"} no admite emociones; estos perfiles solo ajustan la velocidad.`}
+                </span>
               </div>
               <div className="voice-presets-grid">
-                {VOICE_PRESETS.map((preset) => {
-                  const supported =
-                    Boolean(selectedEngine?.supports_styles) &&
-                    Boolean(selectedVoice?.styles.includes(preset.style));
-                  const active =
-                    rate === preset.rate && style === (supported ? preset.style : "neutral");
+                {presets.map((preset) => {
+                  const presetStyle = preset.style ?? "neutral";
+                  const active = rate === preset.rate && style === presetStyle;
                   return (
                     <button
                       type="button"
@@ -330,7 +385,7 @@ export function StudioPage() {
                       disabled={locked}
                       onClick={() => {
                         setRate(preset.rate);
-                        setStyle(supported ? preset.style : "neutral");
+                        setStyle(presetStyle);
                       }}
                     >
                       <strong>{preset.label}</strong>
@@ -339,6 +394,20 @@ export function StudioPage() {
                   );
                 })}
               </div>
+              {styleCapable && !showStylePresets ? (
+                <p className="voice-emotion-note">
+                  <Info size={14} aria-hidden="true" />
+                  Esta voz no declara estilos. Elegí una voz de Azure con estilos disponibles.
+                </p>
+              ) : null}
+              {!styleCapable ? (
+                <p className="voice-emotion-note">
+                  <Info size={14} aria-hidden="true" />
+                  Para emociones reales usá <strong>Azure Speech</strong>: los estilos (
+                  <em>cálido, alegre, melancólico, susurro</em>) dependen de la voz y de la clave de
+                  Azure. Edge y los motores locales no los soportan.
+                </p>
+              ) : null}
             </section>
 
             <div className="rate-row">
@@ -380,7 +449,7 @@ export function StudioPage() {
                   <option value="neutral">Neutral</option>
                   {selectedVoice.styles.map((option) => (
                     <option key={option} value={option}>
-                      {option}
+                      {STYLE_LABELS[option] ?? option}
                     </option>
                   ))}
                 </select>
@@ -417,7 +486,7 @@ export function StudioPage() {
                   onChange={(event) => changeEngine(event.target.value)}
                 >
                   {visibleEngines.map((item) => (
-                    <option key={item.id} value={item.id} disabled={!item.available}>
+                    <option key={item.id} value={item.id}>
                       {item.label}
                       {item.legacy ? " · legado" : ""}
                       {!item.available
@@ -432,6 +501,56 @@ export function StudioPage() {
                   {selectedEngine?.description ??
                     "Edge suele ser la opción más rápida, pero es un servicio externo. Azure requiere credenciales y tiene cuota mensual."}
                 </p>
+                {selectedEngine?.id === "kokoro" && !selectedEngine.available ? (
+                  <div className="engine-setup">
+                    <strong>Modelo local no instalado</strong>
+                    <p>
+                      Kokoro corre en CPU y no pide clave. La descarga es de 354 MB, se hace una
+                      sola vez y queda guardada para leer sin Internet.
+                    </p>
+                    <Button
+                      onClick={() => installKokoro.mutate()}
+                      loading={installKokoro.isPending}
+                    >
+                      <Download size={16} />
+                      Descargar modelo
+                    </Button>
+                    {installKokoro.isError ? (
+                      <span className="hint">{errorMessage(installKokoro.error)}</span>
+                    ) : null}
+                    {installKokoro.isSuccess ? (
+                      <span className="hint">
+                        Modelo listo. Ya podés probar una voz o convertir.
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {selectedEngine?.id === "azure" && !selectedEngine.available ? (
+                  <div className="engine-setup">
+                    <strong>Azure sin configurar</strong>
+                    <p>
+                      Definí <code>AZURE_SPEECH_KEY</code> y <code>AZURE_SPEECH_REGION</code> en el
+                      entorno y reiniciá Vibebook. Es la única opción con estilos de emoción reales;
+                      la capa gratuita alcanza para probar.
+                    </p>
+                  </div>
+                ) : null}
+                {(selectedEngine?.id === "gemini" || selectedEngine?.id === "elevenlabs") &&
+                !selectedEngine.available ? (
+                  <div className="engine-setup">
+                    <strong>{selectedEngine.label} sin clave</strong>
+                    <p>
+                      Pegá tu clave en <strong>Ajustes → Proveedores en la nube</strong>. La app la
+                      guarda en este equipo y no la vuelve a mostrar.
+                      {selectedEngine.id === "elevenlabs"
+                        ? " Los 10.000 créditos alcanzan para unos 10 minutos de audio."
+                        : " Gemini tiene un free tier limitado a 3 solicitudes por minuto."}
+                    </p>
+                    <Link className="button button--ghost" to="/settings">
+                      Configurar clave
+                    </Link>
+                  </div>
+                ) : null}
               </div>
               <details className="advanced">
                 <summary>Opciones avanzadas</summary>
@@ -480,6 +599,12 @@ export function StudioPage() {
                     <span>Velocidad</span>
                     <strong>{formatRate(rate)}</strong>
                   </div>
+                  {style !== "neutral" ? (
+                    <div className="summary-row">
+                      <span>Estilo</span>
+                      <strong>{STYLE_LABELS[style] ?? style}</strong>
+                    </div>
+                  ) : null}
                   <div className="summary-row">
                     <span>Motor</span>
                     <strong>{selectedEngine?.label ?? engine}</strong>
@@ -503,11 +628,20 @@ export function StudioPage() {
                     wide
                     onClick={startConversion}
                     loading={start.isPending}
-                    disabled={!selectedVoice}
+                    disabled={!selectedVoice || !selectedEngine?.available}
                   >
                     <AudioLines size={17} />
                     {book.status === "ready" ? "Reconvertir" : "Convertir audiolibro"}
                   </Button>
+                  {!selectedEngine?.available ? (
+                    <p className="hint">
+                      {selectedEngine?.id === "kokoro"
+                        ? "Descargá el modelo local para habilitar la conversión."
+                        : selectedEngine?.requires_key
+                          ? "Configurá las credenciales de Azure y reiniciá la app."
+                          : "Este motor todavía no está disponible."}
+                    </p>
+                  ) : null}
                   <p className="hint">
                     El tiempo depende de la red y de la longitud del libro. La caché se conserva.
                   </p>

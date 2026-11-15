@@ -9,7 +9,16 @@ def test_list_engines(client, monkeypatch, tmp_path):
 
     assert response.status_code == 200
     items = response.json()["items"]
-    assert [item["id"] for item in items] == ["piper", "espeak", "edge", "azure", "fake"]
+    assert [item["id"] for item in items] == [
+        "piper",
+        "kokoro",
+        "espeak",
+        "edge",
+        "gemini",
+        "elevenlabs",
+        "azure",
+        "fake",
+    ]
 
     by_id = {item["id"]: item for item in items}
     assert by_id["edge"]["available"] is True
@@ -19,6 +28,10 @@ def test_list_engines(client, monkeypatch, tmp_path):
     assert by_id["piper"]["available"] is False
     assert by_id["espeak"]["implemented"] is True
     assert by_id["espeak"]["available"] is False
+    assert by_id["gemini"]["available"] is False
+    assert by_id["elevenlabs"]["available"] is False
+    assert by_id["gemini"]["supports_styles"] is True
+    assert by_id["elevenlabs"]["supports_styles"] is True
     assert by_id["azure"]["available"] is False
     assert by_id["fake"]["available"] is True
     assert by_id["fake"]["test_only"] is True

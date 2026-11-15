@@ -14,6 +14,19 @@ from ebooklib import epub
 from PIL import Image
 
 
+@pytest.fixture(autouse=True)
+def _isolated_provider_keys(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("VIBEBOOK_PROVIDER_KEYS", str(tmp_path / "provider-keys.json"))
+    for name in (
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "ELEVENLABS_API_KEY",
+        "AZURE_SPEECH_KEY",
+        "AZURE_SPEECH_REGION",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture
 def tiny_epub(tmp_path: Path) -> Path:
     book = epub.EpubBook()

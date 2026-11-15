@@ -14,6 +14,7 @@ from audiol.studio.models import (
     VoiceResponse,
 )
 from audiol.studio.plugins import PluginNotFound, PluginRecord
+from audiol.tts.kokoro_assets import KokoroNotConfigured, ensure_kokoro_assets
 from audiol.tts.plugin import PluginError
 from audiol.tts.registry import engine_available, get_engine, list_engines
 from audiol.voices import list_voices
@@ -53,6 +54,15 @@ def get_engines(request: Request) -> EngineListResponse:
     for record in request.app.state.plugins.records():
         items.append(_plugin_engine(request, record))
     return EngineListResponse(items=items)
+
+
+@router.post("/engines/kokoro/install")
+def install_kokoro_engine() -> dict:
+    try:
+        root = ensure_kokoro_assets()
+    except KokoroNotConfigured as exc:
+        raise ApiError(502, "kokoro_install_failed", str(exc)) from exc
+    return {"installed": True, "path": str(root)}
 
 
 @router.get("/engines/plugins", response_model=PluginListResponse)

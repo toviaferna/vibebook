@@ -23,6 +23,7 @@ export const queryKeys = {
   resegmentBackups: (id: string) => ["resegment-backups", id] as const,
   job: (id: string) => ["job", id] as const,
   engines: ["engines"] as const,
+  providers: ["providers"] as const,
   plugins: ["plugins"] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
@@ -131,6 +132,63 @@ export function useEngines() {
     queryKey: queryKeys.engines,
     queryFn: api.getEngines,
     staleTime: 30_000,
+  });
+}
+
+export function useInstallKokoroEngine() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.installKokoroEngine,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useProviders() {
+  return useQuery({
+    queryKey: queryKeys.providers,
+    queryFn: api.getProviders,
+    staleTime: 10_000,
+  });
+}
+
+export function useSaveProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      providerId,
+      apiKey,
+      region,
+    }: {
+      providerId: string;
+      apiKey: string;
+      region?: string;
+    }) => api.saveProvider(providerId, apiKey, region),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useDeleteProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId: string) => api.deleteProvider(providerId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useTestProvider() {
+  return useMutation({
+    mutationFn: (providerId: string) => api.testProvider(providerId),
   });
 }
 
@@ -467,6 +525,26 @@ export function useGenerateAmbienceAssets() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (preset?: string) => api.generateAmbienceAssets(preset),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
+    },
+  });
+}
+
+export function useUploadAmbienceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (form: FormData) => api.uploadAmbienceAsset(form),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
+    },
+  });
+}
+
+export function useDeleteAmbienceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (assetId: string) => api.deleteAmbienceAsset(assetId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
     },

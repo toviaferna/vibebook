@@ -11,11 +11,13 @@ import {
   sampleManifest,
   samplePlugin,
   samplePlugins,
+  sampleProviders,
   sampleReadingBookmarks,
   sampleReadingState,
   sampleResegmentPlan,
   sampleSearch,
   sampleSettings,
+  sampleSoundAssets,
   sampleVoices,
 } from "./fixtures";
 
@@ -151,9 +153,7 @@ export const server = setupServer(
       plan: { version: 1, chapters: [] },
     }),
   ),
-  http.get("*/api/ambience/assets", () =>
-    HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
-  ),
+  http.get("*/api/ambience/assets", () => HttpResponse.json(sampleSoundAssets)),
   http.post("*/api/ambience/assets/generate", () => HttpResponse.json([])),
   http.get("*/api/books/:id/cover/search", () =>
     HttpResponse.json({
@@ -182,6 +182,27 @@ export const server = setupServer(
     return HttpResponse.json({ ...sampleSettings, ...patch });
   }),
   http.get("*/api/engines", () => HttpResponse.json(sampleEngines)),
+  http.get("*/api/providers", () => HttpResponse.json(sampleProviders)),
+  http.put("*/api/providers/:providerId", async ({ request, params }) => {
+    const payload = (await request.json()) as { api_key: string };
+    const provider = sampleProviders.items.find((item) => item.id === params.providerId);
+    return HttpResponse.json({
+      ...(provider ?? sampleProviders.items[0]),
+      configured: true,
+      hint: `•••• ${payload.api_key.slice(-4)}`,
+      source: "file",
+    });
+  }),
+  http.delete("*/api/providers/:providerId", () => new HttpResponse(null, { status: 204 })),
+  http.post("*/api/providers/:providerId/test", () =>
+    HttpResponse.json({
+      ok: true,
+      message: "Conectado para TTS.",
+      credits_used: null,
+      credits_limit: null,
+      warning: null,
+    }),
+  ),
   http.get("*/api/engines/plugins", () => HttpResponse.json(samplePlugins)),
   http.post("*/api/engines/plugins", () => HttpResponse.json(samplePlugin, { status: 201 })),
   http.delete("*/api/engines/plugins/:pluginId", () => new HttpResponse(null, { status: 204 })),

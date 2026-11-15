@@ -8,23 +8,17 @@ import {
   RefreshCw,
   Trash2,
   Undo2,
-  Waves,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { errorMessage } from "../../api/client";
 import {
-  useAmbienceRenderJob,
-  useAnalyzeBookAmbience,
   useBook,
-  useBookAmbience,
-  useGenerateAmbienceAssets,
   useRepairSegments,
   useResegmentBackups,
   useResegmentPlan,
   useRestoreResegment,
-  useStartAmbienceRender,
 } from "../../api/queries";
 import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
@@ -39,21 +33,16 @@ import {
   formatStatus,
   pluralize,
 } from "../../lib/format";
+import { AmbiencePanel } from "./AmbiencePanel";
 import { CoverSearchDialog } from "./CoverSearchDialog";
 import { DeleteBookDialog } from "./DeleteBookDialog";
 
 export function BookDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookQuery = useBook(id);
-  const ambienceQuery = useBookAmbience(id);
-  const analyzeAmbience = useAnalyzeBookAmbience(id ?? "");
-  const generateBeds = useGenerateAmbienceAssets();
   const navigate = useNavigate();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
-  const [ambienceJobId, setAmbienceJobId] = useState<string | null>(null);
-  const ambienceJob = useAmbienceRenderJob(ambienceJobId);
-  const startAmbienceRender = useStartAmbienceRender(id ?? "");
   const resegmentQuery = useResegmentPlan(id);
   const resegmentBackups = useResegmentBackups(id);
   const repairSegments = useRepairSegments(id ?? "");
@@ -65,11 +54,6 @@ export function BookDetailPage() {
     id,
     "m4b",
     book?.status === "ready" ? `/api/books/${id}/m4b` : undefined,
-  );
-  const ambientUrl = useMediaUrl(
-    id,
-    "ambience",
-    ambienceJob.data?.status === "completed" ? `/api/books/${id}/ambience/audio` : undefined,
   );
 
   if (bookQuery.isLoading) {
@@ -275,95 +259,7 @@ export function BookDetailPage() {
         </span>
       </section>
 
-      <section className="panel ambience-panel">
-        <div className="panel-head">
-          <div>
-            <p className="eyebrow">Ambientación</p>
-            <h2>Sonido del libro</h2>
-          </div>
-          <span className="mono muted">
-            {ambienceQuery.data?.plan.chapters.length
-              ? `${ambienceQuery.data.plan.chapters.length} ${
-                  ambienceQuery.data.plan.chapters.length === 1 ? "capítulo" : "capítulos"
-                } con plan`
-              : "Sin plan"}
-          </span>
-        </div>
-        <div className="panel-body ambience-body">
-          <p className="hint">
-            Camas y efectos locales, sin cuentas ni APIs pagas. Generá los fondos sonoros, analizá
-            el texto y después activá el ambiente desde el lector.
-          </p>
-          <div className="ambience-actions">
-            <Button onClick={() => generateBeds.mutate(undefined)} loading={generateBeds.isPending}>
-              <Waves size={16} />
-              Generar camas
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => analyzeAmbience.mutate()}
-              loading={analyzeAmbience.isPending}
-              disabled={generateBeds.isPending}
-            >
-              Analizar capítulos
-            </Button>
-            <Button
-              onClick={() =>
-                startAmbienceRender.mutate(undefined, {
-                  onSuccess: (result) => setAmbienceJobId(result.job_id),
-                })
-              }
-              loading={startAmbienceRender.isPending}
-              disabled={!ambienceQuery.data?.plan.chapters.length}
-            >
-              Exportar ambientado
-            </Button>
-            {ambienceJob.data?.status === "completed" && ambientUrl ? (
-              <a className="button button--ghost" href={ambientUrl} download>
-                Descargar M4B ambientado
-              </a>
-            ) : null}
-          </div>
-          {ambienceJob.data ? (
-            <p className="hint">
-              Preparando audio: {formatStatus(ambienceJob.data.status)}
-              {ambienceJob.data.status === "running" && ambienceJob.data.chapter_title
-                ? ` · ${ambienceJob.data.chapter_title}`
-                : null}
-            </p>
-          ) : null}
-          {ambienceJob.data?.status === "failed" ? (
-            <div className="alert" role="alert">
-              <AlertTriangle size={18} />
-              <span>{ambienceJob.data.error ?? "No se pudo exportar el ambiente."}</span>
-            </div>
-          ) : null}
-          {generateBeds.isSuccess ? (
-            <p className="hint">Camas listas en la biblioteca de sonidos.</p>
-          ) : null}
-          {analyzeAmbience.isError ? (
-            <div className="alert" role="alert">
-              <AlertTriangle size={18} />
-              <span>{errorMessage(analyzeAmbience.error)}</span>
-            </div>
-          ) : null}
-          {ambienceQuery.data?.plan.chapters.length ? (
-            <ul className="ambience-chapters">
-              {ambienceQuery.data.plan.chapters.slice(0, 4).map((chapter) => (
-                <li key={chapter.chapter_index}>
-                  <span className="mono">Capítulo {chapter.chapter_index}</span>
-                  <span>{chapter.bed?.reason ?? "sin cama"}</span>
-                  <span className="mono muted">
-                    {chapter.effects.length} {chapter.effects.length === 1 ? "efecto" : "efectos"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="hint">Todavía no hay un plan de ambiente para este libro.</p>
-          )}
-        </div>
-      </section>
+      <AmbiencePanel book={book} />
 
       <section className="panel maintenance-panel" aria-label="Mantenimiento del texto">
         <div className="panel-head">

@@ -20,8 +20,8 @@ test("separa el tema de la app de la paleta del lector", async ({ page, playwrig
 
   await page.goto("/#/settings");
   await page.getByText("Oscuro", { exact: true }).click();
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByRole("button", { name: "Guardado" })).toBeVisible();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Guardado", exact: true })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.reload();

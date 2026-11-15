@@ -19,6 +19,8 @@ import type {
   PluginList,
   PluginTest,
   Preview,
+  ProviderList,
+  ProviderTest,
   ReaderState,
   ReadingBookmark,
   ReadingBookmarkInput,
@@ -164,6 +166,20 @@ export const api = {
       body: JSON.stringify(input),
     }),
   getEngines: () => apiFetch<EngineList>("/engines"),
+  getProviders: () => apiFetch<ProviderList>("/providers"),
+  saveProvider: (providerId: string, apiKey: string, region?: string) =>
+    apiFetch<ProviderList["items"][number]>(`/providers/${providerId}`, {
+      method: "PUT",
+      body: JSON.stringify({ api_key: apiKey, region: region ?? null }),
+    }),
+  deleteProvider: (providerId: string) =>
+    apiFetch<void>(`/providers/${providerId}`, { method: "DELETE" }),
+  testProvider: (providerId: string) =>
+    apiFetch<ProviderTest>(`/providers/${providerId}/test`, { method: "POST" }),
+  installKokoroEngine: () =>
+    apiFetch<{ installed: boolean; path: string }>("/engines/kokoro/install", {
+      method: "POST",
+    }),
   getPlugins: () => apiFetch<PluginList>("/engines/plugins"),
   addPlugin: (url: string, token: string | null) =>
     apiFetch<Plugin>("/engines/plugins", {
@@ -267,6 +283,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ preset: preset ?? null }),
     }),
+  uploadAmbienceAsset: (form: FormData) =>
+    apiFetch<SoundAssetList["items"][number]>("/ambience/assets/import", {
+      method: "POST",
+      body: form,
+    }),
+  deleteAmbienceAsset: (assetId: string) =>
+    apiFetch<void>(`/ambience/assets/${assetId}`, { method: "DELETE" }),
   approveAmbienceAsset: (assetId: string) =>
     apiFetch<SoundAssetList["items"][number]>(`/ambience/assets/${assetId}/approve`, {
       method: "POST",

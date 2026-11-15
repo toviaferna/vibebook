@@ -273,7 +273,7 @@ export interface AmbienceAnchor {
 
 export interface AmbienceBed {
   asset_id: string;
-  kind: "ambience";
+  kind: "ambience" | "music";
   start_ms: number;
   end_ms: number | null;
   loop: boolean;
@@ -332,6 +332,31 @@ export interface ConversionInput {
   style: string;
   rate: string;
   force: boolean;
+}
+
+export interface ProviderStatus {
+  id: string;
+  label: string;
+  description: string;
+  docs_url: string;
+  key_url: string;
+  requires_region: boolean;
+  configured: boolean;
+  hint: string | null;
+  source: string | null;
+  region: string | null;
+}
+
+export interface ProviderList {
+  items: ProviderStatus[];
+}
+
+export interface ProviderTest {
+  ok: boolean;
+  message: string;
+  credits_used: number | null;
+  credits_limit: number | null;
+  warning: string | null;
 }
 
 export interface ApiErrorPayload {
