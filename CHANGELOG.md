@@ -13,11 +13,30 @@
 - Métricas de conversión: concurrencia, segmentos cacheados, tiempos de
   síntesis/ensamblado y aciertos de la caché de duraciones.
 - `VIBEBOOK_TTS_CONCURRENCY` para reducir la concurrencia de un motor.
+- Lector realista en **Libro** con tapas, lomo, canto de hojas y giro 3D de
+  OpenPageFlip; doble página en escritorio y una página en mobile.
+- **Libro** es el modo por defecto en escritorio (≥ 981 px); **Texto** sigue
+  siendo el default mobile y el fallback accesible.
+- La paginación rellena la página en curso partiendo el párrafo siguiente, sin
+  dejar media página en blanco.
+- `check:bundle` vigila también el chunk lazy del lector (≤ 100 KiB gzip) y su
+  CSS (≤ 8 KiB gzip).
+
+### Cambiado
+
+- La vista Libro ya no usa un slide de 220 ms: el giro, el arrastre de borde y
+  el swipe los resuelve el motor especializado, con respeto a
+  `prefers-reduced-motion`.
+- El escenario del libro se ajusta al pliego real: el alto se deriva del ancho
+  disponible y no deja franjas vacías alrededor de las tapas.
+- El reproductor se compacta entre 641 y 1100 px para liberar alto en laptops.
 
 ### Corregido
 
 - El staging de una conversión activa ya no se borra cuando la biblioteca se
   lista durante el job.
+- La paginación mide el cuerpo real de la página y ya no acepta una línea que
+  luego se recortaba en anchos estrechos.
 
 ## v0.6.0 — 2026-11-10
 

@@ -1,12 +1,23 @@
-﻿import { ChevronLeft, ChevronRight } from "lucide-react";
-import { type TouchEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+﻿import {
+  Binding,
+  type BookRect,
+  computeLayout,
+  type Book as FlipBookApi,
+  Layout,
+  type Orientation,
+} from "@openpageflip/core";
+import { FlipBook, Page } from "@openpageflip/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { ManifestChapter, ManifestImage } from "../../../api/types";
 import { useMediaUrl } from "../../../hooks/useMediaUrl";
 import { chapterDisplayTitle } from "../chapterTitle";
-import { formatPageLabel, resolvePageMove } from "./navigation";
+import { formatPageLabel } from "./navigation";
 import { clearPageCache, getCachedPages, pageCacheKey, setCachedPages } from "./pageCache";
 import { type BookPage, type PageBlock, pageIndexForOffset, paginateChapter } from "./paginator";
+import "@openpageflip/core/styles.css";
 
 export interface BookPageState {
   pageIndex: number;
@@ -30,7 +41,10 @@ interface BookReaderProps {
   onBookmark?: (state: BookPageState) => void;
 }
 
-const TURN_MS = 220;
+const BASE_WIDTH = 600;
+const BASE_HEIGHT = 820;
+const MIN_PAGE_WIDTH = 300;
+const MAX_PAGE_WIDTH = 620;
 
 export function lastPageIndex(pageCount: number, spread: boolean): number {
   if (pageCount === 0) {
@@ -76,7 +90,7 @@ function imageDisplaySize(
   const naturalHeight = image.height && image.height > 0 ? image.height : contentWidth * 0.6;
   let width = Math.min(naturalWidth, contentWidth);
   let height = naturalWidth > 0 ? width * (naturalHeight / naturalWidth) : contentWidth * 0.6;
-  const maxHeight = pageHeight * (album ? 0.78 : 0.62);
+  const maxHeight = pageHeight * (album ? 0.72 : 0.56);
   if (height > maxHeight) {
     height = maxHeight;
     width = naturalHeight > 0 ? height * (naturalWidth / naturalHeight) : contentWidth;
@@ -84,13 +98,65 @@ function imageDisplaySize(
   return { width, height };
 }
 
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+function bookLayout(width: number, height: number): BookRect {
+  return computeLayout(width, height, {
+    size: "stretch",
+    width: BASE_WIDTH,
+    height: BASE_HEIGHT,
+    minWidth: MIN_PAGE_WIDTH,
+    maxWidth: MAX_PAGE_WIDTH,
+    layout: Layout.auto,
+    binding: Binding.left,
+  }).rect;
 }
+
+const BookPageView = memo(function BookPageView({
+  bookId,
+  chapterTitle,
+  page,
+  pageNumber,
+  album,
+  pageHeight,
+}: {
+  bookId: string;
+  chapterTitle: string;
+  page: BookPage;
+  pageNumber: number;
+  album: boolean;
+  pageHeight: number;
+}) {
+  return (
+    <article className="book-page" aria-label={`Página ${pageNumber}`}>
+      <div className="book-page-running-head" aria-hidden="true">
+        <span>{chapterTitle}</span>
+      </div>
+      <div className="book-page-body">
+        {page.blocks.map((block) =>
+          block.kind === "image" ? (
+            <figure className="book-figure" key={block.image.id}>
+              <ReaderImage
+                bookId={bookId}
+                image={block.image}
+                maxHeight={pageHeight ? pageHeight * (album ? 0.72 : 0.56) : undefined}
+              />
+              {block.image.caption ? <figcaption>{block.image.caption}</figcaption> : null}
+            </figure>
+          ) : (
+            <p
+              key={`${block.paragraphIndex}-${block.startOffset}`}
+              className={block.continuation ? "is-continuation" : undefined}
+            >
+              {block.text}
+            </p>
+          ),
+        )}
+      </div>
+      <footer className="book-page-number" aria-hidden="true">
+        <span>{String(pageNumber).padStart(2, "0")}</span>
+      </footer>
+    </article>
+  );
+});
 
 export function BookReader({
   bookId,
@@ -107,23 +173,34 @@ export function BookReader({
   onPageChange,
   onBookmark,
 }: BookReaderProps) {
-  const spreadRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const bookRef = useRef<FlipBookApi | null>(null);
+  const bookSurfaceRef = useRef<HTMLDivElement>(null);
   const initialOffsetRef = useRef(initialCharOffset);
   const lastInitialOffsetRef = useRef(initialCharOffset);
   const currentOffsetRef = useRef(initialCharOffset);
   const hasPaginatedRef = useRef(false);
-  const turnTimer = useRef<number | null>(null);
-  const chapterTimer = useRef<number | null>(null);
-  const chapterLock = useRef(false);
-  const touchStart = useRef<{ x: number; y: number; time: number } | null>(null);
+  const reducedMotion = useReducedMotion();
   const [pages, setPages] = useState<BookPage[]>([]);
   const [pageIndex, setPageIndex] = useState(0);
-  const [spread, setSpread] = useState(false);
+  const [orientation, setOrientation] = useState<Orientation>("landscape");
   const [pageHeight, setPageHeight] = useState(0);
-  const [turn, setTurn] = useState<{ direction: "next" | "prev"; id: number } | null>(null);
+  const [bookRect, setBookRect] = useState<BookRect | null>(null);
+  const chapterTitle = chapterDisplayTitle(chapter);
+  const spread = orientation === "landscape";
+  const singleLayout = pages.length === 1;
+  const renderedSpread = spread && !singleLayout;
+  const visibleBook = bookRect
+    ? {
+        left: renderedSpread ? bookRect.left : bookRect.left + bookRect.width / 2,
+        top: bookRect.top,
+        width: renderedSpread ? bookRect.width : bookRect.pageWidth,
+        height: bookRect.height,
+      }
+    : null;
 
   useLayoutEffect(() => {
-    const element = spreadRef.current;
+    const element = viewportRef.current;
     if (!element) {
       return;
     }
@@ -134,15 +211,14 @@ export function BookReader({
       if (width <= 0 || height <= 0) {
         return;
       }
-      const isSpread = width >= 820;
-      const gap = isSpread ? 24 : 0;
-      const pageWidth = isSpread ? (width - gap) / 2 : width;
+      const rect = bookLayout(width, height);
+      const isSpread = rect.width >= rect.pageWidth * 2 - 1;
       const key = pageCacheKey({
         bookId,
         chapter,
         images,
-        width: pageWidth,
-        height,
+        width: rect.pageWidth,
+        height: rect.height,
         font,
         size,
         album,
@@ -151,33 +227,38 @@ export function BookReader({
       if (!nextPages) {
         const measureElement = document.createElement("div");
         measureElement.className = "book-page book-page--measure";
-        measureElement.style.width = `${pageWidth}px`;
-        measureElement.style.height = `${height}px`;
+        measureElement.style.width = `${rect.pageWidth}px`;
+        measureElement.style.height = "auto";
         element.appendChild(measureElement);
         const styles = getComputedStyle(measureElement);
         const contentWidth =
-          pageWidth -
+          rect.pageWidth -
           (Number.parseFloat(styles.paddingLeft) || 0) -
           (Number.parseFloat(styles.paddingRight) || 0);
         const measure = (blocks: PageBlock[]) => {
+          const runningHead = document.createElement("div");
+          runningHead.className = "book-page-running-head";
+          runningHead.textContent = chapterTitle;
           const footer = document.createElement("footer");
           footer.className = "book-page-number";
           footer.textContent = "00";
-          measureElement.replaceChildren(
+          const body = document.createElement("div");
+          body.className = "book-page-body";
+          body.append(
             ...blocks.map((block) => {
               if (block.kind === "image") {
                 const figure = document.createElement("figure");
                 figure.className = "book-figure";
                 const placeholder = document.createElement("div");
                 placeholder.className = "book-figure-placeholder";
-                const size = imageDisplaySize(
+                const imageSize = imageDisplaySize(
                   block.image,
                   contentWidth,
-                  Math.max(80, height - 40),
+                  Math.max(80, rect.height - 64),
                   album,
                 );
-                placeholder.style.width = `${size.width}px`;
-                placeholder.style.height = `${size.height}px`;
+                placeholder.style.width = `${imageSize.width}px`;
+                placeholder.style.height = `${imageSize.height}px`;
                 figure.appendChild(placeholder);
                 if (block.image.caption) {
                   const caption = document.createElement("figcaption");
@@ -190,23 +271,34 @@ export function BookReader({
               paragraph.textContent = block.text;
               return paragraph;
             }),
-            footer,
           );
+          measureElement.replaceChildren(runningHead, body, footer);
           return measureElement.scrollHeight;
         };
-        nextPages = paginateChapter(chapter, images, measure, height, bookId);
+        nextPages = paginateChapter(chapter, images, measure, rect.height, bookId);
         measureElement.remove();
         setCachedPages(key, nextPages);
       }
       const anchor = hasPaginatedRef.current ? currentOffsetRef.current : initialOffsetRef.current;
-      setSpread(isSpread);
-      setPageHeight(height);
-      setPages(nextPages);
       const target = pageIndexForOffset(nextPages, anchor);
-      const aligned = isSpread ? Math.floor(target / 2) * 2 : target;
-      const max = isSpread ? Math.max(0, nextPages.length - 2) : nextPages.length - 1;
-      setPageIndex(Math.max(0, Math.min(aligned, max)));
+      const max = lastPageIndex(nextPages.length, isSpread);
+      setOrientation(isSpread ? "landscape" : "portrait");
+      setPageHeight(rect.height);
+      setBookRect(rect);
+      setPages(nextPages);
+      setPageIndex(Math.max(0, Math.min(target, max)));
       hasPaginatedRef.current = true;
+    };
+
+    let frame = 0;
+    const schedule = () => {
+      if (frame) {
+        return;
+      }
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        paginate();
+      });
     };
 
     paginate();
@@ -214,30 +306,25 @@ export function BookReader({
     if (typeof document !== "undefined" && document.fonts?.ready) {
       void document.fonts.ready.then(() => {
         if (!cancelled) {
-          paginate();
+          schedule();
         }
       });
     }
     const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => paginate());
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => schedule());
     observer?.observe(element);
     return () => {
       cancelled = true;
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
       observer?.disconnect();
     };
-  }, [album, bookId, chapter, font, images, size]);
+  }, [album, bookId, chapter, chapterTitle, font, images, size]);
 
   useEffect(() => {
     clearPageCache(bookId);
   }, [bookId]);
-
-  useEffect(() => {
-    if (pages.length === 0) {
-      return;
-    }
-    const max = spread ? Math.max(0, pages.length - 2) : pages.length - 1;
-    setPageIndex((current) => Math.min(current, max));
-  }, [pages, spread]);
 
   useEffect(() => {
     const page = pages[pageIndex];
@@ -260,9 +347,7 @@ export function BookReader({
       return;
     }
     const target = pageIndexForOffset(pages, initialCharOffset);
-    const aligned = spread ? Math.floor(target / 2) * 2 : target;
-    const max = spread ? Math.max(0, pages.length - 2) : pages.length - 1;
-    setPageIndex(Math.max(0, Math.min(aligned, max)));
+    setPageIndex(Math.max(0, Math.min(target, lastPageIndex(pages.length, spread))));
   }, [initialCharOffset, pageIndex, pages, spread]);
 
   useEffect(() => {
@@ -277,74 +362,43 @@ export function BookReader({
     });
   }, [onPageChange, pageIndex, pages]);
 
-  const changePage = useCallback(
-    (direction: "next" | "prev") => {
-      const move = resolvePageMove({
-        pageIndex,
-        pageCount: pages.length,
-        spread,
-        direction,
-        hasNextChapter,
-        hasPreviousChapter,
-      });
-      if (move.kind === "page") {
-        setPageIndex(move.index);
-        if (prefersReducedMotion()) {
-          setTurn(null);
-          return;
-        }
-        if (turnTimer.current !== null) {
-          window.clearTimeout(turnTimer.current);
-        }
-        setTurn({ direction, id: Date.now() });
-        turnTimer.current = window.setTimeout(() => {
-          setTurn(null);
-          turnTimer.current = null;
-        }, TURN_MS);
-        return;
-      }
-      if (move.kind !== "chapter" || chapterLock.current) {
-        return;
-      }
-      chapterLock.current = true;
-      if (move.direction === "next") {
-        onNextChapter?.();
-      } else {
-        onPreviousChapter?.();
-      }
-      if (chapterTimer.current !== null) {
-        window.clearTimeout(chapterTimer.current);
-      }
-      chapterTimer.current = window.setTimeout(() => {
-        chapterLock.current = false;
-        chapterTimer.current = null;
-      }, 600);
-    },
-    [
-      hasNextChapter,
-      hasPreviousChapter,
-      onNextChapter,
-      onPreviousChapter,
-      pageIndex,
-      pages.length,
-      spread,
-    ],
-  );
+  const handleFlip = useCallback((event: { page: number }) => {
+    setPageIndex(event.page);
+    const current = bookRef.current;
+    if (current) {
+      setOrientation(current.orientation);
+    }
+  }, []);
 
-  useEffect(
-    () => () => {
-      if (turnTimer.current !== null) {
-        window.clearTimeout(turnTimer.current);
-      }
-      if (chapterTimer.current !== null) {
-        window.clearTimeout(chapterTimer.current);
-      }
-    },
-    [],
-  );
+  const handleProgress = useCallback((event: { progress: number }) => {
+    bookSurfaceRef.current?.style.setProperty("--turn-progress", String(event.progress));
+  }, []);
 
-  const previous = useCallback(() => changePage("prev"), [changePage]);
-  const next = useCallback(() => changePage("next"), [changePage]);
+  const atFirst = pageIndex === 0;
+  const atLast = pages.length === 0 || pageIndex >= lastPageIndex(pages.length, spread);
+  const canPrevious = pages.length > 0 && (!atFirst || hasPreviousChapter);
+  const canNext = pages.length > 0 && (!atLast || hasNextChapter);
+  const label = formatPageLabel(pageIndex, pages.length, spread);
+
+  const previous = useCallback(() => {
+    if (!atFirst) {
+      void bookRef.current?.flipPrev();
+      return;
+    }
+    if (hasPreviousChapter) {
+      onPreviousChapter?.();
+    }
+  }, [atFirst, hasPreviousChapter, onPreviousChapter]);
+
+  const next = useCallback(() => {
+    if (!atLast) {
+      void bookRef.current?.flipNext();
+      return;
+    }
+    if (hasNextChapter) {
+      onNextChapter?.();
+    }
+  }, [atLast, hasNextChapter, onNextChapter]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -373,120 +427,122 @@ export function BookReader({
     return () => window.removeEventListener("keydown", handler);
   }, [next, previous]);
 
-  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length !== 1) {
-      return;
-    }
-    touchStart.current = {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY,
-      time: Date.now(),
-    };
-  };
-
-  const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    if (!start || event.changedTouches.length !== 1) {
-      return;
-    }
-    if (Date.now() - start.time > 700) {
-      return;
-    }
-    const dx = event.changedTouches[0].clientX - start.x;
-    const dy = event.changedTouches[0].clientY - start.y;
-    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.4) {
-      return;
-    }
-    if (typeof window.getSelection === "function" && window.getSelection()?.toString()) {
-      return;
-    }
-    if (dx < 0) {
-      next();
-    } else {
-      previous();
-    }
-  };
-
-  const visible = spread
-    ? pages.slice(pageIndex, pageIndex + 2)
-    : pages.slice(pageIndex, pageIndex + 1);
-  const atFirst = pageIndex === 0;
-  const lastPage = lastPageIndex(pages.length, spread);
-  const atLast = pages.length === 0 || pageIndex >= lastPage;
-  const canPrevious = pages.length > 0 && (!atFirst || hasPreviousChapter);
-  const canNext = pages.length > 0 && (!atLast || hasNextChapter);
-  const label = formatPageLabel(pageIndex, pages.length, spread);
-
   return (
     <section
       className={`book-reader${album ? " book-reader--album" : ""}`}
-      aria-label={`Lectura de ${chapterDisplayTitle(chapter)}`}
+      aria-label={`Lectura de ${chapterTitle}`}
     >
-      <header className="book-chapter-head">
-        <p className="eyebrow">Capítulo {String(chapter.index).padStart(2, "0")}</p>
-        <h1>{chapterDisplayTitle(chapter)}</h1>
-      </header>
-
-      <div
-        className={`book-spread${spread ? "" : " book-spread--single"}`}
-        ref={spreadRef}
-        data-turn={turn?.direction}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={() => {
-          touchStart.current = null;
-        }}
+      <h1 className="sr-only">{chapterTitle}</h1>
+      <motion.div
+        className="book-table"
+        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
       >
-        <button
-          type="button"
-          className="book-ribbon"
-          style={{ height: `${52 + (pages.length ? (pageIndex + 1) / pages.length : 0) * 44}px` }}
-          onClick={() =>
-            onBookmark?.({
-              pageIndex,
-              pageCount: pages.length,
-              charOffset: pages[pageIndex]?.startOffset ?? 0,
-            })
-          }
-          aria-label="Guardar esta página"
-          title="Guardar esta página"
+        <div
+          className={`book-viewport${renderedSpread ? "" : " book-viewport--single"}`}
+          ref={viewportRef}
         >
-          <span className="sr-only">Guardar esta página</span>
-        </button>
-        {visible.map((page) => (
-          <article
-            className="book-page"
-            key={page.id ?? `${chapter.index}-${page.startOffset}`}
-            aria-label={`Página ${pageIndex + visible.indexOf(page) + 1}`}
-          >
-            <div className="book-page-body">
-              {page.blocks.map((block) =>
-                block.kind === "image" ? (
-                  <figure className="book-figure" key={block.image.id}>
-                    <ReaderImage
+          <div className="book-surface" ref={bookSurfaceRef}>
+            {visibleBook ? (
+              <div
+                className="book-backdrop"
+                aria-hidden="true"
+                style={{
+                  left: `${visibleBook.left}px`,
+                  top: `${visibleBook.top}px`,
+                  width: `${visibleBook.width}px`,
+                  height: `${visibleBook.height}px`,
+                }}
+              >
+                <span className="book-ground" />
+                <span className="book-back" />
+              </div>
+            ) : null}
+            {pages.length > 0 ? (
+              <FlipBook
+                ref={bookRef}
+                className="book-object"
+                width={BASE_WIDTH}
+                height={BASE_HEIGHT}
+                size="stretch"
+                minWidth={MIN_PAGE_WIDTH}
+                maxWidth={MAX_PAGE_WIDTH}
+                layout={singleLayout ? Layout.single : Layout.auto}
+                binding={Binding.left}
+                autoSize={false}
+                cover={false}
+                flipDuration={reducedMotion ? 0 : 380}
+                shadows
+                shadowOpacity={0.28}
+                click="edges"
+                drag
+                swipe
+                hover
+                startPage={pageIndex}
+                page={pageIndex}
+                onInit={({ orientation: nextOrientation }) => setOrientation(nextOrientation)}
+                onChangeOrientation={(event) => setOrientation(event.orientation)}
+                onFlip={handleFlip}
+                onFlipProgress={handleProgress}
+              >
+                {pages.map((page, index) => (
+                  <Page className="book-leaf" density="soft" key={page.id ?? index}>
+                    <BookPageView
                       bookId={bookId}
-                      image={block.image}
-                      maxHeight={pageHeight ? pageHeight * (album ? 0.78 : 0.62) : undefined}
+                      chapterTitle={chapterTitle}
+                      page={page}
+                      pageNumber={index + 1}
+                      album={album}
+                      pageHeight={pageHeight}
                     />
-                    {block.image.caption ? <figcaption>{block.image.caption}</figcaption> : null}
-                  </figure>
-                ) : (
-                  <p
-                    key={`${block.paragraphIndex}-${block.startOffset}`}
-                    className={block.continuation ? "is-continuation" : undefined}
-                  >
-                    {block.text}
-                  </p>
-                ),
-              )}
-            </div>
-            <footer className="book-page-number">
-              <span>{String(pageIndex + visible.indexOf(page) + 1).padStart(2, "0")}</span>
-            </footer>
-          </article>
-        ))}
-      </div>
+                  </Page>
+                ))}
+              </FlipBook>
+            ) : (
+              <div className="book-page-loading" role="status" aria-label="Preparando páginas">
+                <span className="skeleton skeleton--title" />
+                <span className="skeleton" />
+              </div>
+            )}
+            {visibleBook ? (
+              <span
+                className="book-spine"
+                aria-hidden="true"
+                style={{
+                  left: renderedSpread
+                    ? `${visibleBook.left + visibleBook.width / 2}px`
+                    : `${visibleBook.left}px`,
+                  top: `${visibleBook.top}px`,
+                  height: `${visibleBook.height}px`,
+                }}
+              />
+            ) : null}
+            {visibleBook ? (
+              <button
+                type="button"
+                className="book-ribbon"
+                style={{
+                  left: `${visibleBook.left + visibleBook.width - 24}px`,
+                  top: `${visibleBook.top + 18}px`,
+                  height: `${52 + (pages.length ? (pageIndex + 1) / pages.length : 0) * 44}px`,
+                }}
+                onClick={() =>
+                  onBookmark?.({
+                    pageIndex,
+                    pageCount: pages.length,
+                    charOffset: pages[pageIndex]?.startOffset ?? 0,
+                  })
+                }
+                aria-label="Guardar esta página"
+                title="Guardar esta página"
+              >
+                <span className="sr-only">Guardar esta página</span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </motion.div>
 
       <nav className="book-nav" aria-label="Navegación de páginas">
         <button

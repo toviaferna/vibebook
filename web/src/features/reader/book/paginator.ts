@@ -169,10 +169,21 @@ export function paginateChapter(
         break;
       }
       if (current.length > 0) {
+        const split = splitBlock(
+          block,
+          (text) => measure([...current, { ...block, text }]) <= pageHeight,
+          0,
+        );
+        if (split.fitted.text) {
+          current.push(split.fitted);
+          flush();
+          block = split.rest;
+          continue;
+        }
         flush();
         continue;
       }
-      const split = splitBlock(block, measure, pageHeight);
+      const split = splitBlock(block, (text) => measure([{ ...block, text }]) <= pageHeight);
       current.push(split.fitted);
       flush();
       block = split.rest;
@@ -191,8 +202,8 @@ export function paginateChapter(
 
 function splitBlock(
   block: TextBlock,
-  measure: MeasurePage,
-  pageHeight: number,
+  fits: (text: string) => boolean,
+  minimumWords = 1,
 ): { fitted: TextBlock; rest: TextBlock } {
   const words = block.text.split(/\s+/).filter(Boolean);
   let low = 1;
@@ -201,14 +212,14 @@ function splitBlock(
   while (low <= high) {
     const middle = Math.floor((low + high) / 2);
     const text = words.slice(0, middle).join(" ");
-    if (measure([{ ...block, text }]) <= pageHeight) {
+    if (fits(text)) {
       best = middle;
       low = middle + 1;
     } else {
       high = middle - 1;
     }
   }
-  const fittedWords = Math.max(1, best);
+  const fittedWords = Math.max(minimumWords, best);
   const fittedText = words.slice(0, fittedWords).join(" ");
   const restText = words.slice(fittedWords).join(" ");
   return {
