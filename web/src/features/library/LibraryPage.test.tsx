@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 
@@ -72,6 +72,33 @@ describe("LibraryPage", () => {
     await user.click(screen.getByRole("button", { name: "Cargar más libros" }));
 
     expect((await screen.findAllByText("Libro sesenta y uno")).length).toBeGreaterThan(0);
+  });
+
+  it("abre acciones con clic derecho y elimina el libro", async () => {
+    let deleted = false;
+    server.use(
+      http.delete("*/api/books/:id", () => {
+        deleted = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<LibraryPage />);
+
+    const cardTitle = (await screen.findAllByText("El Lazarillo de Tormes")).find((node) =>
+      node.closest(".book-card"),
+    );
+    expect(cardTitle).toBeDefined();
+    fireEvent.contextMenu(cardTitle as HTMLElement);
+
+    expect(
+      await screen.findByRole("menu", { name: "Acciones para El Lazarillo de Tormes" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar libro" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Eliminar definitivamente" }));
+
+    await waitFor(() => expect(deleted).toBe(true));
   });
 
   it("muestra el estado vacío", async () => {

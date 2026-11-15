@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
+import { DesktopContextMenu } from "./components/DesktopContextMenu";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { initializeDesktopApi } from "./lib/tauri";
 import { router } from "./router";
@@ -47,6 +48,7 @@ async function bootstrap() {
     <StrictMode>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
+          <DesktopContextMenu />
           <RouterProvider router={router} />
         </ThemeProvider>
       </QueryClientProvider>
