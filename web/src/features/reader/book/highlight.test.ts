@@ -66,6 +66,12 @@ describe("book highlight", () => {
     expect(paragraph?.words.map((word) => word.segmentId)).toEqual([first.id, first.id, second.id]);
     expect(paragraph?.words.map((word) => word.wordIndex)).toEqual([0, 1, 0]);
     expect(highlight.segmentOffsets.get(second.id)).toBe("Hola mundo, ".length);
+    expect(highlight.segmentRanges.get(second.id)).toEqual({
+      start: "Hola mundo, ".length,
+      end: "Hola mundo, adiós.".length,
+    });
+    expect(highlight.segmentWordOffsets.get(first.id)).toEqual([0, "Hola ".length]);
+    expect(highlight.segmentWordOffsets.get(second.id)).toEqual(["Hola mundo, ".length]);
   });
 
   it("separa un bloque partido sin perder palabras", () => {
@@ -89,6 +95,27 @@ describe("book highlight", () => {
     expect(wordsText(words)).toBe(tail.text);
     expect(words.map((word) => word.segmentId)).toEqual([first.id, second.id]);
     expect(words.map((word) => word.wordIndex)).toEqual([null, null]);
+  });
+
+  it("recorta un bloque en un párrafo que no empieza en cero", () => {
+    const first = segment("c001p0001s00", 1, "Hola mundo");
+    const second = segment("c001p0002s00", 2, "Adiós mundo");
+    const highlight = buildChapterHighlight(chapter([first, second]), new Map());
+    const paragraph = highlight.paragraphs.get(2);
+    if (!paragraph) {
+      throw new Error("missing paragraph");
+    }
+
+    const tail = {
+      kind: "text" as const,
+      text: "mundo",
+      paragraphIndex: 2,
+      startOffset: paragraph.startOffset + "Adiós ".length,
+      continuation: true,
+    };
+
+    expect(wordsText(blockWords(tail, paragraph))).toBe("mundo");
+    expect(blockWords(tail, paragraph).map((word) => word.text)).toEqual(["mundo"]);
   });
 
   it("usa el índice alineado aunque el segmento no tenga timing exacto", () => {

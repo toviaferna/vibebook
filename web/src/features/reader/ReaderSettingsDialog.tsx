@@ -14,10 +14,12 @@ interface ReaderSettingsDialogProps {
   font: Font;
   size: number;
   follow: boolean;
+  bookKaraoke: boolean;
   onPalette: (palette: ReaderPalette) => void;
   onFont: (font: Font) => void;
   onSize: (size: number) => void;
   onFollow: (follow: boolean) => void;
+  onBookKaraoke: (enabled: boolean) => void;
 }
 
 export function ReaderSettingsDialog({
@@ -27,10 +29,12 @@ export function ReaderSettingsDialog({
   font,
   size,
   follow,
+  bookKaraoke,
   onPalette,
   onFont,
   onSize,
   onFollow,
+  onBookKaraoke,
 }: ReaderSettingsDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -109,8 +113,25 @@ export function ReaderSettingsDialog({
                 checked={follow}
                 onChange={(event) => onFollow(event.target.checked)}
               />{" "}
-              Seguir el texto mientras suena
+              Seguir la lectura mientras suena
             </label>
+            <p className="hint">
+              En Libro pasa la página; en Texto desplaza el texto. Se pausa unos segundos al hojear
+              a mano.
+            </p>
+
+            <label className="label" htmlFor="reader-book-karaoke-setting">
+              <input
+                id="reader-book-karaoke-setting"
+                type="checkbox"
+                checked={bookKaraoke}
+                onChange={(event) => onBookKaraoke(event.target.checked)}
+              />{" "}
+              Resaltar palabras en el libro
+            </label>
+            <p className="hint">
+              Sigue la palabra que suena sin cambiar el tamaño ni el flujo de la página.
+            </p>
           </div>
 
           <div className="dialog-actions">

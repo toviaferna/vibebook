@@ -9,7 +9,7 @@ import type { Book } from "../src/api/types";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixturesDir = path.resolve(here, "../../tests/fixtures");
 
-export const API_URL = "http://127.0.0.1:8765";
+export const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:8765";
 
 export function fixturePath(name: string): string {
   return path.join(fixturesDir, name);

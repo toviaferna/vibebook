@@ -121,6 +121,7 @@ export const server = setupServer(
       reader_size: null,
       page_turn: null,
       ambience_enabled: null,
+      book_karaoke: null,
       updated_at: null,
     }),
   ),

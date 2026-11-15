@@ -125,7 +125,7 @@ test("en mobile hoja una página, sigue el audio y no desborda", async ({ page, 
     await expect(page.locator(".book-word")).toHaveCount(0);
   } finally {
     await api.put(`/api/books/${book.id}/preferences`, {
-      data: { reader_mode: "text", reader_size: 19 },
+      data: { reader_mode: "text", reader_size: 19, book_karaoke: true },
     });
     await api.dispose();
   }

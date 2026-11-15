@@ -86,7 +86,7 @@ export function ReaderPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [follow, setFollow] = useState(true);
   const [followSuspended, setFollowSuspended] = useState(false);
-  const [karaoke, setKaraoke] = useState(
+  const [bookKaraoke, setBookKaraoke] = useState(
     () => window.localStorage.getItem("vibebook.reader-karaoke") !== "0",
   );
   const [palette, setPalette] = useState<ReaderPalette>(() => readStoredReaderPalette());
@@ -239,6 +239,9 @@ export function ReaderPage() {
     if (preferences.reader_size) {
       setSize(preferences.reader_size);
     }
+    if (preferences.book_karaoke !== null && preferences.book_karaoke !== undefined) {
+      setBookKaraoke(preferences.book_karaoke);
+    }
   }, [preferencesQuery.data]);
 
   useEffect(() => {
@@ -249,11 +252,17 @@ export function ReaderPage() {
     window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
   }, [ambienceVolume]);
 
-  useEffect(() => {
-    window.localStorage.setItem("vibebook.reader-karaoke", karaoke ? "1" : "0");
-  }, [karaoke]);
+  const changeBookKaraoke = useCallback(
+    (enabled: boolean) => {
+      setBookKaraoke(enabled);
+      savePreferences.mutate({ book_karaoke: enabled });
+    },
+    [savePreferences],
+  );
 
-  const toggleKaraoke = useCallback(() => setKaraoke((current) => !current), []);
+  const toggleBookKaraoke = useCallback(() => {
+    changeBookKaraoke(!bookKaraoke);
+  }, [bookKaraoke, changeBookKaraoke]);
 
   const changePalette = useCallback(
     (next: ReaderPalette) => {
@@ -1001,7 +1010,7 @@ export function ReaderPage() {
                 activeSegmentId={activeSegmentId}
                 activeWordIndex={activeWordIndex}
                 follow={follow && !followSuspended}
-                karaoke={karaoke}
+                karaoke={bookKaraoke}
                 initialCharOffset={bookInitialOffset}
                 hasNextChapter={Boolean(nextChapter)}
                 hasPreviousChapter={Boolean(previousChapter)}
@@ -1009,7 +1018,7 @@ export function ReaderPage() {
                 onPreviousChapter={goPreviousChapterFromPage}
                 onPageChange={handleBookPage}
                 onBookmark={handleBookBookmark}
-                onToggleKaraoke={toggleKaraoke}
+                onToggleKaraoke={toggleBookKaraoke}
                 onManualTurn={suspendFollow}
               />
             )
@@ -1153,10 +1162,12 @@ export function ReaderPage() {
         font={font}
         size={size}
         follow={follow}
+        bookKaraoke={bookKaraoke}
         onPalette={changePalette}
         onFont={setFont}
         onSize={setSize}
         onFollow={setFollow}
+        onBookKaraoke={changeBookKaraoke}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>

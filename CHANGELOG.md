@@ -1,5 +1,30 @@
 # Changelog
 
+## Sin publicar
+
+### Agregado
+
+- La preferencia de karaoke de **Libro/Álbum** se guarda por libro
+  (`book_karaoke`, migración 3) y también se edita desde los ajustes de lectura.
+  El valor global de v0.8.0 (`localStorage`) queda como default para libros sin
+  preferencia.
+
+### Cambiado
+
+- El giro dura 520 ms con `easeInOutCubic`, una sombra más marcada y una entrada
+  solo por opacidad.
+- El resaltado envuelve únicamente el segmento activo; las demás páginas siguen
+  memorizadas y no se vuelven a renderizar con cada palabra.
+
+### Corregido
+
+- El botón flotante **Volver al audio** ya no agrega altura al documento cuando
+  aparece tras un giro manual.
+- El resaltado por palabra encuentra los segmentos de párrafos que no empiezan
+  en el offset cero.
+- El auto-giro usa el offset de la palabra activa, evita reintentos durante la
+  animación y vuelve a la página del audio después de la pausa manual.
+
 ## v0.8.0 — 2026-11-15
 
 ### Agregado

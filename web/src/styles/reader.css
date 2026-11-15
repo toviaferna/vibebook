@@ -594,6 +594,10 @@
   white-space: nowrap;
 }
 
+.book-nav .mono {
+  white-space: nowrap;
+}
+
 .book-karaoke {
   gap: 0.45rem;
   color: var(--ink-faint);
@@ -624,6 +628,7 @@
 }
 
 .book-end {
+  min-height: 1em;
   margin-top: var(--space-2);
   color: var(--ink-faint);
   font-family: var(--font-mono);
@@ -830,10 +835,10 @@
 }
 
 .reader-follow-float {
-  position: sticky;
+  position: fixed;
+  z-index: 15;
   right: var(--space-4);
   bottom: 170px;
-  float: right;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);

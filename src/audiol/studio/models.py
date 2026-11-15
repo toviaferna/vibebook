@@ -217,6 +217,7 @@ class BookPreferencesUpdate(BaseModel):
     reader_size: int | None = Field(default=None, ge=14, le=28)
     page_turn: bool | None = None
     ambience_enabled: bool | None = None
+    book_karaoke: bool | None = None
 
 
 class BookPreferencesResponse(BookPreferencesUpdate):

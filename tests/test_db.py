@@ -57,6 +57,13 @@ def test_migration_2_adds_sequence_to_reading_state(db: Database):
     assert "sequence" in columns
 
 
+def test_migration_3_adds_book_karaoke_to_preferences(db: Database):
+    with sqlite3.connect(db.path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(book_preferences)")}
+
+    assert "book_karaoke" in columns
+
+
 def test_failed_migration_rolls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     path = tmp_path / "db.sqlite"
     database = Database(path)

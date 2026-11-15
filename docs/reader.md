@@ -66,6 +66,10 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
   por segmento sin romper el layout.
 - Un clic en una palabra o segmento hace seek y reproduce.
 - El texto se puede seleccionar; si hay una selección activa, el clic no salta.
+- En **Libro** y **Álbum** el karaoke se activa o desactiva con el toggle de la
+  navegación o con “Resaltar palabras en el libro” en los ajustes. Se guarda por
+  libro (`book_karaoke`); si el libro no tiene preferencia, se usa el valor
+  heredado de v0.8.0 en `localStorage` (activado por defecto).
 
 ## Controles
 
@@ -73,8 +77,10 @@ una variante de Libro que da más altura a las figuras para libros ilustrados.
 - Velocidad (0,75× a 2×), volumen, mute y temporizador.
 - Media Session para controles del sistema.
 - Autoavance al terminar un capítulo.
-- El auto-scroll se pausa 5 s al scrollear manualmente y se reactiva con
-  “Volver al texto”.
+- En **Libro**, la página sigue a la palabra que suena mientras el audio está en
+  reproducción. Al hojear a mano el seguimiento se pausa 5 s y después vuelve a
+  la página del audio; en **Texto** el auto-scroll se pausa igual y se reactiva
+  con “Volver al texto”.
 
 ## Atajos
 
@@ -98,16 +104,19 @@ realista:
 - el giro lo resuelve **OpenPageFlip** (`@openpageflip/core` fijado a la versión
   probada): click o arrastre desde el borde, swipe táctil y giro 3D de hoja
   blanda; el centro de la página queda libre para seleccionar texto;
-- el giro dura 420 ms con una curva de salida suave y queda recortado dentro del
-  área del libro, sin ensanchar el documento ni mover el resto de la app;
+- el giro dura 520 ms con `easeInOutCubic`, sombra reforzada y entrada solo por
+  opacidad; queda recortado dentro del área del libro, sin ensanchar el documento
+  ni mover el resto de la app;
 - paginación medida contra el ancho/alto real y cacheada por capítulo,
   tipografía y tamaño; la página en curso se llena partiendo el párrafo
   siguiente, sin dejar media página en blanco;
 - **Karaoke:** el segmento activo y la palabra que suena se resaltan sobre la
-  página. El toggle **Karaoke** se apaga y se recuerda en `localStorage`;
-- **paso automático:** con **Seguir** activo, el audio avanza al pliego donde
-  continúa la lectura. Un giro manual pausa el seguimiento unos segundos para
-  poder releer;
+  página. Se activa o desactiva con el toggle **Karaoke** de la navegación o con
+  “Resaltar palabras en el libro” en los ajustes; se guarda por libro
+  (`book_karaoke`);
+- **paso automático:** con **Seguir** activo, la página avanza al pliego donde
+  continúa la palabra que suena. Un giro manual pausa el seguimiento 5 s y el
+  botón flotante **Volver al audio** permite reanudarlo sin mover el layout;
 - navegación por botones, número/rango de página y “Fin del libro”;
 - al pasar la última página cruza al capítulo siguiente; al retroceder en la
   primera página va al capítulo anterior en su última página;
@@ -141,6 +150,12 @@ restaura la posición sin autoplay.
 La lectura usa `PUT /api/books/<id>/reading-state` y no pisa la posición del
 audio.
 
+Las preferencias del libro (`reader_mode`, paleta, tipografía, tamaño,
+`book_karaoke`) se guardan en `PUT /api/books/<id>/preferences`. Un
+`book_karaoke` nulo usa la preferencia heredada de v0.8.0 en `localStorage`
+(activada por defecto); el resto de las preferencias nulas heredan el ajuste
+global.
+
 ## Búsqueda y marcadores
 
 - La búsqueda recorre todos los capítulos y segmentos del manifest. Ignora
@@ -166,8 +181,8 @@ sincronizado y el EPUB original renderizado con `epubjs` en un iframe aislado.
 ## Ajustes
 
 Tema claro/sepia/noche, tipografía editorial/sans/Atkinson Hyperlegible, tamaño
-de texto y seguimiento automático. Los ajustes se comparten con la API de
-settings del Studio.
+de texto, seguimiento automático y karaoke del libro. La apariencia y el karaoke
+se guardan por libro; el seguimiento toma `auto_scroll` de los ajustes globales.
 
 ## Diagnóstico de sincronización
 

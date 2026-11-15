@@ -16,9 +16,16 @@ export interface ParagraphHighlight {
   words: HighlightWord[];
 }
 
+export interface SegmentRange {
+  start: number;
+  end: number;
+}
+
 export interface ChapterHighlight {
   paragraphs: Map<number, ParagraphHighlight>;
   segmentOffsets: Map<string, number>;
+  segmentRanges: Map<string, SegmentRange>;
+  segmentWordOffsets: Map<string, number[]>;
 }
 
 /**
@@ -40,6 +47,8 @@ export function buildChapterHighlight(
 
   const paragraphs = new Map<number, ParagraphHighlight>();
   const segmentOffsets = new Map<string, number>();
+  const segmentRanges = new Map<string, SegmentRange>();
+  const segmentWordOffsets = new Map<string, number[]>();
   let offset = 0;
 
   for (const [paragraphIndex, segments] of [...groups.entries()].sort(([a], [b]) => a - b)) {
@@ -47,11 +56,15 @@ export function buildChapterHighlight(
     for (const segment of segments) {
       const aligned = alignments.get(segment.id);
       const tokens = aligned?.words.length ? aligned.words : tokenize(segment.text);
+      const wordStarts: number[] = [];
+      let segmentStart: number | null = null;
       for (let index = 0; index < tokens.length; index += 1) {
         const token = tokens[index];
-        if (!segmentOffsets.has(segment.id)) {
+        if (segmentStart === null) {
+          segmentStart = offset;
           segmentOffsets.set(segment.id, offset);
         }
+        wordStarts.push(offset);
         words.push({
           text: token.text,
           segmentId: segment.id,
@@ -60,6 +73,10 @@ export function buildChapterHighlight(
           end: offset + token.text.length,
         });
         offset += token.text.length + 1;
+      }
+      if (segmentStart !== null) {
+        segmentRanges.set(segment.id, { start: segmentStart, end: offset - 1 });
+        segmentWordOffsets.set(segment.id, wordStarts);
       }
     }
 
@@ -72,13 +89,17 @@ export function buildChapterHighlight(
     offset += 1;
   }
 
-  return { paragraphs, segmentOffsets };
+  return { paragraphs, segmentOffsets, segmentRanges, segmentWordOffsets };
 }
 
 export function blockWords(block: TextBlock, paragraph: ParagraphHighlight): HighlightWord[] {
   const start = block.startOffset - paragraph.startOffset;
   const end = start + block.text.length;
-  return paragraph.words.filter((word) => word.end > start && word.start < end);
+  return paragraph.words.filter((word) => {
+    const wordStart = word.start - paragraph.startOffset;
+    const wordEnd = word.end - paragraph.startOffset;
+    return wordEnd > start && wordStart < end;
+  });
 }
 
 export function wordsText(words: HighlightWord[]): string {
