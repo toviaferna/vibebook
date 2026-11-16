@@ -97,3 +97,16 @@ test("analiza un plan y activa el ambiente del lector", async ({ page, playwrigh
   await expect(page.getByText("Exportación: Completado")).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("link", { name: "Descargar M4B ambientado" })).toBeVisible();
 });
+
+test("genera las seis camas procedurales", async ({ page, playwright }) => {
+  const api = await playwright.request.newContext({ baseURL: API_URL });
+  const book = await ensureReadyBook(api, "e2e-reader.epub", "Lector E2E");
+  await api.dispose();
+
+  await page.goto(`/#/books/${book.id}`);
+  await page.getByRole("button", { name: "Generar camas" }).click();
+  await expect(page.getByText("Camas base generadas.")).toBeVisible({ timeout: 90_000 });
+
+  await page.getByText(/Biblioteca de sonidos/).click();
+  await expect(page.getByText("sea procedural bed", { exact: true })).toBeVisible();
+});

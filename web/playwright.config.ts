@@ -28,6 +28,9 @@ export default defineConfig({
       command:
         "node web/e2e/prepare.mjs && uv run vibebook studio --library .tmp/e2e --port 8765 --allow-fake --dev --no-browser",
       cwd: rootDir,
+      env: {
+        VIBEBOOK_PROVIDER_KEYS: path.join(rootDir, ".tmp", "e2e-provider-keys.json"),
+      },
       url: "http://127.0.0.1:8765/api/health",
       reuseExistingServer: false,
       timeout: 120_000,

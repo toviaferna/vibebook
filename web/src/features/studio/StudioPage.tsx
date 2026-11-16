@@ -109,6 +109,9 @@ export function StudioPage() {
   const selectedEngine = engines.find((item) => item.id === engine);
   const engineVoices =
     engine === "fake" ? voices : voices.filter((item) => item.engines.includes(engine));
+  const readyAlternateEngines = engines.filter(
+    (item) => item.available && item.id !== engine && item.requires_key,
+  );
   const styleCapable = Boolean(selectedEngine?.supports_styles);
   const voiceStyles = selectedVoice?.styles ?? [];
   const stylePresets = styleCapable
@@ -347,10 +350,30 @@ export function StudioPage() {
           <StepCard
             number={2}
             title="Voz"
-            description="Elegí el timbre y la velocidad. Podés escuchar una muestra."
+            description="El motor define las voces disponibles. Elegí el timbre y la velocidad."
             active={!locked}
             status={voiceInfo ? <span className="mono muted">{voiceInfo.name}</span> : null}
           >
+            {readyAlternateEngines.length > 0 ? (
+              <div className="engine-switch-hint">
+                <Info size={15} aria-hidden="true" />
+                <span>
+                  Motor actual: <strong>{selectedEngine?.label ?? engine}</strong>. También
+                  conectado:
+                </span>
+                {readyAlternateEngines.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="link-button"
+                    onClick={() => changeEngine(item.id)}
+                  >
+                    Usar {item.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             <VoicePicker
               voices={engineVoices}
               selected={voice}
@@ -504,6 +527,7 @@ export function StudioPage() {
                   {selectedEngine?.description ??
                     "Edge suele ser la opción más rápida, pero es un servicio externo. Azure requiere credenciales y tiene cuota mensual."}
                 </p>
+                <p className="hint">Este motor también define las voces que ves en el paso 2.</p>
                 {selectedEngine?.id === "kokoro" && !selectedEngine.available ? (
                   <div className="engine-setup">
                     <strong>Modelo local no instalado</strong>

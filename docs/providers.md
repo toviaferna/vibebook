@@ -5,6 +5,10 @@ clave se guarda en `<datos de la app>/provider-keys.json`, con permisos
 restringidos en Linux/macOS, y la API solo devuelve `configurada` y los últimos
 cuatro caracteres. Nunca se muestra completa ni se escribe en el repositorio.
 
+Después de guardar, abrí un libro → **Estudio**. Si el libro venía usando Edge,
+arriba de las voces aparece **Usar Gemini** o **Usar ElevenLabs**; también podés
+cambiar el motor en **Salida**.
+
 También se aceptan variables de entorno, que tienen prioridad:
 
 | Proveedor | Variables |
