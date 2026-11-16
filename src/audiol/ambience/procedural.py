@@ -10,7 +10,7 @@ BED_SECONDS = 30
 PRESETS: dict[str, tuple[str, float, str]] = {
     "rain": ("white", 0.35, "highpass=f=400,lowpass=f=8000,volume=0.55"),
     "wind": ("brown", 0.50, "bandpass=f=500:width_type=h:w=300,tremolo=f=0.15:d=0.35,volume=0.7"),
-    "sea": ("brown", 0.45, "lowpass=f=900,tremolo=f=0.08:d=0.55,volume=0.6"),
+    "sea": ("brown", 0.45, "lowpass=f=900,tremolo=f=0.1:d=0.55,volume=0.6"),
     "room": ("pink", 0.12, "lowpass=f=1200,volume=0.35"),
     "fire": ("pink", 0.30, "highpass=f=900,lowpass=f=5000,tremolo=f=1.8:d=0.25,volume=0.5"),
     "night": ("brown", 0.25, "lowpass=f=600,volume=0.4"),

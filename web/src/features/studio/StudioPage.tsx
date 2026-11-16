@@ -107,6 +107,8 @@ export function StudioPage() {
 
   const selectedVoice = voices.find((item) => item.id === voice);
   const selectedEngine = engines.find((item) => item.id === engine);
+  const engineVoices =
+    engine === "fake" ? voices : voices.filter((item) => item.engines.includes(engine));
   const styleCapable = Boolean(selectedEngine?.supports_styles);
   const voiceStyles = selectedVoice?.styles ?? [];
   const stylePresets = styleCapable
@@ -350,9 +352,10 @@ export function StudioPage() {
             status={voiceInfo ? <span className="mono muted">{voiceInfo.name}</span> : null}
           >
             <VoicePicker
-              voices={voices}
+              voices={engineVoices}
               selected={voice}
               engine={engine}
+              engineReady={Boolean(selectedEngine?.available)}
               previewing={previewing}
               onSelect={changeVoice}
               onPreview={(voiceId) => previewMutation.mutate(voiceId)}

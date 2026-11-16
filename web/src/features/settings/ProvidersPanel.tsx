@@ -26,7 +26,7 @@ export function ProvidersPanel() {
       <div className="panel-body settings-section">
         <p className="hint">
           Las claves se guardan en este equipo y nunca se devuelven a la interfaz. También podés
-          definirlas con variables de entorno.
+          definirlas con variables de entorno. Después de guardar, elegí el motor en Studio.
         </p>
         {query.isLoading ? <p className="hint">Cargando proveedores…</p> : null}
         {query.isError ? (
@@ -70,9 +70,13 @@ function ProviderCard({ provider }: { provider: ProviderStatus }) {
     save.mutate(
       { providerId: provider.id, apiKey: apiKey.trim(), region: region.trim() || undefined },
       {
-        onSuccess: () => {
+        onSuccess: (updated) => {
           setApiKey("");
-          setMessage("Clave guardada.");
+          setMessage(
+            updated.configured
+              ? "Clave guardada. El motor ya está disponible en Studio."
+              : "Clave guardada.",
+          );
         },
       },
     );

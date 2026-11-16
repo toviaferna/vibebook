@@ -16,7 +16,7 @@ describe("ProvidersPanel", () => {
     });
     fireEvent.click(within(gemini).getByRole("button", { name: "Guardar clave" }));
 
-    await waitFor(() => expect(within(gemini).getByText("Clave guardada.")).toBeInTheDocument());
+    await waitFor(() => expect(within(gemini).getByText(/Clave guardada/)).toBeInTheDocument());
   });
 
   it("no muestra la clave completa", async () => {
@@ -28,7 +28,7 @@ describe("ProvidersPanel", () => {
     });
     fireEvent.click(within(eleven).getByRole("button", { name: "Guardar clave" }));
 
-    await waitFor(() => expect(within(eleven).getByText("Clave guardada.")).toBeInTheDocument());
+    await waitFor(() => expect(within(eleven).getByText(/Clave guardada/)).toBeInTheDocument());
     expect(screen.queryByDisplayValue("sk_secret_key_9876")).not.toBeInTheDocument();
   });
 });

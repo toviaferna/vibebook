@@ -52,6 +52,11 @@
 - Los timings estimados de Piper ya no desactivan el resaltado palabra a palabra.
 - Los presets de emoción solo se muestran cuando el motor y la voz declaran
   estilos; Edge y los motores locales ofrecen únicamente perfiles de velocidad.
+- Studio muestra solo las voces del motor elegido y actualiza su disponibilidad
+  al guardar o quitar una clave, sin reiniciar la app.
+- La cama procedural `sea` usaba una frecuencia de tremolo fuera de rango y
+  abortaba la generación; ahora las seis camas se generan y una falla aislada no
+  descarta las demás.
 - La velocidad de Gemini y ElevenLabs se aplica con ffmpeg y los timings exactos
   de ElevenLabs se reescalan para seguir sincronizados.
 - La importación deja de emitir `XMLParsedAsHTMLWarning` al quitar la declaración

@@ -1,5 +1,11 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
@@ -10,6 +16,7 @@ import type {
   BookmarkInput,
   BookPreferences,
   ConversionInput,
+  EngineList,
   Job,
   ReadingBookmarkInput,
   ReadingStateInput,
@@ -39,6 +46,23 @@ export const queryKeys = {
   ambienceAssets: (params: Record<string, unknown> = {}) => ["ambience-assets", params] as const,
   bookAmbience: (bookId: string) => ["book-ambience", bookId] as const,
 };
+
+function patchEngineAvailability(
+  queryClient: QueryClient,
+  engineId: string,
+  available: boolean,
+): void {
+  queryClient.setQueryData<EngineList>(queryKeys.engines, (current) =>
+    current
+      ? {
+          ...current,
+          items: current.items.map((engine) =>
+            engine.id === engineId ? { ...engine, available, configured: available } : engine,
+          ),
+        }
+      : current,
+  );
+}
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
   return useInfiniteQuery({
@@ -140,6 +164,7 @@ export function useInstallKokoroEngine() {
   return useMutation({
     mutationFn: api.installKokoroEngine,
     onSuccess: () => {
+      patchEngineAvailability(queryClient, "kokoro", true);
       void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
       void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
     },
@@ -166,7 +191,8 @@ export function useSaveProvider() {
       apiKey: string;
       region?: string;
     }) => api.saveProvider(providerId, apiKey, region),
-    onSuccess: () => {
+    onSuccess: (provider) => {
+      patchEngineAvailability(queryClient, provider.id, provider.configured);
       void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
       void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
       void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
@@ -178,7 +204,8 @@ export function useDeleteProvider() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (providerId: string) => api.deleteProvider(providerId),
-    onSuccess: () => {
+    onSuccess: (_data, providerId) => {
+      patchEngineAvailability(queryClient, providerId, false);
       void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
       void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
       void queryClient.invalidateQueries({ queryKey: queryKeys.voices });

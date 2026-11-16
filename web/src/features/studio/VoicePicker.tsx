@@ -20,6 +20,7 @@ interface VoicePickerProps {
   voices: Voice[];
   selected: string;
   engine: string;
+  engineReady?: boolean;
   previewing: string | null;
   onSelect: (voiceId: string) => void;
   onPreview: (voiceId: string) => void;
@@ -29,6 +30,7 @@ export function VoicePicker({
   voices,
   selected,
   engine,
+  engineReady = true,
   previewing,
   onSelect,
   onPreview,
@@ -75,9 +77,15 @@ export function VoicePicker({
       </div>
       {ordered.map((voice) => {
         const label = voiceLabel(voice);
-        const available = engine === "fake" || voice.engines.includes(engine);
+        const supported = engine === "fake" || voice.engines.includes(engine);
+        const available = supported && engineReady;
         const active = selected === voice.id;
         const favorite = favorites.has(voice.id);
+        const status = !engineReady
+          ? "Motor sin configurar"
+          : available
+            ? "Disponible"
+            : "No disponible";
         return (
           <div
             className={`voice-card${active ? " is-selected" : ""}`}
@@ -96,7 +104,7 @@ export function VoicePicker({
               <span>{label.detail}</span>
             </button>
             <div className="voice-actions">
-              <span className="hint">{available ? "Disponible" : "No disponible"}</span>
+              <span className="hint">{status}</span>
               <button
                 type="button"
                 className={`icon-button voice-favorite${favorite ? " is-active" : ""}`}
@@ -131,7 +139,9 @@ export function VoicePicker({
       })}
       {ordered.length === 0 ? (
         <p className="hint voice-empty">
-          Todavía no marcaste voces favoritas. Usá la estrella de una voz para guardarla acá.
+          {voices.length === 0
+            ? "Este motor no tiene voces disponibles."
+            : "Todavía no marcaste voces favoritas. Usá la estrella de una voz para guardarla acá."}
         </p>
       ) : null}
     </fieldset>

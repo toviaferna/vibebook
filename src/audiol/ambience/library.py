@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import shutil
 import subprocess
 from datetime import UTC, datetime
@@ -14,6 +15,8 @@ from audiol.ambience.procedural import render_bed
 from audiol.naming import slugify
 from audiol.studio.db import Database
 from audiol.tools import find_binary
+
+logger = logging.getLogger(__name__)
 
 AUDIO_EXTENSIONS = {".ogg", ".opus", ".mp3", ".wav", ".flac", ".m4a"}
 MAX_ASSET_BYTES = 12 * 1024 * 1024
@@ -83,10 +86,17 @@ class AmbienceLibrary:
             temporary.unlink(missing_ok=True)
 
     def generate_all(self) -> list[dict[str, Any]]:
-        return [
-            self.generate_preset(preset)
-            for preset in ("rain", "wind", "sea", "room", "fire", "night")
-        ]
+        assets: list[dict[str, Any]] = []
+        errors: list[str] = []
+        for preset in ("rain", "wind", "sea", "room", "fire", "night"):
+            try:
+                assets.append(self.generate_preset(preset))
+            except Exception as exc:
+                logger.warning("Could not generate procedural bed %s: %s", preset, exc)
+                errors.append(f"{preset}: {exc}")
+        if not assets:
+            raise AmbienceError("No se pudo generar ninguna cama: " + "; ".join(errors))
+        return assets
 
     def audio_path(self, asset_id: str) -> Path:
         for path in sorted(self.assets_dir.glob(f"{asset_id}.*")):
