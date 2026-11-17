@@ -18,7 +18,9 @@ dependencies = [
   "edge-tts>=7.0",
   "kokoro-onnx>=0.6,<0.7",
   "numpy>=1.26",
-  "onnxruntime>=1.20,<2",
+  # The 1.23.x series is the last with macOS x86_64 wheels; the Intel DMG is
+  # built on macos-15-intel and 1.24+ ships arm64 only for macOS.
+  "onnxruntime>=1.20,<1.24",
   "mutagen>=1.47",
   "platformdirs>=4.2",
   "python-multipart>=0.0.9",
