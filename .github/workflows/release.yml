@@ -205,44 +205,45 @@ jobs:
           body: |
             ## Vibebook ${{ github.ref_name }}
 
-            Lector EPUB local-first con conversión a audiolibro, sincronía karaoke,
-            ambientación open source e identidad **Biblioteca**.
+            Lector EPUB local-first con conversión a audiolibro, karaoke,
+            ambientación y proveedores TTS configurables.
 
             ### Novedades
 
-            - **Karaoke en Libro:** el párrafo y la palabra que suena se resaltan
-              sobre la página, con un toggle que se recuerda entre sesiones.
-            - **Paso automático de página:** con Seguir activo, el audio avanza al
-              pliego donde continúa la lectura. Un giro manual pausa el
-              seguimiento unos segundos para poder releer.
-            - **Sin tambaleo:** el giro dura 420 ms con easing suave y queda
-              recortado dentro del libro, sin ensanchar el documento ni mover el
-              resto de la app.
-            - **Mobile legible:** la vista Libro elige el pliego por la orientación
-              real del motor y muestra una sola página en pantallas angostas.
-            - **Biblioteca accionable:** clic derecho y botón ⋯ con Leer, Ver
-              detalles y Eliminar libro; el borrado pide confirmación y también
-              está en la cabecera del detalle.
-            - **Acentos y ñ:** la importación EPUB decodifica el XHTML de forma
-              determinista y conserva á, é, í, ó, ú y ñ en libros UTF-8 y
-              Windows-1252.
-            - **Ajustes sin solapamientos:** rutas largas, formularios de plugins y
-              opciones de tema se acomodan sin pisar paneles.
-            - **Lector realista:** modo Libro con tapas, lomo, canto de hojas y
-              giro 3D de OpenPageFlip; doble página en escritorio.
-            - **Audio más rápido:** síntesis concurrente acotada por motor,
-              ensamblado del capítulo anterior en paralelo y caché de duraciones
-              por segmento.
-            - El staging de una conversión activa ya no se borra al listar la
-              biblioteca.
+            - **Proveedores TTS configurables:** Gemini, ElevenLabs y Azure
+              desde Ajustes, con claves guardadas localmente y prueba de
+              conexión. La API nunca devuelve la clave completa.
+            - **Gemini 3.8 Flash TTS:** estilos de emoción mediante
+              `speech_metadata.style`, WAV 24 kHz y timings estimados.
+            - **ElevenLabs:** timings exactos por carácter y etiquetas
+              `[sad]`/`[whispers]` con `eleven_v3`. Las voces gratuitas son
+              en inglés; las voces españolas de biblioteca requieren plan pago.
+            - **Kokoro local:** motor CPU opcional con descarga verificada del
+              modelo de 354 MB y funcionamiento sin red después de instalarlo.
+            - **Idioma real:** si un EPUB declara `en` pero el texto es
+              español, la app detecta `es` y avisa cuando la voz elegida no
+              coincide con el idioma.
+            - **Ambientación:** cama o música por capítulo, ganancia, mezcla
+              global, importación de audio y exportación M4B ambientado.
+            - **Lector 2K:** el libro abierto aprovecha el ancho disponible y
+              mantiene la navegación sobre el reproductor en 720p/768p.
+            - **Karaoke:** la palabra activa se resalta en ambas páginas del
+              pliego y los timings estimados de Piper ya no lo desactivan.
+            - **Portadas:** generación editorial determinista para libros sin
+              arte y búsqueda en Open Library/Google Books.
+            - **EPUB de prueba:** fixture editorial con portada, índice, cinco
+              capítulos, diálogos, metadatos e ilustración interna.
+            - **Git:** `.gitattributes`, `.editorconfig`, preflight y guía de
+              integración sin force push.
+            - **Android:** objetivo eliminado; la app es de escritorio.
 
             ### Requisitos
 
-            - **Windows 10/11 x64:** WebView2 (incluido en Windows 11). Sin firma:
-              SmartScreen puede advertir.
+            - **Windows 10/11 x64:** WebView2. Sin firma: SmartScreen puede
+              advertir.
             - **Linux x64:** WebKitGTK 4.1, GTK3 y FUSE 2 para AppImage.
-            - **macOS:** `.dmg` unsigned; Gatekeeper requiere clic derecho → Abrir
-              o `xattr -dr com.apple.quarantine /Applications/Vibebook.app`.
+            - **macOS:** `.dmg` unsigned; Gatekeeper requiere clic derecho →
+              Abrir o `xattr -dr com.apple.quarantine /Applications/Vibebook.app`.
 
             ### Artefactos
 
@@ -251,9 +252,14 @@ jobs:
             - DMG arm64 y x64 para macOS.
             - `checksums-*.txt` por plataforma.
 
-            La biblioteca, la lectura y la conversión funcionan offline. No hay
-            cuenta, telemetría ni servicio pago obligatorio. Ver
-            `docs/desktop.md` y `docs/ambience.md`.
+            ### Limitaciones conocidas
+
+            - Las claves de proveedores se guardan en un archivo local; todavía
+              no se usa el Credential Manager del sistema.
+            - ElevenLabs free no ofrece voces españolas nativas por API.
+            - Gemini free tier limita a 3 solicitudes por minuto.
+            - Kokoro descarga 354 MB la primera vez.
+            - La biblioteca, la lectura y los motores locales funcionan offline.
 
             Verificá cada archivo con el `checksums-*.txt` de su plataforma
             antes de instalarlo.

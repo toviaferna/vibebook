@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v0.9.0 — 2026-11-16
 
 ### Agregado
 

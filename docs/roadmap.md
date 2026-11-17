@@ -15,6 +15,8 @@ impacto en la escucha, no por dificultad.
 - [x] Release 0.6.0 publicado con 13 assets y checksums.
 - [x] Release 0.7.0 publicado el 2026-11-15 con 13 assets y checksums.
 - [x] Release 0.8.0 publicado el 2026-11-15 con 13 assets y checksums.
+- [x] Release 0.9.0 publicado el 2026-11-16 con proveedores TTS, Kokoro,
+  detección de idioma y ambientación.
 - [x] Decisión de lenguaje documentada en `docs/language-decision.md`.
 - [ ] Flatpak verificado en Ubuntu 20.04/24.04.
 - [ ] Firma de binarios y capturas finales.
