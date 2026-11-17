@@ -20,6 +20,7 @@ import { useThemeMode } from "../../components/ThemeProvider";
 import { formatRate } from "../../lib/format";
 import type { ReaderPalette, ThemeMode } from "../../lib/theme";
 import { defaultVoiceForEngine, voiceLabel } from "../../lib/voices";
+import { ProvidersPanel } from "./ProvidersPanel";
 
 const RATES = ["-20%", "-15%", "-10%", "-5%", "+0%", "+5%"];
 
@@ -227,10 +228,6 @@ export function SettingsPage() {
             <Field label="Biblioteca" hint="La ruta se cambia al arrancar Studio con --library.">
               <p className="settings-path mono muted">{settings.library_dir}</p>
             </Field>
-            <div className="summary-row">
-              <span>Azure</span>
-              <strong>{settings.azure_configured ? "Configurado" : "Sin configurar"}</strong>
-            </div>
           </div>
         </section>
 
@@ -355,6 +352,8 @@ export function SettingsPage() {
           </div>
         </section>
       </div>
+
+      <ProvidersPanel />
 
       <section className="panel" style={{ marginTop: "var(--space-5)" }}>
         <div className="panel-head">

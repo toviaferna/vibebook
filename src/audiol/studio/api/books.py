@@ -2,9 +2,10 @@ import contextlib
 import logging
 import mimetypes
 from typing import Annotated, Literal
+from urllib.parse import quote
 from uuid import uuid4
 
-from fastapi import APIRouter, File, Request, Response, UploadFile
+from fastapi import APIRouter, File, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
@@ -16,6 +17,7 @@ from audiol.resegment import (
     restore_resegmentation,
 )
 from audiol.studio.activity import BookBusy
+from audiol.studio.cover_search import CoverSearchError, download_cover, search_covers
 from audiol.studio.errors import ApiError
 from audiol.studio.library import (
     BookNotFound,
@@ -28,6 +30,9 @@ from audiol.studio.models import (
     BookListResponse,
     BookResponse,
     BookStateResponse,
+    CoverApplyRequest,
+    CoverCandidate,
+    CoverSearchResponse,
     JobResponse,
     ResegmentBackupResponse,
     ResegmentPlanResponse,
@@ -264,3 +269,77 @@ def get_cover(request: Request, book_id: str) -> FileResponse:
         raise ApiError(404, "asset_not_found", "El libro no tiene portada.")
     media_type = mimetypes.guess_type(record.cover_path.name)[0] or "image/jpeg"
     return FileResponse(record.cover_path, media_type=media_type)
+
+
+@router.get("/{book_id}/cover/search", response_model=CoverSearchResponse)
+async def search_book_cover(
+    request: Request,
+    book_id: str,
+    q: str | None = Query(default=None, max_length=200),
+) -> CoverSearchResponse:
+    record = _record(request, book_id)
+    title = q or record.title
+    author = record.author if not q else ""
+    try:
+        hits = await run_in_threadpool(search_covers, title, author)
+    except CoverSearchError as exc:
+        raise ApiError(502, "cover_search_failed", str(exc)) from exc
+    return CoverSearchResponse(
+        book_id=record.id,
+        query=title,
+        items=[
+            CoverCandidate(
+                source=hit.source,
+                title=hit.title,
+                author=hit.author,
+                year=hit.year,
+                cover_url=hit.cover_url,
+                preview_url=(
+                    f"/api/books/{record.id}/cover/search/preview"
+                    f"?url={quote(hit.cover_url, safe='')}"
+                ),
+                edition_url=hit.edition_url,
+                score=hit.score,
+            )
+            for hit in hits
+        ],
+    )
+
+
+@router.get("/{book_id}/cover/search/preview")
+async def preview_book_cover(
+    request: Request,
+    book_id: str,
+    url: str = Query(min_length=8, max_length=1000),
+) -> Response:
+    _record(request, book_id)
+    try:
+        payload = await run_in_threadpool(download_cover, url)
+    except CoverSearchError as exc:
+        raise ApiError(502, "cover_preview_failed", str(exc)) from exc
+    return Response(
+        content=payload,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
+@router.post("/{book_id}/cover", response_model=BookResponse)
+async def apply_book_cover(
+    request: Request,
+    book_id: str,
+    payload: CoverApplyRequest,
+) -> BookResponse:
+    record = _record(request, book_id)
+    try:
+        image = await run_in_threadpool(download_cover, payload.cover_url)
+        updated = await run_in_threadpool(request.app.state.library.set_cover, record.id, image)
+    except CoverSearchError as exc:
+        raise ApiError(422, "invalid_cover", str(exc)) from exc
+    except (OSError, ValueError, LibraryError) as exc:
+        raise ApiError(422, "cover_write_failed", str(exc)) from exc
+    request.app.state.db.upsert_book(updated)
+    row = request.app.state.db.get_book(updated.id)
+    if row is None:
+        raise ApiError(500, "book_lookup_failed", "No se pudo recargar el libro.")
+    return _book_response(row)

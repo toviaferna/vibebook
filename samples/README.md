@@ -1,7 +1,9 @@
 # Samples
 
-`lector-de-prueba.epub` es un EPUB original de tres capítulos cortos, pensado
-para probar importación, conversión y lector sin depender de un libro externo.
+`lector-de-prueba.epub` es un EPUB editorial original de cinco capítulos, con
+portada, página de título, índice, diálogos, párrafos largos y una ilustración
+interna. Sirve para probar importación, portada, imágenes, paginación, karaoke,
+conversión y lector sin depender de un libro externo.
 
 Se regenera con:
 
@@ -19,4 +21,5 @@ uv run vibebook convert samples/lector-de-prueba.epub \
 ```
 
 En el Studio, importá el EPUB y elegí el motor `Fake` para una conversión
-rápida sin red.
+rápida sin red. La portada y la ilustración se generan en el script para que el
+fixture sea reproducible y no dependa de recursos externos.

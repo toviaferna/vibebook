@@ -2,16 +2,14 @@
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
 Linux y macOS. La release recomendada es **v0.8.0**, la ola de karaoke en Libro,
-paso automático de página y biblioteca accionable. Android se publica como APK
-lector-only experimental, firmado en CI.
+paso automático de página y biblioteca accionable.
 
-**Estado:** v0.8.0 publicado el 2026-11-15 con 13 assets: Windows ZIP/NSIS/MSI,
-Linux AppImage/DEB, macOS arm64/x64, APK Android y checksums por plataforma.
+**Estado:** v0.8.0 publicado el 2026-11-15 con assets para Windows ZIP/NSIS/MSI,
+Linux AppImage/DEB, macOS arm64/x64 y checksums por plataforma.
 Incluye karaoke y auto-hojeo en Libro, una sola página en mobile, recorte del giro
 sin ensanchar el documento, acciones y borrado desde la biblioteca,
 decodificación EPUB determinista para conservar acentos y ñ, y Ajustes sin
-solapamientos. El APK sigue sin probarse en un dispositivo físico;
-SAF/SQLite/audio local y on-device quedan pendientes.
+solapamientos.
 
 ## Checklist previo
 
@@ -38,8 +36,7 @@ SAF/SQLite/audio local y on-device quedan pendientes.
 
 ## Artefactos
 
-El workflow `.github/workflows/release.yml` genera los artefactos de escritorio;
-el workflow `.github/workflows/android.yml` genera el APK en tags `v*` o manual.
+El workflow `.github/workflows/release.yml` genera los artefactos de escritorio.
 
 El Release incluye:
 
@@ -49,9 +46,8 @@ El Release incluye:
 - macOS Intel: `Vibebook_<versión>_x64.dmg`. El arm64 nativo requiere un runner
   `macos-15`; si la cuenta alcanza su límite de gasto, el Release sale sin ese
   DMG y se documenta en el body.
-- Android: `Vibebook-<versión>-android-arm64.apk` (experimental, firmado en CI).
-- `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-x64.txt`,
-  `checksums-android.txt`; `checksums-macos-arm64.txt` cuando existe el DMG.
+- `checksums-windows.txt`, `checksums-linux.txt`, `checksums-macos-x64.txt`;
+  `checksums-macos-arm64.txt` cuando existe el DMG.
 - Un único GitHub Release con todos los artefactos disponibles.
 
 Los jobs de plataforma no publican releases individuales. El job `release`
@@ -105,8 +101,7 @@ publicarlo, revisar:
   conserva acentos y ñ, Ajustes sin solapamientos, lector OpenPageFlip, audio
   concurrente y caché de duraciones;
 - requisitos: Windows/WebView2, Linux/WebKitGTK/FUSE, macOS unsigned;
-- limitaciones: sin firma, APK Android experimental sin probar en dispositivo,
-  sin auto-update, Edge legado;
+- limitaciones: sin firma, sin auto-update, Edge legado;
 - licencia AGPL-3.0-only y avisos de terceros;
 - checksums por plataforma.
 
@@ -120,13 +115,10 @@ Para reemplazar el body, editá el Release en GitHub o usá `PATCH
 - Confirmar los artefactos de escritorio disponibles: ZIP/NSIS/MSI de Windows,
   AppImage/deb de Linux y DMG de macOS (x64 y arm64 cuando el runner esté
   disponible), más los `checksums-*.txt` correspondientes.
-- Confirmar el APK Android experimental y `checksums-android.txt` adjuntos al
-  Release.
 - Comparar cada línea de los checksums con el `digest` SHA-256 del asset en la
   API de GitHub.
 - Descargar al menos un artefacto por plataforma y verificar su hash local.
-- Revisar el body: requisitos, artefactos, APK Android adjunto y aviso de
-  macOS unsigned.
+- Revisar el body: requisitos, artefactos y aviso de macOS unsigned.
 
 ## Rollback
 

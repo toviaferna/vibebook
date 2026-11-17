@@ -1,14 +1,22 @@
 import { fetchEventSource } from "@microsoft/fetch-event-source";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { api, apiUrl, authHeaders } from "./client";
 import type {
   AmbiencePlanUpdate,
   BookAmbience,
+  BookDetail,
   BookmarkInput,
   BookPreferences,
   ConversionInput,
+  EngineList,
   Job,
   ReadingBookmarkInput,
   ReadingStateInput,
@@ -22,6 +30,7 @@ export const queryKeys = {
   resegmentBackups: (id: string) => ["resegment-backups", id] as const,
   job: (id: string) => ["job", id] as const,
   engines: ["engines"] as const,
+  providers: ["providers"] as const,
   plugins: ["plugins"] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
@@ -37,6 +46,23 @@ export const queryKeys = {
   ambienceAssets: (params: Record<string, unknown> = {}) => ["ambience-assets", params] as const,
   bookAmbience: (bookId: string) => ["book-ambience", bookId] as const,
 };
+
+function patchEngineAvailability(
+  queryClient: QueryClient,
+  engineId: string,
+  available: boolean,
+): void {
+  queryClient.setQueryData<EngineList>(queryKeys.engines, (current) =>
+    current
+      ? {
+          ...current,
+          items: current.items.map((engine) =>
+            engine.id === engineId ? { ...engine, available, configured: available } : engine,
+          ),
+        }
+      : current,
+  );
+}
 
 export function useBooks(params: { q?: string; sort?: string } = {}) {
   return useInfiniteQuery({
@@ -56,6 +82,26 @@ export function useBook(bookId: string | undefined) {
     queryFn: () => api.getBook(bookId as string),
     enabled: Boolean(bookId),
     staleTime: 10_000,
+  });
+}
+
+export function useSearchBookCovers() {
+  return useMutation({
+    mutationFn: ({ bookId, query }: { bookId: string; query: string }) =>
+      api.searchBookCovers(bookId, query),
+  });
+}
+
+export function useApplyBookCover(bookId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (coverUrl: string) => api.applyBookCover(bookId, coverUrl),
+    onSuccess: (book) => {
+      queryClient.setQueryData<BookDetail>(queryKeys.book(bookId), (current) =>
+        current ? { ...current, ...book } : undefined,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["books"] });
+    },
   });
 }
 
@@ -110,6 +156,66 @@ export function useEngines() {
     queryKey: queryKeys.engines,
     queryFn: api.getEngines,
     staleTime: 30_000,
+  });
+}
+
+export function useInstallKokoroEngine() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.installKokoroEngine,
+    onSuccess: () => {
+      patchEngineAvailability(queryClient, "kokoro", true);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useProviders() {
+  return useQuery({
+    queryKey: queryKeys.providers,
+    queryFn: api.getProviders,
+    staleTime: 10_000,
+  });
+}
+
+export function useSaveProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      providerId,
+      apiKey,
+      region,
+    }: {
+      providerId: string;
+      apiKey: string;
+      region?: string;
+    }) => api.saveProvider(providerId, apiKey, region),
+    onSuccess: (provider) => {
+      patchEngineAvailability(queryClient, provider.id, provider.configured);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useDeleteProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (providerId: string) => api.deleteProvider(providerId),
+    onSuccess: (_data, providerId) => {
+      patchEngineAvailability(queryClient, providerId, false);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.providers });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
+  });
+}
+
+export function useTestProvider() {
+  return useMutation({
+    mutationFn: (providerId: string) => api.testProvider(providerId),
   });
 }
 
@@ -446,6 +552,26 @@ export function useGenerateAmbienceAssets() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (preset?: string) => api.generateAmbienceAssets(preset),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
+    },
+  });
+}
+
+export function useUploadAmbienceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (form: FormData) => api.uploadAmbienceAsset(form),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
+    },
+  });
+}
+
+export function useDeleteAmbienceAsset() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (assetId: string) => api.deleteAmbienceAsset(assetId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["ambience-assets"] });
     },

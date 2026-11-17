@@ -8,6 +8,27 @@
   (`book_karaoke`, migración 3) y también se edita desde los ajustes de lectura.
   El valor global de v0.8.0 (`localStorage`) queda como default para libros sin
   preferencia.
+- Portadas generadas para libros sin arte: composición editorial determinista
+  con título, autor y paleta; la portada original se conserva cuando existe.
+- Búsqueda de portadas en Open Library y Google Books con coincidencia estricta
+  de título, vista previa same-origin y reemplazo seguro de la portada.
+- Voces favoritas persistentes, filtro de favoritas y perfiles de lectura
+  (Claro, Cálido, Melancólico, Susurro) en Studio.
+- Panel **Ajustes → Proveedores en la nube** para guardar y probar claves de
+  Gemini, ElevenLabs y Azure. Las claves nunca se devuelven completas.
+- Motor **Gemini 3.8 Flash TTS** con estilos por `speech_metadata.style` y
+  timings estimados.
+- Motor **ElevenLabs** con timings exactos por carácter, etiquetas `[sad]` y
+  `[whispers]` en `eleven_v3`, y voces curadas para el plan gratuito.
+- Motor local **Kokoro-82M** en CPU, con descarga opcional del modelo de 354 MB
+  y verificación SHA-256.
+- Panel de ambiente por capítulo: cama o música, ganancia, mezcla global,
+  importación de audio y exportación M4B.
+- Mezcla de ambiente con faders independientes para cama sonora y efectos, con
+  fundido de salida.
+- EPUB de prueba editorial con portada, página de título, cinco capítulos,
+  diálogos, metadatos e ilustración interna.
+- Preflight de Git y normalización de finales de línea.
 
 ### Cambiado
 
@@ -15,6 +36,8 @@
   solo por opacidad.
 - El resaltado envuelve únicamente el segmento activo; las demás páginas siguen
   memorizadas y no se vuelven a renderizar con cada palabra.
+- El libro abierto y la columna del lector aprovechan el ancho disponible en
+  pantallas 2K en lugar de quedar limitados a 1380 px.
 
 ### Corregido
 
@@ -24,6 +47,32 @@
   en el offset cero.
 - El auto-giro usa el offset de la palabra activa, evita reintentos durante la
   animación y vuelve a la página del audio después de la pausa manual.
+- El karaoke de Libro sigue la palabra activa también en la página derecha del
+  pliego; antes el índice de palabra se descartaba al cambiar de página.
+- Los timings estimados de Piper ya no desactivan el resaltado palabra a palabra.
+- Los presets de emoción solo se muestran cuando el motor y la voz declaran
+  estilos; Edge y los motores locales ofrecen únicamente perfiles de velocidad.
+- El idioma del libro se detecta a partir del texto: si el EPUB declara `en`
+  pero la narraci?n es espa?ola, la biblioteca y Studio muestran `ES`.
+- Las voces de ElevenLabs ahora declaran su idioma real: Adam, Antoni, Arnold
+  y Bella son ingl?s multiling?e; Fernando, Cristina, Alberto, Carolina,
+  Diego y Valeria son voces espa?olas de biblioteca (plan pago).
+- Studio avisa cuando la voz elegida no coincide con el idioma del libro.
+- Studio muestra solo las voces del motor elegido y actualiza su disponibilidad
+  al guardar o quitar una clave, sin reiniciar la app. Si hay otro motor cloud
+  conectado, aparece un acceso directo **Usar …** junto a las voces.
+- La cama procedural `sea` usaba una frecuencia de tremolo fuera de rango y
+  abortaba la generación; ahora las seis camas se generan y una falla aislada no
+  descarta las demás.
+- La velocidad de Gemini y ElevenLabs se aplica con ffmpeg y los timings exactos
+  de ElevenLabs se reescalan para seguir sincronizados.
+- La importación deja de emitir `XMLParsedAsHTMLWarning` al quitar la declaración
+  XML antes del parser HTML.
+- La regla de aprobación previa a releases quedó escrita en `AGENTS.md`.
+
+### Eliminado
+
+- El objetivo Android, sus scripts, workflow, configuración y documentación.
 
 ## v0.8.0 — 2026-11-15
 

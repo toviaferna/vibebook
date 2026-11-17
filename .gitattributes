@@ -1,0 +1,32 @@
+# Normalize text files so Windows, Linux and macOS produce the same blobs.
+* text=auto eol=lf
+
+# Windows scripts stay native.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets must never be line-ending converted or merged as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.epub binary
+*.m4a binary
+*.m4b binary
+*.mp3 binary
+*.wav binary
+*.flac binary
+*.ogg binary
+*.apk binary
+*.dmg binary
+*.exe binary
+*.msi binary
+*.zip binary

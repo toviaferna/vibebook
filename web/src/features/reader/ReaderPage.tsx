@@ -98,6 +98,16 @@ export function ReaderPage() {
     const stored = Number(raw);
     return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.35;
   });
+  const [ambienceBedVolume, setAmbienceBedVolume] = useState(() => {
+    const raw = window.localStorage.getItem("vibebook.ambience-bed-volume");
+    const stored = raw === null ? 0.7 : Number(raw);
+    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.7;
+  });
+  const [ambienceEffectsVolume, setAmbienceEffectsVolume] = useState(() => {
+    const raw = window.localStorage.getItem("vibebook.ambience-effects-volume");
+    const stored = raw === null ? 0.8 : Number(raw);
+    return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.8;
+  });
   const [font, setFont] = useState<ReaderFont>("serif");
   const [size, setSize] = useState(19);
   const [skipSeconds, setSkipSeconds] = useState(15);
@@ -193,6 +203,8 @@ export function ReaderPage() {
     rate: playbackRate,
     hasAudio: audioReady,
     volume: ambienceVolume,
+    bedVolume: ambienceBedVolume,
+    effectsVolume: ambienceEffectsVolume,
   });
   const audioSrc = useMediaUrl(
     id,
@@ -251,6 +263,14 @@ export function ReaderPage() {
   useEffect(() => {
     window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
   }, [ambienceVolume]);
+
+  useEffect(() => {
+    window.localStorage.setItem("vibebook.ambience-bed-volume", String(ambienceBedVolume));
+  }, [ambienceBedVolume]);
+
+  useEffect(() => {
+    window.localStorage.setItem("vibebook.ambience-effects-volume", String(ambienceEffectsVolume));
+  }, [ambienceEffectsVolume]);
 
   const changeBookKaraoke = useCallback(
     (enabled: boolean) => {
@@ -938,6 +958,35 @@ export function ReaderPage() {
             value={ambienceVolume}
             onChange={(event) => setAmbienceVolume(Number(event.target.value))}
           />
+          <details className="reader-mix">
+            <summary>Mezcla</summary>
+            <div className="reader-mix-panel">
+              <label>
+                <span>Ambiente</span>
+                <input
+                  className="reader-volume"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={ambienceBedVolume}
+                  onChange={(event) => setAmbienceBedVolume(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                <span>Efectos</span>
+                <input
+                  className="reader-volume"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={ambienceEffectsVolume}
+                  onChange={(event) => setAmbienceEffectsVolume(Number(event.target.value))}
+                />
+              </label>
+            </div>
+          </details>
           <button
             type="button"
             className="reader-ambience-off"

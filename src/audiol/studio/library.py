@@ -12,17 +12,19 @@ from ebooklib import epub
 
 from audiol.convert import prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
+from audiol.language import detect_language
 from audiol.manifest import load_manifest, write_manifest
 from audiol.naming import slugify
 from audiol.paths import UnsafePathError, safe_book_path
-from audiol.storage import recover_incomplete_commit
+from audiol.storage import recover_incomplete_commit, write_json_atomic
+from audiol.studio.covers import write_generated_cover
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_VOICE = "es-MX-JorgeNeural"
 DEFAULT_ENGINE = "edge"
 DEFAULT_RATE = "-10%"
-COVER_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+COVER_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
 
 
 class LibraryError(Exception):
@@ -91,6 +93,8 @@ class Library:
             except Exception:
                 logger.warning("Could not extract cover from %s", source, exc_info=True)
                 cover = None
+            if cover is None:
+                cover = write_generated_cover(book.title, book.author, temporary)
             write_manifest(
                 book,
                 temporary,
@@ -142,6 +146,23 @@ class Library:
             except (OSError, ValueError, KeyError, TypeError, OverflowError) as exc:
                 logger.warning("Skipping invalid library entry %s: %s", child, exc)
         return records
+
+    def set_cover(self, book_id: str, payload: bytes) -> BookRecord:
+        record = self.get(book_id)
+        target = record.path / "cover.jpg"
+        temporary = record.path / f".cover-{uuid4().hex}.jpg"
+        try:
+            temporary.write_bytes(payload)
+            os.replace(temporary, target)
+            for suffix in COVER_SUFFIXES - {".jpg"}:
+                (record.path / f"cover{suffix}").unlink(missing_ok=True)
+            manifest_path = record.path / "manifest.json"
+            data = load_manifest(manifest_path)
+            data["cover"] = "cover.jpg"
+            write_json_atomic(manifest_path, data)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return self._record_from_dir(record.path)
 
     def get(self, book_id: str) -> BookRecord:
         root = self.root.resolve()
@@ -207,15 +228,26 @@ class Library:
             updated_at = created_at
 
         cover_path = _cover_path(book_dir, data.get("cover"))
+        title = str(data.get("title", ""))
+        author = str(data.get("author", "Desconocido"))
+        if cover_path is None:
+            try:
+                cover_path = write_generated_cover(title, author, book_dir)
+                data["cover"] = cover_path.name
+                write_json_atomic(manifest_path, data)
+            except OSError:
+                logger.warning("Could not generate a cover for %s", book_dir, exc_info=True)
+                cover_path = None
         status = data.get("status")
         if not isinstance(status, str):
             status = "ready" if _has_audio(book_dir, chapters) else "imported"
+        language = _effective_language(manifest_path, data, chapters)
 
         return BookRecord(
             id=str(data.get("id") or book_dir.name),
-            title=str(data.get("title", "")),
-            author=str(data.get("author", "Desconocido")),
-            language=str(data.get("language", "es")),
+            title=title,
+            author=author,
+            language=language,
             path=book_dir,
             cover_path=cover_path,
             status=status,
@@ -228,6 +260,50 @@ class Library:
             created_at=created_at,
             updated_at=updated_at,
         )
+
+
+def _effective_language(manifest_path: Path, data: dict, chapters: list) -> str:
+    declared = str(data.get("language", "es"))
+    if data.get("language_checked") is True:
+        return declared
+    base = str(data.get("language_declared") or declared).split("-")[0].lower()
+    language = declared
+    segments = [
+        segment
+        for chapter in chapters
+        if isinstance(chapter, dict)
+        for segment in chapter.get("segments", [])
+        if isinstance(segment, dict)
+    ]
+    parts: list[str] = []
+    size = 0
+    for segment in segments:
+        text = segment.get("text")
+        if not isinstance(text, str):
+            continue
+        parts.append(text)
+        size += len(text)
+        if size >= 8_000:
+            break
+    sample = " ".join(parts)[:8_000]
+    if base in {"en", "es"}:
+        detected = detect_language(sample)
+        if detected and detected != base:
+            data["language_declared"] = str(data.get("language_declared") or declared)
+            data["language"] = detected
+            language = detected
+            logger.info(
+                "Book %s declared %s but its text looks like %s",
+                data.get("id") or manifest_path.parent.name,
+                declared,
+                detected,
+            )
+    data["language_checked"] = True
+    try:
+        write_json_atomic(manifest_path, data)
+    except OSError:
+        logger.warning("Could not persist detected language for %s", manifest_path, exc_info=True)
+    return language
 
 
 def extract_cover(epub_path: Path, out_dir: Path) -> Path | None:

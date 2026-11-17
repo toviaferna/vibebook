@@ -101,6 +101,57 @@ PIPER = EngineSpec(
     },
 )
 
+KOKORO = EngineSpec(
+    id="kokoro",
+    label="Kokoro (local)",
+    kind="builtin",
+    transport="local",
+    requires_network=False,
+    requires_key=False,
+    supports_styles=False,
+    timing="estimated_word",
+    audio_suffix=".wav",
+    license="Apache-2.0",
+    source_url="https://github.com/thewh1teagle/kokoro-onnx",
+    description="Voz local expresiva en CPU; descarga un modelo de 354 MB la primera vez.",
+    max_chars=400,
+    config_schema={"dir_env": "VIBEBOOK_KOKORO_DIR"},
+)
+
+GEMINI = EngineSpec(
+    id="gemini",
+    label="Gemini TTS",
+    kind="builtin",
+    transport="http",
+    requires_network=True,
+    requires_key=True,
+    supports_styles=True,
+    timing="estimated_word",
+    audio_suffix=".wav",
+    license="Servicio comercial",
+    source_url="https://ai.google.dev/gemini-api/docs/speech-generation",
+    description="Cloud con emociones reales por estilo; requiere clave de Google AI Studio.",
+    max_chars=400,
+    config_schema={"key_env": "GEMINI_API_KEY"},
+)
+
+ELEVENLABS = EngineSpec(
+    id="elevenlabs",
+    label="ElevenLabs",
+    kind="builtin",
+    transport="http",
+    requires_network=True,
+    requires_key=True,
+    supports_styles=True,
+    timing="native_word",
+    audio_suffix=".mp3",
+    license="Servicio comercial",
+    source_url="https://elevenlabs.io/docs/api-reference/text-to-speech",
+    description="Cloud con timings exactos y etiquetas emocionales; 10k créditos ≈ 10 min.",
+    max_chars=400,
+    config_schema={"key_env": "ELEVENLABS_API_KEY"},
+)
+
 ESPEAK = EngineSpec(
     id="espeak",
     label="eSpeak NG",

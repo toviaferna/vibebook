@@ -1,7 +1,6 @@
-import os
-
 from fastapi import APIRouter, Request
 
+from audiol.provider_keys import provider_configured
 from audiol.studio.errors import ApiError
 from audiol.studio.models import SettingsResponse, SettingsUpdate
 from audiol.tts.base import validate_rate
@@ -85,9 +84,7 @@ def _settings_response(request: Request) -> SettingsResponse:
             values["reader_palette"] = LEGACY_THEME_TO_PALETTE[legacy]
     palette = str(values["reader_palette"])
     legacy_theme = PALETTE_TO_LEGACY_THEME.get(palette, "light")
-    azure_configured = bool(
-        os.environ.get("AZURE_SPEECH_KEY") and os.environ.get("AZURE_SPEECH_REGION")
-    )
+    azure_configured = provider_configured("azure")
     return SettingsResponse(
         library_dir=str(request.app.state.settings.library_dir),
         default_engine=engine,

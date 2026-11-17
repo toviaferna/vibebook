@@ -7,10 +7,21 @@ capacidades tienen.
 | Motor | Tipo | Timings | Estado |
 |---|---|---|---|
 | Piper | local | segmento | Implementado; requiere binario y voz |
+| Kokoro | local | palabra estimada | Implementado; descarga 354 MB la primera vez |
 | eSpeak NG | local | segmento | Implementado; fallback local |
 | Edge TTS | externo | palabra | Legado; requiere internet |
-| Azure Speech | externo | palabra | Legado; requiere clave y cuota |
+| Gemini TTS | externo | palabra estimada | Requiere clave de Google AI Studio |
+| ElevenLabs | externo | palabra exacta | Requiere clave; créditos limitados |
+| Azure Speech | externo | palabra | Requiere clave y región |
 | Fake | prueba | segmento | Solo con `allow_fake` |
+
+## Idioma del libro
+
+La app usa `dc:language` del EPUB, pero lo contrasta con el texto. Si un libro
+declara `en` y la narración es claramente española (o al revés), guarda el
+idioma detectado y lo muestra en la biblioteca y en Studio. El metadato original
+queda en `language_declared` para diagnóstico. Los libros ya importados se
+corrigen al escanear la biblioteca.
 
 ## Piper local
 
@@ -109,6 +120,47 @@ export VIBEBOOK_ESPEAK_PATH=/ruta/que-contiene/espeak-ng-data
 
 También usa rutas cortas 8.3 en Windows para salida y datos cuando la ruta del
 usuario tiene caracteres no ASCII.
+
+## Kokoro local
+
+Kokoro-82M corre en CPU con ONNX Runtime y no necesita clave. La primera vez
+descarga unos 354 MB (modelo + voces) a una carpeta ASCII escribible:
+`%PROGRAMDATA%\Vibebook\kokoro` en Windows, o el directorio de datos de la app
+en Linux/macOS. Si `%PROGRAMDATA%` no es escribible, usa
+`%PUBLIC%\Vibebook\kokoro`. Se puede forzar con `VIBEBOOK_KOKORO_DIR`.
+
+Voces: `ef_dora`, `em_alex`, `em_santa`. No expone estilos de Azure; su prosodia
+es más expresiva que Piper. La app incluye un botón **Descargar modelo** en
+Studio y verifica tamaño y SHA-256.
+
+La descarga no se hace durante la conversión: hay que preparar el motor antes.
+
+## Gemini TTS
+
+Usa `gemini-3.8-flash-tts` mediante la Interactions API. El estilo se envía en
+`speech_metadata.style` y el texto queda como transcripción literal, así que la
+instrucción no se lee. Devuelve WAV 24 kHz; la velocidad se aplica con `atempo`
+de ffmpeg. No hay timings por palabra: el karaoke usa la estimación del lector.
+
+Requiere clave en Ajustes o `GEMINI_API_KEY`. El free tier permite 3 solicitudes
+por minuto; para libros completos hay que activar facturación.
+
+## ElevenLabs
+
+Usa `/v1/text-to-speech/{voice}/with-timestamps`, que devuelve audio MP3 y una
+alineación por carácter. La app agrupa los caracteres en palabras y entrega
+timings exactos. Para emociones usa `eleven_v3` con etiquetas (`[sad]`,
+`[whispers]`); para el resto usa `voice_settings.style` y `stability`.
+
+Las voces gratuitas (Adam, Antoni, Arnold y Bella) son nativas en inglés y
+conservan ese acento al leer español. Las voces españolas (Fernando, Cristina,
+Alberto, Carolina, Diego y Valeria) son de biblioteca y requieren plan pago. Si
+la voz no coincide con el idioma del libro, Studio lo advierte y recomienda
+Gemini, Azure, Kokoro o Piper para español nativo.
+
+Voces curadas compatibles con el plan gratuito: Adam, Antoni, Arnold y Bella.
+Los 10.000 créditos alcanzan para unos 10 minutos. Si la clave no tiene permiso
+`user_read` no se puede leer el saldo, pero TTS sigue funcionando.
 
 ## Plugins VEP
 

@@ -158,9 +158,17 @@ export function OriginalEpubView({
     void load();
     return () => {
       cancelled = true;
-      rendition?.off("relocated", onRelocated);
-      rendition?.destroy();
-      book?.destroy();
+      try {
+        rendition?.off("relocated", onRelocated);
+        rendition?.destroy();
+      } catch {
+        // epubjs can throw when the rendition is destroyed before book.ready.
+      }
+      try {
+        book?.destroy();
+      } catch {
+        // The book may share the same partially initialized state.
+      }
       bookRef.current = null;
       renditionRef.current = null;
       lastHref.current = undefined;

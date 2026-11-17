@@ -12,21 +12,17 @@ impacto en la escucha, no por dificultad.
 - Release 0.5.0 publicado; 0.6.0 prepara tickets de medios, CSP, Flatpak y
   documentación de seguridad.
 - Licencia definida: AGPL-3.0-only.
-- Android sigue como lector EPUB; el puente, audio local y on-device no están
-  implementados.
 - [x] Release 0.6.0 publicado con 13 assets y checksums.
 - [x] Release 0.7.0 publicado el 2026-11-15 con 13 assets y checksums.
 - [x] Release 0.8.0 publicado el 2026-11-15 con 13 assets y checksums.
 - [x] Decisión de lenguaje documentada en `docs/language-decision.md`.
 - [ ] Flatpak verificado en Ubuntu 20.04/24.04.
-- [ ] APK probado en dispositivo Android.
 - [ ] Firma de binarios y capturas finales.
 
 ## Plataformas
 
 - Linux: ver [`docs/linux.md`](linux.md) para la matriz Ubuntu 20.04/22.04/24.04,
   AppImage, DEB y Flatpak.
-- Android: ver [`docs/android.md`](android.md).
 
 ## Decisión de voz
 

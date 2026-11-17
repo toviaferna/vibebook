@@ -68,9 +68,10 @@ describe("alignment", () => {
     expect(aligned.words[2].endMs).toBe(1200);
   });
 
-  it("no resalta palabras cuando el timing es estimado", () => {
+  it("alinea palabras estimadas cuando el motor no da timings exactos", () => {
     const aligned = alignSegment(segment, { ...timing, precision: "estimated" });
-    expect(aligned.words).toEqual([]);
+    expect(aligned.words.map((word) => word.text)).toEqual(["Hola,", "mundo.", "¿Qué", "tal?"]);
+    expect(aligned.precision).toBe("estimated");
   });
 
   it("encuentra segmento y palabra activos", () => {
@@ -100,7 +101,7 @@ describe("alignment", () => {
     expect(findActive(null, 100)).toEqual({ segmentIndex: -1, wordIndex: null });
     expect(findActive({ ...chapterTiming, precision: "estimated" }, 700)).toEqual({
       segmentIndex: 0,
-      wordIndex: null,
+      wordIndex: 1,
     });
   });
 

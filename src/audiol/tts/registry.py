@@ -1,24 +1,49 @@
-import os
-
+from audiol.provider_keys import get_provider_key, get_provider_region, provider_configured
 from audiol.tts.azure import AzureProvider
 from audiol.tts.base import TTSProvider
 from audiol.tts.edge import EdgeProvider
+from audiol.tts.elevenlabs import ElevenLabsProvider
 from audiol.tts.espeak import EspeakProvider, espeak_ready
 from audiol.tts.fake import FakeProvider
+from audiol.tts.gemini import GeminiProvider
+from audiol.tts.kokoro import KokoroProvider
+from audiol.tts.kokoro_assets import kokoro_ready
 from audiol.tts.piper import PiperProvider, piper_ready
-from audiol.tts.spec import AZURE, EDGE, ESPEAK, FAKE, PIPER, EngineSpec
+from audiol.tts.spec import (
+    AZURE,
+    EDGE,
+    ELEVENLABS,
+    ESPEAK,
+    FAKE,
+    GEMINI,
+    KOKORO,
+    PIPER,
+    EngineSpec,
+)
 
-_ENGINE_ORDER = ("piper", "espeak", "edge", "azure", "fake")
+_ENGINE_ORDER = (
+    "piper",
+    "kokoro",
+    "espeak",
+    "edge",
+    "gemini",
+    "elevenlabs",
+    "azure",
+    "fake",
+)
 _DEFAULT_VOICES = {
     "piper": "es_MX-ald-medium",
+    "kokoro": "ef_dora",
     "espeak": "es-419",
     "edge": "es-MX-JorgeNeural",
+    "gemini": "Kore",
+    "elevenlabs": "pNInz6obpgDQGcFmaJgB",
     "azure": "es-MX-JorgeNeural",
     "fake": "es-MX-JorgeNeural",
 }
 
 ENGINES: dict[str, EngineSpec] = {
-    engine.id: engine for engine in (PIPER, ESPEAK, EDGE, AZURE, FAKE)
+    engine.id: engine for engine in (PIPER, KOKORO, ESPEAK, EDGE, GEMINI, ELEVENLABS, AZURE, FAKE)
 }
 
 
@@ -41,10 +66,12 @@ def engine_available(engine_id: str, allow_fake: bool = False) -> bool:
         return allow_fake
     if spec.id == "piper":
         return piper_ready()
+    if spec.id == "kokoro":
+        return kokoro_ready()
     if spec.id == "espeak":
         return espeak_ready()
-    if spec.id == "azure":
-        return bool(os.environ.get("AZURE_SPEECH_KEY") and os.environ.get("AZURE_SPEECH_REGION"))
+    if spec.id in {"gemini", "elevenlabs", "azure"}:
+        return provider_configured(spec.id)
     return True
 
 
@@ -56,12 +83,18 @@ def make_provider(engine: str, allow_fake: bool = False) -> TTSProvider:
         raise ValueError(f"TTS engine is not implemented yet: {engine}")
     if spec.id == "edge":
         return EdgeProvider()
+    if spec.id == "gemini":
+        return GeminiProvider()
+    if spec.id == "elevenlabs":
+        return ElevenLabsProvider()
     if spec.id == "azure":
-        return AzureProvider()
+        return AzureProvider(get_provider_key("azure"), get_provider_region("azure"))
     if spec.id == "fake":
         return FakeProvider()
     if spec.id == "piper":
         return PiperProvider()
+    if spec.id == "kokoro":
+        return KokoroProvider()
     if spec.id == "espeak":
         return EspeakProvider()
     raise ValueError(f"TTS engine is not available: {engine}")

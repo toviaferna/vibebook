@@ -30,6 +30,7 @@ from audiol.ingest.structure import (
     toc_from_chapters,
     top_level_blocks,
 )
+from audiol.language import detect_language
 from audiol.models import Book, Chapter, Segment, make_segment_id
 
 logger = logging.getLogger(__name__)
@@ -134,7 +135,10 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
         # through lxml, which guesses UTF-8 for undeclared legacy documents and
         # replaces accented bytes before our decoder can see them.
         raw_content = item.content if isinstance(item.content, bytes) else item.get_content()
-        soup = BeautifulSoup(_decode_document(raw_content), "lxml")
+        decoded = _decode_document(raw_content)
+        if decoded.lstrip().startswith("<?xml"):
+            decoded = decoded.split("?>", 1)[1]
+        soup = BeautifulSoup(decoded, "lxml")
         if image_dir is not None:
             placements.extend(
                 extract_document_images(
@@ -230,6 +234,7 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
     manifest_toc = build_manifest_toc(toc, chapter_sources)
     if not manifest_toc:
         manifest_toc = toc_from_chapters(chapters)
+    language = _content_language(language, chapters)
     return Book(
         title=title,
         author=author,
@@ -238,6 +243,23 @@ def read_epub(path: Path, image_dir: Path | None = None) -> Book:
         toc=manifest_toc,
         images=assign_images(placements, chapters),
     )
+
+
+def _content_language(declared: str, chapters: list[Chapter]) -> str:
+    base = declared.split("-")[0].lower()
+    if base not in {"en", "es"}:
+        return declared
+    sample = " ".join(segment.text for chapter in chapters for segment in chapter.segments)[:8_000]
+    detected = detect_language(sample)
+    if detected and detected != base:
+        logger.info(
+            "EPUB declares language %s but its text looks like %s; using %s",
+            declared,
+            detected,
+            detected,
+        )
+        return detected
+    return declared
 
 
 def _entry_kind(entries: list[TocEntry], section: HeadingSection | None) -> str:

@@ -68,7 +68,7 @@ class AmbienceBed(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     asset_id: str = Field(min_length=1, max_length=120)
-    kind: Literal["ambience"] = "ambience"
+    kind: Literal["ambience", "music"] = "ambience"
     start_ms: int = Field(default=0, ge=0)
     end_ms: int | None = Field(default=None, ge=0)
     loop: bool = True

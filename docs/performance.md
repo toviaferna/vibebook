@@ -30,7 +30,6 @@ después de cada cambio; un PR que los empeora debe justificarlo.
 - Page-turn: 60 fps.
 - Memoria del lector: ≤ 200 MB.
 - Piper en CPU: ≥ 2× tiempo real.
-- APK Android lector: ≤ 50 MB.
 
 ## N6 — arranque y lector (2026-11-09)
 

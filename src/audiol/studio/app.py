@@ -11,6 +11,7 @@ from audiol.ambience.library import AmbienceLibrary
 from audiol.studio.activity import BookActivity
 from audiol.studio.ambience_jobs import AmbienceJobManager
 from audiol.studio.api import ambience, books, engines, jobs, media, reader, voices
+from audiol.studio.api import providers as providers_api
 from audiol.studio.api import settings as settings_api
 from audiol.studio.db import Database
 from audiol.studio.errors import install_error_handlers
@@ -95,6 +96,7 @@ def create_app(
     app.include_router(engines.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")
     app.include_router(media.router, prefix="/api")
+    app.include_router(providers_api.router, prefix="/api")
     app.include_router(reader.router, prefix="/api")
     app.include_router(voices.router, prefix="/api")
     app.include_router(settings_api.router, prefix="/api")

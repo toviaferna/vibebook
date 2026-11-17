@@ -16,6 +16,7 @@ export interface AlignedSegment {
   tokens: TextToken[];
   words: AlignedWord[];
   coverage: number;
+  precision?: "exact" | "estimated";
 }
 
 const TOKEN_PATTERN = /\S+/g;
@@ -63,8 +64,8 @@ export function alignSegment(
   }
 
   const words = timing.words.filter((word) => word.text.trim().length > 0);
-  if (timing.precision !== "exact") {
-    return { segment, tokens, words: [], coverage: 0 };
+  if (words.length === 0) {
+    return { segment, tokens, words: [], coverage: 0, precision: timing.precision };
   }
   const pairs = new Map<number, WordTiming>();
   let wordIndex = 0;
@@ -78,7 +79,7 @@ export function alignSegment(
 
   const coverage = pairs.size / tokens.length;
   if (coverage < 0.8) {
-    return { segment, tokens, words: [], coverage };
+    return { segment, tokens, words: [], coverage, precision: timing.precision };
   }
 
   const aligned: AlignedWord[] = tokens.map((token, index) => {
@@ -118,7 +119,7 @@ export function alignSegment(
     aligned[index].endMs = Math.max(aligned[index].startMs + 1, aligned[index].endMs);
   }
 
-  return { segment, tokens, words: aligned, coverage };
+  return { segment, tokens, words: aligned, coverage, precision: timing.precision };
 }
 
 function alignedWordAt(
@@ -197,7 +198,7 @@ export function findActive(timing: ChapterTiming | null, timeMs: number): Active
   if (timeMs >= segment.end_ms) {
     return { segmentIndex: found, wordIndex: null };
   }
-  if (timing.precision !== "exact" || segment.precision !== "exact" || segment.words.length === 0) {
+  if (segment.words.length === 0) {
     return { segmentIndex: found, wordIndex: null };
   }
   let wordLow = 0;

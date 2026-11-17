@@ -10,7 +10,6 @@ La conversión es local; no hay cuenta ni servicio pago.
 | Windows 10/11 | x64 | Tauri | Sí | Sí | Actual |
 | Linux | x64 | Tauri | Sí | Sí | P1 |
 | macOS | arm64 / x64 | Tauri | Sí | Sí | P2, unsigned |
-| Android | arm64 | Tauri mobile | No | No | P4, lector |
 
 ## Shell
 
@@ -84,11 +83,6 @@ npm run desktop:build -- --target aarch64-apple-darwin --bundles dmg
 ```
 
 Para x64 usar un runner x64 y `--target x86_64-apple-darwin`.
-
-## Android
-
-P4 es lector-only: importa EPUB, guarda posición y reproduce audio existente. No
-incluye Python, ffmpeg ni conversión. Ver `docs/android.md`.
 
 ## Sidecar y logs
 

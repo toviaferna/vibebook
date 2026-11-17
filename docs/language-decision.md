@@ -35,8 +35,6 @@ chunks y el lector no bloquea el hilo principal.
    peso y la superficie de ataque.
 3. **Onedir antes que PyO3.** El spec `vibebook-sidecar-onedir.spec` permite
    medir arranque sin cambiar el lenguaje. Si onedir no alcanza, evaluar PyO3.
-4. **Puente Android antes que on-device.** La app Android sigue siendo lector
-   EPUB; la conversión on-device es experimental y no bloquea el release.
 
 ## Gate para reconsiderar PyO3
 
@@ -54,7 +52,6 @@ plan de rollback. No se acepta una reescritura completa sin esas métricas.
 ## Consecuencias
 
 - Se prioriza onedir, imports perezosos y perfilado.
-- Se documenta el estado de Flatpak/Android en `docs/linux.md` y
-  `docs/android.md`.
-- La decisión se revisa después de la ola 5 (Linux) y de una prueba Android en
-  hardware real.
+- Se documenta el estado de Flatpak en `docs/linux.md`.
+- La decisión se revisa después de la ola 5 (Linux) y de una prueba en hardware
+  real.
