@@ -12,6 +12,7 @@ from ebooklib import epub
 
 from audiol.convert import prepare_book, render_markdown
 from audiol.ingest.epub import read_epub
+from audiol.language import detect_language
 from audiol.manifest import load_manifest, write_manifest
 from audiol.naming import slugify
 from audiol.paths import UnsafePathError, safe_book_path
@@ -240,12 +241,13 @@ class Library:
         status = data.get("status")
         if not isinstance(status, str):
             status = "ready" if _has_audio(book_dir, chapters) else "imported"
+        language = _effective_language(manifest_path, data, chapters)
 
         return BookRecord(
             id=str(data.get("id") or book_dir.name),
             title=title,
             author=author,
-            language=str(data.get("language", "es")),
+            language=language,
             path=book_dir,
             cover_path=cover_path,
             status=status,
@@ -258,6 +260,50 @@ class Library:
             created_at=created_at,
             updated_at=updated_at,
         )
+
+
+def _effective_language(manifest_path: Path, data: dict, chapters: list) -> str:
+    declared = str(data.get("language", "es"))
+    if data.get("language_checked") is True:
+        return declared
+    base = str(data.get("language_declared") or declared).split("-")[0].lower()
+    language = declared
+    segments = [
+        segment
+        for chapter in chapters
+        if isinstance(chapter, dict)
+        for segment in chapter.get("segments", [])
+        if isinstance(segment, dict)
+    ]
+    parts: list[str] = []
+    size = 0
+    for segment in segments:
+        text = segment.get("text")
+        if not isinstance(text, str):
+            continue
+        parts.append(text)
+        size += len(text)
+        if size >= 8_000:
+            break
+    sample = " ".join(parts)[:8_000]
+    if base in {"en", "es"}:
+        detected = detect_language(sample)
+        if detected and detected != base:
+            data["language_declared"] = str(data.get("language_declared") or declared)
+            data["language"] = detected
+            language = detected
+            logger.info(
+                "Book %s declared %s but its text looks like %s",
+                data.get("id") or manifest_path.parent.name,
+                declared,
+                detected,
+            )
+    data["language_checked"] = True
+    try:
+        write_json_atomic(manifest_path, data)
+    except OSError:
+        logger.warning("Could not persist detected language for %s", manifest_path, exc_info=True)
+    return language
 
 
 def extract_cover(epub_path: Path, out_dir: Path) -> Path | None:

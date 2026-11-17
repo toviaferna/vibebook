@@ -22,7 +22,7 @@ import { Button } from "../../components/Button";
 import { PageHeader } from "../../components/PageHeader";
 import { StatusChip } from "../../components/StatusChip";
 import { formatDuration, formatRate } from "../../lib/format";
-import { defaultVoiceForEngine, voiceLabel } from "../../lib/voices";
+import { defaultVoiceForEngine, voiceLabel, voiceLanguageMismatch } from "../../lib/voices";
 import { ProgressPanel } from "./ProgressPanel";
 import { StepCard } from "./StepCard";
 import { VoicePicker } from "./VoicePicker";
@@ -112,6 +112,7 @@ export function StudioPage() {
   const readyAlternateEngines = engines.filter(
     (item) => item.available && item.id !== engine && item.requires_key,
   );
+  const voiceMismatch = voiceLanguageMismatch(selectedVoice, book?.language);
   const styleCapable = Boolean(selectedEngine?.supports_styles);
   const voiceStyles = selectedVoice?.styles ?? [];
   const stylePresets = styleCapable
@@ -371,6 +372,19 @@ export function StudioPage() {
                     Usar {item.label}
                   </button>
                 ))}
+              </div>
+            ) : null}
+
+            {voiceMismatch ? (
+              <div className="voice-language-warning" role="status">
+                <AlertTriangle size={15} aria-hidden="true" />
+                <span>
+                  La voz <strong>{voiceInfo?.name ?? voice}</strong> es{" "}
+                  {selectedVoice?.locale ?? "de otro idioma"} y el texto está en{" "}
+                  {book.language.toUpperCase()}. ElevenLabs conserva el acento original de la voz;
+                  para español nativo elegí una voz de biblioteca (plan pago) o usá Gemini, Azure,
+                  Kokoro o Piper.
+                </span>
               </div>
             ) : null}
 

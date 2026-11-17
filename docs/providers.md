@@ -9,6 +9,11 @@ Después de guardar, abrí un libro → **Estudio**. Si el libro venía usando E
 arriba de las voces aparece **Usar Gemini** o **Usar ElevenLabs**; también podés
 cambiar el motor en **Salida**.
 
+El idioma del libro se detecta a partir del texto. Si el EPUB declara `en` pero
+la narración es española, la app usa `es` y lo muestra en Studio. Ese idioma se
+usa para avisar cuando una voz no coincide (por ejemplo, Adam en un libro
+español).
+
 También se aceptan variables de entorno, que tienen prioridad:
 
 | Proveedor | Variables |
@@ -37,8 +42,10 @@ Clave: https://aistudio.google.com/apikey
 - Timings exactos por carácter, agrupados en palabras.
 - Emociones: `eleven_v3` con etiquetas `[sad]`, `[whispers]`, etc.; para el
   resto se usan `voice_settings.style` y `stability`.
-- Voces disponibles en el plan gratuito: Adam, Antoni, Arnold y Bella.
-  Domi, Elli, Josh y Sam requieren plan pago.
+- Voces incluidas en el plan gratuito: Adam, Antoni, Arnold y Bella. Son voces
+  nativas en inglés; el modelo multilingüe conserva su acento al leer español.
+- Voces españolas de biblioteca (requieren plan pago): Fernando, Cristina,
+  Alberto, Carolina, Diego y Valeria.
 - Los 10.000 créditos del plan gratuito equivalen a ~10.000 caracteres, unos
   10–12 minutos de audio. La app avisa si el libro supera el saldo conocido.
 - Si la clave no tiene `user_read`, no se puede mostrar el saldo. Si tampoco
@@ -68,8 +75,9 @@ Clave: https://portal.azure.com
 
 - **“Sin configurar”**: revisá que la clave tenga al menos 8 caracteres y, en
   Azure, que la región esté completa.
-- **ElevenLabs 402**: el plan no permite esa voz. Probá Adam, Antoni, Arnold o
-  Bella.
+- **ElevenLabs 402**: el plan no permite esa voz. Las voces españolas de
+  biblioteca requieren plan pago; en el plan gratuito usá Adam, Antoni, Arnold o
+  Bella, o cambiá a Gemini/Azure/Kokoro/Piper para español nativo.
 - **Gemini 429**: esperá un minuto o activá facturación.
 - **La clave no aparece**: si existe una variable de entorno, tiene prioridad
   sobre el archivo y el botón Quitar no la borra.

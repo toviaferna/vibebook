@@ -20,7 +20,8 @@ PROVIDERS: dict[str, dict[str, object]] = {
     "elevenlabs": {
         "label": "ElevenLabs",
         "description": (
-            "Timings exactos por carácter y etiquetas emocionales. 10.000 créditos ≈ 10 minutos."
+            "Timings exactos por car?cter y etiquetas emocionales. "
+            "Las voces gratuitas son en ingl?s; las espa?olas son de biblioteca."
         ),
         "docs_url": "https://elevenlabs.io/docs/api-reference/text-to-speech",
         "key_url": "https://elevenlabs.io/app/settings/api-keys",

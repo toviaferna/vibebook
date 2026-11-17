@@ -297,12 +297,15 @@ Más detalle en [docs/desktop.md](docs/desktop.md) y
 | `es_MX-ald-medium` | `es-MX` | masculino | Piper | - |
 | `ef_dora` / `em_alex` / `em_santa` | `es-ES` | femenino/masculino | Kokoro | - |
 | `Kore` / `Orus` / `Puck` / `Charon` / `Aoede` / `Sulafat` | `es-419` | varios | Gemini | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
-| `Adam` / `Antoni` / `Arnold` / `Bella` | `es-419` | masculino/femenino | ElevenLabs | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
+| `Adam` / `Antoni` / `Arnold` / `Bella` | `en-US` | masculino/femenino | ElevenLabs (inglés multilingüe) | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
+| `Fernando` / `Cristina` / `Alberto` / `Diego` / `Valeria` | `es-419` | varios | ElevenLabs biblioteca (plan pago) | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
+| `Carolina` | `es-ES` | femenino | ElevenLabs biblioteca (plan pago) | `chat`, `cheerful`, `excited`, `sad`, `whispering` |
 | `es-419` | `es-419` | neutral | eSpeak NG | - |
 
 Edge solo admite estilo neutral. Los estilos requieren Azure, Gemini o
 ElevenLabs. Piper, Kokoro y eSpeak NG no usan estilos y devuelven timing por
-segmento o estimado.
+segmento o estimado. La app detecta el idioma real del texto y avisa si la voz
+elegida no coincide.
 
 Edge TTS es un servicio no oficial y puede limitar peticiones. Azure Speech
 incluye 0,5 M de caracteres al mes en la capa gratuita.

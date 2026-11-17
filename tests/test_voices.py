@@ -36,6 +36,15 @@ def test_list_fake_voices_returns_catalog():
     assert len(list_voices(engine="fake")) == len(list_voices())
 
 
+def test_elevenlabs_voices_declare_their_real_language():
+    voices = {voice.id: voice for voice in list_voices(engine="elevenlabs")}
+
+    assert voices["pNInz6obpgDQGcFmaJgB"].locale == "en-US"
+    assert voices["dlGxemPxFMTY7iXagmOj"].locale == "es-419"
+    assert voices["UOIqAnmS11Reiei1Ytkc"].locale == "es-ES"
+    assert len(voices) == 10
+
+
 def test_unknown_voice_raises():
     try:
         get_voice("no-existe")

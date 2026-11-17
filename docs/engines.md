@@ -15,6 +15,14 @@ capacidades tienen.
 | Azure Speech | externo | palabra | Requiere clave y región |
 | Fake | prueba | segmento | Solo con `allow_fake` |
 
+## Idioma del libro
+
+La app usa `dc:language` del EPUB, pero lo contrasta con el texto. Si un libro
+declara `en` y la narración es claramente española (o al revés), guarda el
+idioma detectado y lo muestra en la biblioteca y en Studio. El metadato original
+queda en `language_declared` para diagnóstico. Los libros ya importados se
+corrigen al escanear la biblioteca.
+
 ## Piper local
 
 Piper corre como proceso separado, en CPU y sin cuenta. Vibebook no descarga
@@ -143,6 +151,12 @@ Usa `/v1/text-to-speech/{voice}/with-timestamps`, que devuelve audio MP3 y una
 alineación por carácter. La app agrupa los caracteres en palabras y entrega
 timings exactos. Para emociones usa `eleven_v3` con etiquetas (`[sad]`,
 `[whispers]`); para el resto usa `voice_settings.style` y `stability`.
+
+Las voces gratuitas (Adam, Antoni, Arnold y Bella) son nativas en inglés y
+conservan ese acento al leer español. Las voces españolas (Fernando, Cristina,
+Alberto, Carolina, Diego y Valeria) son de biblioteca y requieren plan pago. Si
+la voz no coincide con el idioma del libro, Studio lo advierte y recomienda
+Gemini, Azure, Kokoro o Piper para español nativo.
 
 Voces curadas compatibles con el plan gratuito: Adam, Antoni, Arnold y Bella.
 Los 10.000 créditos alcanzan para unos 10 minutos. Si la clave no tiene permiso

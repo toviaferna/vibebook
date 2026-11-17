@@ -52,6 +52,12 @@
 - Los timings estimados de Piper ya no desactivan el resaltado palabra a palabra.
 - Los presets de emoción solo se muestran cuando el motor y la voz declaran
   estilos; Edge y los motores locales ofrecen únicamente perfiles de velocidad.
+- El idioma del libro se detecta a partir del texto: si el EPUB declara `en`
+  pero la narraci?n es espa?ola, la biblioteca y Studio muestran `ES`.
+- Las voces de ElevenLabs ahora declaran su idioma real: Adam, Antoni, Arnold
+  y Bella son ingl?s multiling?e; Fernando, Cristina, Alberto, Carolina,
+  Diego y Valeria son voces espa?olas de biblioteca (plan pago).
+- Studio avisa cuando la voz elegida no coincide con el idioma del libro.
 - Studio muestra solo las voces del motor elegido y actualiza su disponibilidad
   al guardar o quitar una clave, sin reiniciar la app. Si hay otro motor cloud
   conectado, aparece un acceso directo **Usar …** junto a las voces.

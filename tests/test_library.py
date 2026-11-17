@@ -82,6 +82,23 @@ def test_scan_generates_a_cover_for_a_legacy_book(library: Library, tiny_epub: P
     assert load_manifest(manifest_path)["cover"] == "cover.svg"
 
 
+def test_scan_corrects_a_wrong_metadata_language(library: Library, tiny_epub: Path):
+    record = library.import_epub(tiny_epub)
+    manifest_path = record.path / "manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["language"] = "en"
+    data.pop("language_checked", None)
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    scanned = library.get(record.id)
+
+    assert scanned.language == "es"
+    updated = load_manifest(manifest_path)
+    assert updated["language"] == "es"
+    assert updated["language_declared"] == "en"
+    assert updated["language_checked"] is True
+
+
 def test_import_rejects_invalid_epub(library: Library, tmp_path: Path):
     invalid = tmp_path / "invalid.epub"
     invalid.write_text("not an epub", encoding="utf-8")

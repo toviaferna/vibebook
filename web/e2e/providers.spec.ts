@@ -23,4 +23,5 @@ test("una clave guardada desbloquea el motor y muestra solo sus voces", async ({
   await expect(page.locator(".voice-card", { hasText: "Adam" })).toBeVisible();
   await expect(page.locator(".voice-card", { hasText: "Jorge" })).toHaveCount(0);
   await expect(page.getByText("Emociones", { exact: true })).toBeVisible();
+  await expect(page.getByText(/conserva el acento original/)).toBeVisible();
 });
