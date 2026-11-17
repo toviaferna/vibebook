@@ -1,15 +1,15 @@
 # Release
 
 Vibebook se distribuye como app local y como app de escritorio para Windows,
-Linux y macOS. La release recomendada es **v0.8.0**, la ola de karaoke en Libro,
-paso automático de página y biblioteca accionable.
+Linux y macOS. La release recomendada es **v0.9.0**, la ola de proveedores TTS
+configurables, Kokoro local, detección de idioma y ambientación por capítulo.
 
-**Estado:** v0.8.0 publicado el 2026-11-15 con assets para Windows ZIP/NSIS/MSI,
+**Estado:** v0.9.0 publicado el 2026-11-16 con assets para Windows ZIP/NSIS/MSI,
 Linux AppImage/DEB, macOS arm64/x64 y checksums por plataforma.
-Incluye karaoke y auto-hojeo en Libro, una sola página en mobile, recorte del giro
-sin ensanchar el documento, acciones y borrado desde la biblioteca,
-decodificación EPUB determinista para conservar acentos y ñ, y Ajustes sin
-solapamientos.
+Incluye claves de Gemini, ElevenLabs y Azure desde Ajustes, estilos de emoción,
+timings exactos de ElevenLabs, Kokoro local en CPU, detección del idioma real
+del EPUB, panel de ambiente con música y efectos, lector 2K y correcciones de
+karaoke.
 
 ## Checklist previo
 
@@ -74,8 +74,8 @@ Después de mergear y verificar `main`:
 ```powershell
 git switch main
 git pull --ff-only
-git tag -a v0.8.0 -m "Vibebook v0.8.0 - karaoke en Libro y biblioteca accionable"
-git push origin v0.8.0
+git tag -a v0.9.0 -m "Vibebook v0.9.0 - proveedores TTS, Kokoro e idioma real"
+git push origin v0.9.0
 ```
 
 El tag dispara el Release. Un `workflow_dispatch` manual construye artefactos
