@@ -116,7 +116,44 @@ Resultados medidos en Windows durante esta iteración:
 ```bash
 flutter build windows --release
 flutter build apk --release --target-platform android-arm64
+flutter build linux --release
+flutter build macos --release   # solo en macOS
 ```
+
+### macOS sin certificado
+
+`flutter build macos` **solo funciona en macOS** (Xcode + SDK de Apple). WSL es
+Linux y no puede compilar macOS. No hace falta un certificado Apple Developer
+para generar un `.app` local: el build queda **sin firmar y sin notarizar**.
+
+El workflow de CI usa un runner `macos-latest` y publica
+`vibebook-macos-unsigned.zip` como artefacto. Para abrirlo en otra Mac:
+
+```bash
+xattr -dr com.apple.quarantine Vibebook.app
+# o clic derecho -> Abrir la primera vez
+```
+
+Sin firma/notarización, Gatekeeper muestra una advertencia; no es una app
+distribuible sin fricción. La firma y notarización quedan pendientes y
+requieren una cuenta Apple Developer.
+
+### Linux / WSL
+
+El proyecto Linux se genera y compila con las dependencias de GTK/GStreamer:
+
+```bash
+sudo apt-get install -y clang cmake ninja-build pkg-config \
+  libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev \
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+flutter build linux --release
+```
+
+En WSL se puede compilar; para ver la ventana hace falta WSLg (Windows 11) o un
+servidor X. El CI de Linux publica `vibebook-linux-x64.tar.gz`.
+
+**iOS queda descartado** de esta migración por pedido explícito y por requerir
+macOS, Xcode y credenciales de firma.
 
 En Windows, si Developer Mode no está habilitado, Flutter no puede crear los
 symlinks de plugins. La alternativa usada en este entorno es crear junctions en
@@ -134,8 +171,9 @@ falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
   último libro/capítulo en preferencias.
 - No hay **audio en segundo plano** con pantalla apagada.
 - No hay **firma, instaladores ni auto-update**.
-- **macOS/iOS** no se compilaron ni probaron en este entorno (requiere macOS y
-  credenciales Apple).
+- **macOS** se compila sin firma en CI (`macos-latest`), pero no se probó en
+  una Mac real.
+- **iOS** está descartado.
 - **Android** compila, pero no se probó en un dispositivo físico.
 - Los motores cloud (Edge, Gemini, ElevenLabs, Azure) no están conectados; la
   app usa Piper local.

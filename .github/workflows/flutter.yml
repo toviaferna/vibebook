@@ -54,6 +54,62 @@ jobs:
           path: app/build/windows/x64/runner/Release
           if-no-files-found: error
 
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build linux --release --no-pub
+      - name: Package Linux bundle
+        run: tar -czf vibebook-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-linux-x64
+          path: app/vibebook-linux-x64.tar.gz
+          if-no-files-found: error
+
+  build-macos-unsigned:
+    name: Build macOS (unsigned)
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release --no-pub
+      - name: Package unsigned macOS app
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/macos/Build/Products/Release/Vibebook.app" \
+            "vibebook-macos-unsigned.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-macos-unsigned
+          path: app/vibebook-macos-unsigned.zip
+          if-no-files-found: error
+
   build-android:
     name: Build Android arm64
     runs-on: ubuntu-latest
