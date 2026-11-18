@@ -120,23 +120,28 @@ flutter build linux --release
 flutter build macos --release   # solo en macOS
 ```
 
-### macOS sin certificado
+### macOS sin certificado (igual que la release Tauri)
 
 `flutter build macos` **solo funciona en macOS** (Xcode + SDK de Apple). WSL es
 Linux y no puede compilar macOS. No hace falta un certificado Apple Developer
-para generar un `.app` local: el build queda **sin firmar y sin notarizar**.
+para generar un `.dmg`: el build queda **sin firmar y sin notarizar**, igual
+que los `.dmg` que ya publica la app Tauri.
 
-El workflow de CI usa un runner `macos-latest` y publica
-`vibebook-macos-unsigned.zip` como artefacto. Para abrirlo en otra Mac:
+El workflow de CI usa dos runners (`macos-15` y `macos-15-intel`) y publica:
+
+- `Vibebook-macos-arm64.dmg`
+- `Vibebook-macos-x64.dmg`
+
+Para abrirlos en otra Mac:
 
 ```bash
-xattr -dr com.apple.quarantine Vibebook.app
+xattr -dr com.apple.quarantine /Applications/Vibebook.app
 # o clic derecho -> Abrir la primera vez
 ```
 
-Sin firma/notarización, Gatekeeper muestra una advertencia; no es una app
-distribuible sin fricción. La firma y notarización quedan pendientes y
-requieren una cuenta Apple Developer.
+Sin firma/notarización, Gatekeeper muestra una advertencia. La firma y
+notarización quedan pendientes y requieren una cuenta Apple Developer; la
+release Tauri actual tiene la misma limitación.
 
 ### Linux / WSL
 
@@ -171,8 +176,8 @@ falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
   último libro/capítulo en preferencias.
 - No hay **audio en segundo plano** con pantalla apagada.
 - No hay **firma, instaladores ni auto-update**.
-- **macOS** se compila sin firma en CI (`macos-latest`), pero no se probó en
-  una Mac real.
+- **macOS** se compila sin firma en CI y genera `.dmg` arm64/x64, pero no se
+  probó en una Mac real. Gatekeeper pide confirmación, igual que en Tauri.
 - **iOS** está descartado.
 - **Android** compila, pero no se probó en un dispositivo físico.
 - Los motores cloud (Edge, Gemini, ElevenLabs, Azure) no están conectados; la

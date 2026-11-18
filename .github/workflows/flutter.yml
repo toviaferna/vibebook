@@ -84,9 +84,9 @@ jobs:
           path: app/vibebook-linux-x64.tar.gz
           if-no-files-found: error
 
-  build-macos-unsigned:
-    name: Build macOS (unsigned)
-    runs-on: macos-latest
+  build-macos-arm64:
+    name: Build macOS arm64 DMG (unsigned)
+    runs-on: macos-15
     defaults:
       run:
         working-directory: app
@@ -99,15 +99,41 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build macos --release --no-pub
-      - name: Package unsigned macOS app
+      - name: Create unsigned DMG
         run: |
-          ditto -c -k --sequesterRsrc --keepParent \
-            "build/macos/Build/Products/Release/Vibebook.app" \
-            "vibebook-macos-unsigned.zip"
+          hdiutil create -volname "Vibebook" \
+            -srcfolder "build/macos/Build/Products/Release/Vibebook.app" \
+            -ov -format UDZO "Vibebook-macos-arm64.dmg"
       - uses: actions/upload-artifact@v4
         with:
-          name: vibebook-macos-unsigned
-          path: app/vibebook-macos-unsigned.zip
+          name: vibebook-macos-arm64-dmg
+          path: app/Vibebook-macos-arm64.dmg
+          if-no-files-found: error
+
+  build-macos-x64:
+    name: Build macOS x64 DMG (unsigned)
+    runs-on: macos-15-intel
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build macos --release --no-pub
+      - name: Create unsigned DMG
+        run: |
+          hdiutil create -volname "Vibebook" \
+            -srcfolder "build/macos/Build/Products/Release/Vibebook.app" \
+            -ov -format UDZO "Vibebook-macos-x64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-macos-x64-dmg
+          path: app/Vibebook-macos-x64.dmg
           if-no-files-found: error
 
   build-android:
