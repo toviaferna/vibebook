@@ -47,7 +47,9 @@ class PiperDownloader {
     await work.create(recursive: true);
     final archive = File(p.join(work.path, '${entry.id}.tar.bz2'));
     try {
-      onProgress?.call(const PiperDownloadProgress(value: 0, stage: 'Descargando voz…'));
+      onProgress?.call(
+        const PiperDownloadProgress(value: 0, stage: 'Descargando voz…'),
+      );
       final dio = Dio(
         BaseOptions(
           connectTimeout: const Duration(seconds: 30),
@@ -77,14 +79,21 @@ class PiperDownloader {
       if (!await archive.exists() || await archive.length() < 1024 * 1024) {
         throw const PiperDownloadException('La descarga quedó incompleta.');
       }
-      return await _installArchive(archive, rootPath: rootPath, work: work, onProgress: onProgress);
+      return await _installArchive(
+        archive,
+        rootPath: rootPath,
+        work: work,
+        onProgress: onProgress,
+      );
     } on PiperDownloadException {
       rethrow;
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) {
         throw const PiperDownloadException('Descarga cancelada.');
       }
-      throw PiperDownloadException('No se pudo descargar la voz: ${error.message ?? error}');
+      throw PiperDownloadException(
+        'No se pudo descargar la voz: ${error.message ?? error}',
+      );
     } catch (error) {
       throw PiperDownloadException('No se pudo descargar la voz: $error');
     } finally {
@@ -99,12 +108,19 @@ class PiperDownloader {
   }) async {
     final root = Directory(rootPath);
     await root.create(recursive: true);
-    final work = Directory(p.join(rootPath, '.import-${DateTime.now().microsecondsSinceEpoch}'));
+    final work = Directory(
+      p.join(rootPath, '.import-${DateTime.now().microsecondsSinceEpoch}'),
+    );
     await work.create(recursive: true);
     try {
       final copy = File(p.join(work.path, p.basename(archive.path)));
       await archive.copy(copy.path);
-      return await _installArchive(copy, rootPath: rootPath, work: work, onProgress: onProgress);
+      return await _installArchive(
+        copy,
+        rootPath: rootPath,
+        work: work,
+        onProgress: onProgress,
+      );
     } on PiperDownloadException {
       rethrow;
     } catch (error) {
@@ -120,7 +136,9 @@ class PiperDownloader {
     required Directory work,
     void Function(PiperDownloadProgress progress)? onProgress,
   }) async {
-    onProgress?.call(const PiperDownloadProgress(value: 0.9, stage: 'Extrayendo voz…'));
+    onProgress?.call(
+      const PiperDownloadProgress(value: 0.9, stage: 'Extrayendo voz…'),
+    );
     final extract = Directory(p.join(work.path, 'extract'));
     await extract.create(recursive: true);
     final archivePath = archive.path;
@@ -128,17 +146,26 @@ class PiperDownloader {
     await Isolate.run(() => _extractTarBz2(archivePath, extractPath));
     final modelDirectory = await _findModelDirectory(extract);
     if (modelDirectory == null) {
-      throw const PiperDownloadException('El archivo no contiene un modelo Piper válido.');
+      throw const PiperDownloadException(
+        'El archivo no contiene un modelo Piper válido.',
+      );
     }
     final target = Directory(p.join(rootPath, p.basename(modelDirectory.path)));
     if (await target.exists()) {
       await target.delete(recursive: true);
     }
     await modelDirectory.rename(target.path);
-    onProgress?.call(const PiperDownloadProgress(value: 1, stage: 'Voz instalada.'));
-    final installed = await _findInstalled(rootPath, entryId: p.basename(target.path));
+    onProgress?.call(
+      const PiperDownloadProgress(value: 1, stage: 'Voz instalada.'),
+    );
+    final installed = await _findInstalled(
+      rootPath,
+      entryId: p.basename(target.path),
+    );
     if (installed == null) {
-      throw const PiperDownloadException('La voz se extrajo pero no se pudo validar.');
+      throw const PiperDownloadException(
+        'La voz se extrajo pero no se pudo validar.',
+      );
     }
     return installed;
   }
@@ -191,7 +218,9 @@ void _extractTarBz2(String archivePath, String targetPath) {
     }
     final name = file.name.replaceAll('\\', '/');
     final normalized = p.posix.normalize(name);
-    if (normalized.startsWith('/') || normalized.startsWith('../') || normalized.contains('/../')) {
+    if (normalized.startsWith('/') ||
+        normalized.startsWith('../') ||
+        normalized.contains('/../')) {
       continue;
     }
     final output = File(p.join(target.path, normalized));

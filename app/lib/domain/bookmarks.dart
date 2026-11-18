@@ -16,13 +16,13 @@ class Bookmark {
   final String? note;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'chapter_index': chapterIndex,
-        'position_ms': positionMs,
-        'created_at': createdAt,
-        'chapter_title': chapterTitle,
-        'note': note,
-      };
+    'id': id,
+    'chapter_index': chapterIndex,
+    'position_ms': positionMs,
+    'created_at': createdAt,
+    'chapter_title': chapterTitle,
+    'note': note,
+  };
 
   factory Bookmark.fromJson(Map<String, dynamic> json) {
     return Bookmark(
@@ -48,10 +48,10 @@ class ReadingState {
   final String updatedAt;
 
   Map<String, dynamic> toJson() => {
-        'chapter_index': chapterIndex,
-        'position_ms': positionMs,
-        'updated_at': updatedAt,
-      };
+    'chapter_index': chapterIndex,
+    'position_ms': positionMs,
+    'updated_at': updatedAt,
+  };
 
   factory ReadingState.fromJson(Map<String, dynamic> json) {
     return ReadingState(
@@ -63,10 +63,7 @@ class ReadingState {
 }
 
 class BookmarkData {
-  const BookmarkData({
-    this.readingState,
-    this.bookmarks = const [],
-  });
+  const BookmarkData({this.readingState, this.bookmarks = const []});
 
   final ReadingState? readingState;
   final List<Bookmark> bookmarks;
@@ -84,10 +81,12 @@ class BookmarkData {
   }
 
   Map<String, dynamic> toJson() => {
-        'version': 1,
-        'reading_state': readingState?.toJson(),
-        'bookmarks': bookmarks.map((bookmark) => bookmark.toJson()).toList(growable: false),
-      };
+    'version': 1,
+    'reading_state': readingState?.toJson(),
+    'bookmarks': bookmarks
+        .map((bookmark) => bookmark.toJson())
+        .toList(growable: false),
+  };
 
   factory BookmarkData.fromJson(Map<String, dynamic> json) {
     final rawBookmarks = json['bookmarks'];

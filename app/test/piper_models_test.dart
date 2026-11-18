@@ -15,7 +15,8 @@ void main() {
     });
     final voice = Directory(p.join(root.path, 'vits-piper-es-glados-medium'));
     await voice.create(recursive: true);
-    await File(p.join(voice.path, 'es-glados-medium.onnx')).writeAsBytes([1, 2, 3]);
+    await File(p.join(voice.path, 'es-glados-medium.onnx'))
+        .writeAsBytes([1, 2, 3]);
     await File(p.join(voice.path, 'tokens.txt')).writeAsString('a 1\nb 2\n');
     await File(p.join(voice.path, 'es-glados-medium.onnx.json')).writeAsString(
       jsonEncode({

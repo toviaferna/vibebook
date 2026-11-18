@@ -46,15 +46,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/books/:id',
-        builder: (context, state) => BookDetailPage(bookId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            BookDetailPage(bookId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/books/:id/studio',
-        builder: (context, state) => StudioPage(bookId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            StudioPage(bookId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/books/:id/read',
-        builder: (context, state) => ReaderPage(bookId: state.pathParameters['id']!),
+        builder: (context, state) =>
+            ReaderPage(bookId: state.pathParameters['id']!),
       ),
     ],
   );

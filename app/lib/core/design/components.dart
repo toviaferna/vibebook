@@ -14,6 +14,7 @@ class PageScaffold extends StatelessWidget {
     this.actions = const [],
     this.subtitle,
     this.scrollable = true,
+    this.maxContentWidth = 1120,
   });
 
   final String eyebrow;
@@ -22,54 +23,143 @@ class PageScaffold extends StatelessWidget {
   final List<Widget> actions;
   final Widget child;
   final bool scrollable;
+  final double maxContentWidth;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<BibliotecaColors>()!;
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final horizontal = width < 600
+            ? 16.0
+            : width < 1000
+            ? 24.0
+            : 32.0;
+        final header = Padding(
+          padding: EdgeInsets.symmetric(horizontal: horizontal),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: SizedBox(
+                width: double.infinity,
+                child: _Header(
+                  eyebrow: eyebrow,
+                  title: title,
+                  subtitle: subtitle,
+                  actions: actions,
+                  horizontalPadding: 0,
+                ),
+              ),
+            ),
+          ),
+        );
+        Widget content;
+        if (scrollable) {
+          content = SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(horizontal, 24, horizontal, 48),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: child,
+              ),
+            ),
+          );
+        } else {
+          content = Padding(
+            padding: EdgeInsets.fromLTRB(horizontal, 24, horizontal, 32),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: child,
+              ),
+            ),
+          );
+        }
+        return Material(
+          color: colors.paper,
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                header,
+                Divider(color: colors.line),
+                Expanded(child: content),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+    required this.actions,
+    required this.horizontalPadding,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String? subtitle;
+  final List<Widget> actions;
+  final double horizontalPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 28, 32, 20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+        Text(
+          eyebrow.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
+        const SizedBox(height: 6),
+        Text(title, style: Theme.of(context).textTheme.headlineMedium),
+        if (subtitle != null) ...[
+          const SizedBox(height: 8),
+          Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            24,
+            horizontalPadding,
+            20,
+          ),
+          child: compact
+              ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(eyebrow.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-                    const SizedBox(height: 6),
-                    Text(title, style: Theme.of(context).textTheme.headlineMedium),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 8),
-                      Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                    titleBlock,
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Wrap(spacing: 8, runSpacing: 8, children: actions),
+                    ],
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: titleBlock),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(width: 16),
+                      Wrap(spacing: 8, runSpacing: 8, children: actions),
                     ],
                   ],
                 ),
-              ),
-              if (actions.isNotEmpty) ...[
-                const SizedBox(width: 16),
-                Wrap(spacing: 8, children: actions),
-              ],
-            ],
-          ),
-        ),
-        Divider(color: colors.line),
-        Expanded(
-          child: scrollable
-              ? SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 48),
-                  child: child,
-                )
-              : Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
-                  child: child,
-                ),
-        ),
-      ],
+        );
+      },
     );
-    return ColoredBox(color: colors.paper, child: SafeArea(child: content));
   }
 }
 
@@ -111,7 +201,8 @@ class BookCover extends StatelessWidget {
               : Image.file(
                   cover,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => _Placeholder(book: book),
+                  errorBuilder: (context, error, stackTrace) =>
+                      _Placeholder(book: book),
                 ),
         ),
       ),
@@ -134,7 +225,13 @@ class BookCover extends StatelessWidget {
         return file;
       }
     }
-    for (final name in ['cover.jpg', 'cover.jpeg', 'cover.png', 'cover.webp', 'cover.gif']) {
+    for (final name in [
+      'cover.jpg',
+      'cover.jpeg',
+      'cover.png',
+      'cover.webp',
+      'cover.gif',
+    ]) {
       final file = File('$directory${Platform.pathSeparator}$name');
       if (file.existsSync()) {
         return file;
@@ -155,11 +252,11 @@ class _Placeholder extends StatelessWidget {
     final initials = book.title.trim().isEmpty
         ? '?'
         : book.title
-            .trim()
-            .split(RegExp(r'\s+'))
-            .take(2)
-            .map((word) => word.substring(0, 1).toUpperCase())
-            .join();
+              .trim()
+              .split(RegExp(r'\s+'))
+              .take(2)
+              .map((word) => word.substring(0, 1).toUpperCase())
+              .join();
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -178,17 +275,18 @@ class _Placeholder extends StatelessWidget {
             Text(
               initials,
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontFamily: 'serif',
-                    color: colors.accent,
-                    fontWeight: FontWeight.w600,
-                  ),
+                fontFamily: 'serif',
+                color: colors.accent,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               book.title,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colors.ink),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(color: colors.ink),
             ),
             const Spacer(),
             Text(
@@ -241,9 +339,15 @@ class BookCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  StatusPill(label: book.language.toUpperCase(), color: colors.audio),
+                  StatusPill(
+                    label: book.language.toUpperCase(),
+                    color: colors.audio,
+                  ),
                   const SizedBox(width: 6),
-                  Text(book.progressLabel, style: Theme.of(context).textTheme.labelSmall),
+                  Text(
+                    book.progressLabel,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
                 ],
               ),
             ],
@@ -271,7 +375,8 @@ class StatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(color: color, letterSpacing: 0.8),
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: color, letterSpacing: 0.8),
       ),
     );
   }
@@ -313,13 +418,18 @@ class EmptyState extends StatelessWidget {
                 child: Icon(icon, size: 28, color: colors.accent),
               ),
               const SizedBox(height: 18),
-              Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 8),
-              Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
-              if (action != null) ...[
-                const SizedBox(height: 20),
-                action!,
-              ],
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              if (action != null) ...[const SizedBox(height: 20), action!],
             ],
           ),
         ),
@@ -340,7 +450,9 @@ class ErrorView extends StatelessWidget {
       icon: Icons.error_outline,
       title: 'Algo salió mal',
       message: message,
-      action: onRetry == null ? null : OutlinedButton(onPressed: onRetry, child: const Text('Reintentar')),
+      action: onRetry == null
+          ? null
+          : OutlinedButton(onPressed: onRetry, child: const Text('Reintentar')),
     );
   }
 }
@@ -355,7 +467,12 @@ class SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall)),
+        Expanded(
+          child: Text(
+            text.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ),
         ?trailing,
       ],
     );
@@ -374,9 +491,16 @@ class Metric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
         const SizedBox(height: 4),
-        Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.ink)),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: colors.ink),
+        ),
       ],
     );
   }

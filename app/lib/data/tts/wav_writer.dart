@@ -51,7 +51,8 @@ class WavWriter {
     int silenceMs = 0,
   }) {
     final silenceFrames = (sampleRate * silenceMs / 1000).round();
-    final total = parts.fold<int>(0, (sum, part) => sum + part.length) +
+    final total =
+        parts.fold<int>(0, (sum, part) => sum + part.length) +
         silenceFrames * (parts.isEmpty ? 0 : parts.length - 1);
     final output = Float32List(total);
     var offset = 0;

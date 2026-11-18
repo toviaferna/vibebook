@@ -1,7 +1,11 @@
 import 'dart:convert';
 
 class WordTiming {
-  const WordTiming({required this.text, required this.startMs, required this.endMs});
+  const WordTiming({
+    required this.text,
+    required this.startMs,
+    required this.endMs,
+  });
 
   final String text;
   final int startMs;
@@ -16,10 +20,10 @@ class WordTiming {
   }
 
   Map<String, dynamic> toJson() => {
-        'text': text,
-        'start_ms': startMs,
-        'end_ms': endMs,
-      };
+    'text': text,
+    'start_ms': startMs,
+    'end_ms': endMs,
+  };
 }
 
 class SegmentTiming {
@@ -57,12 +61,12 @@ class SegmentTiming {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'start_ms': startMs,
-        'end_ms': endMs,
-        'precision': precision,
-        'words': words.map((word) => word.toJson()).toList(growable: false),
-      };
+    'id': id,
+    'start_ms': startMs,
+    'end_ms': endMs,
+    'precision': precision,
+    'words': words.map((word) => word.toJson()).toList(growable: false),
+  };
 }
 
 class ChapterTiming {
@@ -97,11 +101,13 @@ class ChapterTiming {
   }
 
   Map<String, dynamic> toJson() => {
-        'chapter_index': chapterIndex,
-        'duration_ms': durationMs,
-        'precision': precision,
-        'segments': segments.map((segment) => segment.toJson()).toList(growable: false),
-      };
+    'chapter_index': chapterIndex,
+    'duration_ms': durationMs,
+    'precision': precision,
+    'segments': segments
+        .map((segment) => segment.toJson())
+        .toList(growable: false),
+  };
 
   factory ChapterTiming.fromJsonString(String source) {
     final decoded = jsonDecode(source);

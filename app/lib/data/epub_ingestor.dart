@@ -75,14 +75,17 @@ class EpubIngestor {
     }
     final containerFile = files['META-INF/container.xml'];
     if (containerFile == null) {
-      throw const FormatException('El EPUB no contiene META-INF/container.xml.');
+      throw const FormatException(
+        'El EPUB no contiene META-INF/container.xml.',
+      );
     }
     final container = XmlDocument.parse(decodeTextBytes(containerFile.content));
     final rootfile = container.descendants
         .whereType<XmlElement>()
         .firstWhere(
           (element) => element.name.local == 'rootfile',
-          orElse: () => throw const FormatException('El EPUB no declara un OPF.'),
+          orElse: () =>
+              throw const FormatException('El EPUB no declara un OPF.'),
         )
         .getAttribute('full-path');
     if (rootfile == null || rootfile.isEmpty) {
@@ -191,7 +194,10 @@ class EpubIngestor {
         if (imageFile == null) {
           continue;
         }
-        final extension = p.posix.extension(imagePath).replaceFirst('.', '').toLowerCase();
+        final extension = p.posix
+            .extension(imagePath)
+            .replaceFirst('.', '')
+            .toLowerCase();
         if (!{'jpg', 'jpeg', 'png', 'gif', 'webp'}.contains(extension)) {
           continue;
         }
@@ -227,14 +233,21 @@ class EpubIngestor {
       final file = files[_resolve(opfDirectory, item.href)];
       if (file != null) {
         coverBytes = file.content;
-        coverExtension = p.posix.extension(item.href).replaceFirst('.', '').toLowerCase();
+        coverExtension = p.posix
+            .extension(item.href)
+            .replaceFirst('.', '')
+            .toLowerCase();
         break;
       }
     }
     if (coverBytes.isEmpty) {
       final coverId = metadata?.descendants
           .whereType<XmlElement>()
-          .where((element) => element.name.local == 'meta' && element.getAttribute('name') == 'cover')
+          .where(
+            (element) =>
+                element.name.local == 'meta' &&
+                element.getAttribute('name') == 'cover',
+          )
           .map((element) => element.getAttribute('content'))
           .whereType<String>()
           .firstOrNull;
@@ -243,7 +256,10 @@ class EpubIngestor {
         final file = files[_resolve(opfDirectory, coverItem.href)];
         if (file != null) {
           coverBytes = file.content;
-          coverExtension = p.posix.extension(coverItem.href).replaceFirst('.', '').toLowerCase();
+          coverExtension = p.posix
+              .extension(coverItem.href)
+              .replaceFirst('.', '')
+              .toLowerCase();
         }
       }
     }

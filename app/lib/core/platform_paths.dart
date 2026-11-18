@@ -66,9 +66,10 @@ class _GetShortPathName {
   static _GetShortPathNameDart? _load() {
     try {
       final kernel32 = DynamicLibrary.open('kernel32.dll');
-      return kernel32.lookupFunction<_GetShortPathNameNative, _GetShortPathNameDart>(
-        'GetShortPathNameW',
-      );
+      return kernel32
+          .lookupFunction<_GetShortPathNameNative, _GetShortPathNameDart>(
+            'GetShortPathNameW',
+          );
     } catch (_) {
       return null;
     }

@@ -54,7 +54,10 @@ class BookmarkRepository {
     return next;
   }
 
-  Future<BookmarkData> addBookmark(String bookDirectory, Bookmark bookmark) async {
+  Future<BookmarkData> addBookmark(
+    String bookDirectory,
+    Bookmark bookmark,
+  ) async {
     final current = await load(bookDirectory);
     final next = current.copyWith(bookmarks: [...current.bookmarks, bookmark]);
     await save(bookDirectory, next);
@@ -64,7 +67,9 @@ class BookmarkRepository {
   Future<BookmarkData> removeBookmark(String bookDirectory, String id) async {
     final current = await load(bookDirectory);
     final next = current.copyWith(
-      bookmarks: current.bookmarks.where((bookmark) => bookmark.id != id).toList(growable: false),
+      bookmarks: current.bookmarks
+          .where((bookmark) => bookmark.id != id)
+          .toList(growable: false),
     );
     await save(bookDirectory, next);
     return next;

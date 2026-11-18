@@ -34,14 +34,18 @@ class M4bExporter {
     if (directory == null) {
       throw StateError('El libro no tiene carpeta de biblioteca.');
     }
-    final chapters = book.chapters.where((chapter) => chapter.audio != null).toList(growable: false);
+    final chapters = book.chapters
+        .where((chapter) => chapter.audio != null)
+        .toList(growable: false);
     if (chapters.isEmpty) {
       throw StateError('El libro no tiene audio para exportar.');
     }
     final sources = [
       for (final chapter in chapters)
         _ChapterSource(
-          path: p.isAbsolute(chapter.audio!) ? chapter.audio! : p.join(directory, chapter.audio!),
+          path: p.isAbsolute(chapter.audio!)
+              ? chapter.audio!
+              : p.join(directory, chapter.audio!),
           durationMs: chapter.durationMs ?? 1000,
           title: chapter.title,
         ),
@@ -57,7 +61,8 @@ class M4bExporter {
   /// Mixes a looping ambience bed under each chapter and exports the result.
   Future<M4bExportResult> exportWithAmbience(
     Book book, {
-    required String bedPath,
+    String? bedPath,
+    Map<int, String>? chapterBeds,
     String? outputPath,
     void Function(int chapter, int total)? onProgress,
   }) async {
@@ -65,10 +70,15 @@ class M4bExporter {
     if (directory == null) {
       throw StateError('El libro no tiene carpeta de biblioteca.');
     }
-    if (!await File(bedPath).exists()) {
+    if (bedPath != null && !await File(bedPath).exists()) {
       throw StateError('No se encontró la cama de ambiente.');
     }
-    final chapters = book.chapters.where((chapter) => chapter.audio != null).toList(growable: false);
+    if (bedPath == null && (chapterBeds == null || chapterBeds.isEmpty)) {
+      throw StateError('No hay camas de ambiente para exportar.');
+    }
+    final chapters = book.chapters
+        .where((chapter) => chapter.audio != null)
+        .toList(growable: false);
     if (chapters.isEmpty) {
       throw StateError('El libro no tiene audio para exportar.');
     }
@@ -81,6 +91,23 @@ class M4bExporter {
           ? chapter.audio!
           : p.join(directory, chapter.audio!);
       final durationMs = chapter.durationMs ?? 1000;
+      final bed = chapterBeds?[chapter.index] ?? bedPath;
+      if (bed == null) {
+        sources.add(
+          _ChapterSource(
+            path: voice,
+            durationMs: durationMs,
+            title: chapter.title,
+          ),
+        );
+        onProgress?.call(index + 1, chapters.length);
+        continue;
+      }
+      if (!await File(bed).exists()) {
+        throw StateError(
+          'No se encontró el ambiente del capítulo ${chapter.index}.',
+        );
+      }
       final durationSeconds = (durationMs / 1000).clamp(0.1, 36000.0);
       final fadeOutStart = (durationSeconds - 2).clamp(0.0, durationSeconds);
       final fadeOutDuration = durationSeconds < 2 ? durationSeconds : 2.0;
@@ -99,7 +126,10 @@ class M4bExporter {
         '[voice][ducked]amix=inputs=2:duration=first:dropout_transition=0,volume=0.9[out]',
       ].join(';\n');
       final filterFile = File(
-        p.join(work.path, 'ambient_${(index + 1).toString().padLeft(3, '0')}.filter'),
+        p.join(
+          work.path,
+          'ambient_${(index + 1).toString().padLeft(3, '0')}.filter',
+        ),
       );
       await filterFile.writeAsString(filter, flush: true);
       final command = [
@@ -110,7 +140,7 @@ class M4bExporter {
         '-stream_loop',
         '-1',
         '-i',
-        _quote(bedPath),
+        _quote(bed),
         '-i',
         _quote(voice),
         '-filter_complex_script',
@@ -131,7 +161,11 @@ class M4bExporter {
       ].join(' ');
       await _run(command, 'No se pudo mezclar el capítulo ${chapter.index}.');
       sources.add(
-        _ChapterSource(path: mixed, durationMs: durationMs, title: chapter.title),
+        _ChapterSource(
+          path: mixed,
+          durationMs: durationMs,
+          title: chapter.title,
+        ),
       );
       onProgress?.call(index + 1, chapters.length);
     }
@@ -139,7 +173,9 @@ class M4bExporter {
       book,
       directory,
       sources,
-      outputPath: outputPath ?? p.join(directory, '${slugify(book.title)}-ambientado.m4b'),
+      outputPath:
+          outputPath ??
+          p.join(directory, '${slugify(book.title)}-ambientado.m4b'),
       work: work,
     );
   }
@@ -157,7 +193,9 @@ class M4bExporter {
     final metadata = File(p.join(workDirectory.path, 'metadata.txt'));
     final buffer = StringBuffer();
     for (final source in sources) {
-      final normalized = source.path.replaceAll(r'\', '/').replaceAll("'", r"'\''");
+      final normalized = source.path
+          .replaceAll(r'\', '/')
+          .replaceAll("'", r"'\''");
       buffer.writeln("file '$normalized'");
     }
     await concat.writeAsString(buffer.toString(), flush: true);
@@ -204,6 +242,11 @@ class M4bExporter {
     final logs = await session.getAllLogsAsString() ?? '';
     if (!ReturnCode.isSuccess(returnCode)) {
       throw StateError('FFmpeg no pudo exportar el M4B.\n$logs');
+    }
+    try {
+      await workDirectory.delete(recursive: true);
+    } catch (_) {
+      // A leftover work directory must not invalidate a finished export.
     }
     return M4bExportResult(path: outputPath, logs: logs);
   }

@@ -12,12 +12,18 @@ class LibraryPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(filteredBooksProvider);
+    final library = ref.watch(libraryProvider);
     final query = ref.watch(searchQueryProvider);
     final colors = Theme.of(context).extension<BibliotecaColors>()!;
     return PageScaffold(
       eyebrow: 'Biblioteca',
       title: 'Tu estantería',
-      subtitle: books.value == null ? null : '${books.value!.length} libros en este equipo',
+      maxContentWidth: 1120,
+      subtitle: library.value == null
+          ? null
+          : library.value!.length == 1
+          ? '1 libro en este equipo'
+          : '${library.value!.length} libros en este equipo',
       actions: [
         OutlinedButton.icon(
           onPressed: () => context.go('/import'),
@@ -28,23 +34,27 @@ class LibraryPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: TextField(
-              onChanged: (value) => ref.read(searchQueryProvider.notifier).setQuery(value),
-              decoration: InputDecoration(
-                hintText: 'Buscar por título, autor o idioma…',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Limpiar búsqueda',
-                        onPressed: () {
-                          ref.read(searchQueryProvider.notifier).setQuery('');
-                          FocusScope.of(context).unfocus();
-                        },
-                        icon: const Icon(Icons.close, size: 18),
-                      ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: TextField(
+                onChanged: (value) =>
+                    ref.read(searchQueryProvider.notifier).setQuery(value),
+                decoration: InputDecoration(
+                  hintText: 'Buscar por título, autor o idioma…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: query.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Limpiar búsqueda',
+                          onPressed: () {
+                            ref.read(searchQueryProvider.notifier).setQuery('');
+                            FocusScope.of(context).unfocus();
+                          },
+                          icon: const Icon(Icons.close, size: 18),
+                        ),
+                ),
               ),
             ),
           ),
@@ -54,7 +64,9 @@ class LibraryPage extends ConsumerWidget {
               if (items.isEmpty) {
                 return EmptyState(
                   icon: Icons.menu_book_outlined,
-                  title: query.isEmpty ? 'Tu estante está vacío' : 'No encontré ese libro',
+                  title: query.isEmpty
+                      ? 'Tu estante está vacío'
+                      : 'No encontré ese libro',
                   message: query.isEmpty
                       ? 'Importá un EPUB para empezar. La biblioteca se guarda en tu equipo.'
                       : 'Probá con otro título, autor o idioma.',
@@ -65,7 +77,9 @@ class LibraryPage extends ConsumerWidget {
                           label: const Text('Importar EPUB'),
                         )
                       : OutlinedButton(
-                          onPressed: () => ref.read(searchQueryProvider.notifier).setQuery(''),
+                          onPressed: () => ref
+                              .read(searchQueryProvider.notifier)
+                              .setQuery(''),
                           child: const Text('Limpiar búsqueda'),
                         ),
                 );
@@ -75,19 +89,21 @@ class LibraryPage extends ConsumerWidget {
                   final columns = constraints.maxWidth < 620
                       ? 2
                       : constraints.maxWidth < 980
-                          ? 3
-                          : constraints.maxWidth < 1320
-                              ? 4
-                              : 5;
+                      ? 3
+                      : 4;
+                  const gap = 18.0;
+                  final itemWidth =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  final itemHeight = itemWidth * 1.25 + 86;
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: items.length,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: columns,
-                      crossAxisSpacing: 18,
+                      crossAxisSpacing: gap,
                       mainAxisSpacing: 24,
-                      childAspectRatio: 0.62,
+                      mainAxisExtent: itemHeight,
                     ),
                     itemBuilder: (context, index) {
                       final book = items[index];
@@ -108,7 +124,10 @@ class LibraryPage extends ConsumerWidget {
                   children: [
                     CircularProgressIndicator(color: colors.accent),
                     const SizedBox(height: 16),
-                    Text('Leyendo la biblioteca…', style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      'Leyendo la biblioteca…',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ),
               ),

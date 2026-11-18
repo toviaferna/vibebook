@@ -24,10 +24,18 @@ class Segment {
   final String boundary;
   final bool continuation;
 
-  factory Segment.fromJson(Map<String, dynamic> json, {required int chapterIndex}) {
+  factory Segment.fromJson(
+    Map<String, dynamic> json, {
+    required int chapterIndex,
+  }) {
     return Segment(
-      id: json['id'] as String? ??
-          _segmentId(chapterIndex, _int(json['paragraph_index'], 1), _int(json['chunk_index'], 0)),
+      id:
+          json['id'] as String? ??
+          _segmentId(
+            chapterIndex,
+            _int(json['paragraph_index'], 1),
+            _int(json['chunk_index'], 0),
+          ),
       chapterIndex: _int(json['chapter_index'], chapterIndex),
       paragraphIndex: _int(json['paragraph_index'], 1),
       text: json['text'] as String? ?? '',
@@ -75,7 +83,10 @@ class Chapter {
   final String? timing;
   final int? durationMs;
 
-  factory Chapter.fromJson(Map<String, dynamic> json, {required int fallbackIndex}) {
+  factory Chapter.fromJson(
+    Map<String, dynamic> json, {
+    required int fallbackIndex,
+  }) {
     final index = _int(json['index'], fallbackIndex);
     final segments = <Segment>[];
     final rawSegments = json['segments'];
@@ -98,7 +109,9 @@ class Chapter {
       generatedTitle: json['generated_title'] == true,
       audio: json['audio'] as String?,
       timing: json['timing'] as String?,
-      durationMs: json['duration_ms'] is num ? (json['duration_ms'] as num).toInt() : null,
+      durationMs: json['duration_ms'] is num
+          ? (json['duration_ms'] as num).toInt()
+          : null,
     );
   }
 
@@ -279,8 +292,12 @@ class Book {
       engine: json['engine'] as String?,
       style: json['style'] as String?,
       rate: json['rate'] as String?,
-      status: json['status'] as String? ?? (chapters.any((c) => c.audio != null) ? 'ready' : 'imported'),
-      durationMs: json['duration_ms'] is num ? (json['duration_ms'] as num).toInt() : null,
+      status:
+          json['status'] as String? ??
+          (chapters.any((c) => c.audio != null) ? 'ready' : 'imported'),
+      durationMs: json['duration_ms'] is num
+          ? (json['duration_ms'] as num).toInt()
+          : null,
       m4b: json['m4b'] as String?,
       manifestPath: manifestPath,
       directoryPath: directoryPath,
@@ -297,12 +314,18 @@ class Book {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('El manifiesto no es un objeto JSON.');
     }
-    return Book.fromManifest(decoded, id: id, manifestPath: manifestPath, directoryPath: directoryPath);
+    return Book.fromManifest(
+      decoded,
+      id: id,
+      manifestPath: manifestPath,
+      directoryPath: directoryPath,
+    );
   }
 
   int get chapterCount => chapters.length;
 
-  int get segmentCount => chapters.fold(0, (sum, chapter) => sum + chapter.segments.length);
+  int get segmentCount =>
+      chapters.fold(0, (sum, chapter) => sum + chapter.segments.length);
 
   String get progressLabel {
     if (durationMs == null || durationMs == 0) {
@@ -320,7 +343,6 @@ class ReaderPreferences {
     this.palette = 'paper',
     this.fontSize = 19,
     this.fontFamily = 'Literata',
-    this.pageTurn = true,
     this.karaoke = true,
     this.autoAdvance = true,
     this.playbackRate = 1.0,
@@ -330,7 +352,6 @@ class ReaderPreferences {
   final String palette;
   final double fontSize;
   final String fontFamily;
-  final bool pageTurn;
   final bool karaoke;
   final bool autoAdvance;
   final double playbackRate;
@@ -340,7 +361,6 @@ class ReaderPreferences {
     String? palette,
     double? fontSize,
     String? fontFamily,
-    bool? pageTurn,
     bool? karaoke,
     bool? autoAdvance,
     double? playbackRate,
@@ -350,7 +370,6 @@ class ReaderPreferences {
       palette: palette ?? this.palette,
       fontSize: fontSize ?? this.fontSize,
       fontFamily: fontFamily ?? this.fontFamily,
-      pageTurn: pageTurn ?? this.pageTurn,
       karaoke: karaoke ?? this.karaoke,
       autoAdvance: autoAdvance ?? this.autoAdvance,
       playbackRate: playbackRate ?? this.playbackRate,
@@ -359,22 +378,20 @@ class ReaderPreferences {
   }
 
   Map<String, dynamic> toJson() => {
-        'palette': palette,
-        'fontSize': fontSize,
-        'fontFamily': fontFamily,
-        'pageTurn': pageTurn,
-        'karaoke': karaoke,
-        'autoAdvance': autoAdvance,
-        'playbackRate': playbackRate,
-        'volume': volume,
-      };
+    'palette': palette,
+    'fontSize': fontSize,
+    'fontFamily': fontFamily,
+    'karaoke': karaoke,
+    'autoAdvance': autoAdvance,
+    'playbackRate': playbackRate,
+    'volume': volume,
+  };
 
   factory ReaderPreferences.fromJson(Map<String, dynamic> json) {
     return ReaderPreferences(
       palette: json['palette'] as String? ?? 'paper',
       fontSize: (json['fontSize'] as num?)?.toDouble() ?? 19,
       fontFamily: json['fontFamily'] as String? ?? 'Literata',
-      pageTurn: json['pageTurn'] as bool? ?? true,
       karaoke: json['karaoke'] as bool? ?? true,
       autoAdvance: json['autoAdvance'] as bool? ?? true,
       playbackRate: (json['playbackRate'] as num?)?.toDouble() ?? 1.0,
@@ -432,7 +449,9 @@ class AppSettings {
       themeMode: themeMode ?? this.themeMode,
       libraryPath: libraryPath ?? this.libraryPath,
       modelsPath: clearModelsPath ? null : (modelsPath ?? this.modelsPath),
-      piperModelId: clearPiperModel ? null : (piperModelId ?? this.piperModelId),
+      piperModelId: clearPiperModel
+          ? null
+          : (piperModelId ?? this.piperModelId),
       piperRate: piperRate ?? this.piperRate,
       ambienceEnabled: ambienceEnabled ?? this.ambienceEnabled,
       ambiencePreset: ambiencePreset ?? this.ambiencePreset,
@@ -445,19 +464,19 @@ class AppSettings {
   }
 
   Map<String, dynamic> toJson() => {
-        'themeMode': themeMode,
-        'libraryPath': libraryPath,
-        'modelsPath': modelsPath,
-        'piperModelId': piperModelId,
-        'piperRate': piperRate,
-        'ambienceEnabled': ambienceEnabled,
-        'ambiencePreset': ambiencePreset,
-        'ambienceVolume': ambienceVolume,
-        'ambienceDucking': ambienceDucking,
-        'reader': reader.toJson(),
-        'lastBookId': lastBookId,
-        'lastChapterIndex': lastChapterIndex,
-      };
+    'themeMode': themeMode,
+    'libraryPath': libraryPath,
+    'modelsPath': modelsPath,
+    'piperModelId': piperModelId,
+    'piperRate': piperRate,
+    'ambienceEnabled': ambienceEnabled,
+    'ambiencePreset': ambiencePreset,
+    'ambienceVolume': ambienceVolume,
+    'ambienceDucking': ambienceDucking,
+    'reader': reader.toJson(),
+    'lastBookId': lastBookId,
+    'lastChapterIndex': lastChapterIndex,
+  };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(

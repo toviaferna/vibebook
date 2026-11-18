@@ -9,7 +9,11 @@ class AppShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
-    _Destination('Biblioteca', Icons.local_library_outlined, Icons.local_library),
+    _Destination(
+      'Biblioteca',
+      Icons.local_library_outlined,
+      Icons.local_library,
+    ),
     _Destination('Importar', Icons.add_circle_outline, Icons.add_circle),
     _Destination('Ajustes', Icons.tune_outlined, Icons.tune),
   ];
@@ -25,7 +29,10 @@ class AppShell extends StatelessWidget {
           children: [
             _Sidebar(
               selectedIndex: navigationShell.currentIndex,
-              onSelect: (index) => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+              onSelect: (index) => navigationShell.goBranch(
+                index,
+                initialLocation: index == navigationShell.currentIndex,
+              ),
             ),
             Expanded(child: navigationShell),
           ],
@@ -36,14 +43,20 @@ class AppShell extends StatelessWidget {
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) => navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+        onDestinationSelected: (index) => navigationShell.goBranch(
+          index,
+          initialLocation: index == navigationShell.currentIndex,
+        ),
         backgroundColor: colors.surface,
         indicatorColor: colors.accentSoft,
         destinations: [
           for (final destination in _destinations)
             NavigationDestination(
               icon: Icon(destination.icon),
-              selectedIcon: Icon(destination.selectedIcon, color: colors.accent),
+              selectedIcon: Icon(
+                destination.selectedIcon,
+                color: colors.accent,
+              ),
               label: destination.label,
             ),
         ],
@@ -88,12 +101,14 @@ class _Sidebar extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Vibebook', style: Theme.of(context).textTheme.titleLarge),
+                      Text(
+                        'Vibebook',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       Text(
                         'BIBLIOTECA',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              letterSpacing: 1.8,
-                            ),
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(letterSpacing: 1.8),
                       ),
                     ],
                   ),
@@ -103,19 +118,30 @@ class _Sidebar extends StatelessWidget {
             Divider(color: colors.line),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-              child: Text('NAVEGAR', style: Theme.of(context).textTheme.labelSmall),
+              child: Text(
+                'NAVEGAR',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
             ),
             for (var index = 0; index < AppShell._destinations.length; index++)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
                 child: Material(
-                  color: selectedIndex == index ? colors.surfaceRaised : Colors.transparent,
+                  color: selectedIndex == index
+                      ? colors.surfaceRaised
+                      : Colors.transparent,
                   borderRadius: BibliotecaRadii.md,
                   child: InkWell(
                     borderRadius: BibliotecaRadii.md,
                     onTap: () => onSelect(index),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
                       child: Row(
                         children: [
                           Icon(
@@ -123,14 +149,21 @@ class _Sidebar extends StatelessWidget {
                                 ? AppShell._destinations[index].selectedIcon
                                 : AppShell._destinations[index].icon,
                             size: 20,
-                            color: selectedIndex == index ? colors.accent : colors.inkSoft,
+                            color: selectedIndex == index
+                                ? colors.accent
+                                : colors.inkSoft,
                           ),
                           const SizedBox(width: 12),
                           Text(
                             AppShell._destinations[index].label,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: selectedIndex == index ? colors.ink : colors.inkSoft,
-                                  fontWeight: selectedIndex == index ? FontWeight.w600 : FontWeight.w500,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: selectedIndex == index
+                                      ? colors.ink
+                                      : colors.inkSoft,
+                                  fontWeight: selectedIndex == index
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
                                 ),
                           ),
                         ],
@@ -146,12 +179,17 @@ class _Sidebar extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: colors.surface,
-                  border: Border(left: BorderSide(color: colors.brass, width: 2)),
+                  border: Border(
+                    left: BorderSide(color: colors.brass, width: 2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Lector local', style: Theme.of(context).textTheme.titleSmall),
+                    Text(
+                      'Lector local',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Tu biblioteca vive en este equipo. Sin cuenta, sin nube.',

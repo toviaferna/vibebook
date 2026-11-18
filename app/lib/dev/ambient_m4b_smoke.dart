@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../data/ambience/ambience_generator.dart';
+import '../data/ambience/ambience_library.dart';
 import '../data/m4b_exporter.dart';
 import '../domain/ambience.dart';
 import '../domain/models.dart';
@@ -40,7 +40,7 @@ Future<void> runAmbientM4bSmoke(List<String> args) async {
       directoryPath: bookDir,
     );
     final preset = AmbiencePresetDetails.byId(presetId);
-    final bed = await const AmbienceGenerator().ensurePreset(preset);
+    final bed = await const AmbienceLibrary().ensurePreset(preset);
     final stopwatch = Stopwatch()..start();
     final export = await const M4bExporter().exportWithAmbience(
       book,

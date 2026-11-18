@@ -19,13 +19,18 @@ class BookDetailPage extends ConsumerWidget {
       data: (value) {
         if (value == null) {
           return Scaffold(
-            appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
-            body: const ErrorView(message: 'No encontré este libro en la biblioteca.'),
+            appBar: AppBar(
+              leading: BackButton(onPressed: () => context.go('/')),
+            ),
+            body: const ErrorView(
+              message: 'No encontré este libro en la biblioteca.',
+            ),
           );
         }
         return _BookDetailView(book: value);
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) => Scaffold(
         appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
         body: ErrorView(message: '$error'),
@@ -50,7 +55,11 @@ class _BookDetailView extends ConsumerWidget {
       children: [
         Text(book.title, style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 6),
-        Text(book.author, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.inkSoft)),
+        Text(
+          book.author,
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: colors.inkSoft),
+        ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 10,
@@ -58,10 +67,14 @@ class _BookDetailView extends ConsumerWidget {
           children: [
             StatusPill(label: book.language.toUpperCase(), color: colors.audio),
             StatusPill(
-              label: book.status == 'ready' ? 'AUDIO LISTO' : 'IMPORTADO',
+              label: book.status == 'ready' ? 'AUDIO LISTO' : 'SIN AUDIO',
               color: book.status == 'ready' ? colors.brass : colors.inkFaint,
             ),
-            StatusPill(label: book.progressLabel.toUpperCase(), color: colors.accent),
+            if (book.durationMs != null)
+              StatusPill(
+                label: book.progressLabel.toUpperCase(),
+                color: colors.accent,
+              ),
           ],
         ),
         const SizedBox(height: 22),
@@ -84,9 +97,18 @@ class _BookDetailView extends ConsumerWidget {
         const SizedBox(height: 28),
         Row(
           children: [
-            Expanded(child: Metric(label: 'Capítulos', value: '${book.chapterCount}')),
-            Expanded(child: Metric(label: 'Segmentos', value: '${book.segmentCount}')),
-            Expanded(child: Metric(label: 'Motor', value: book.engine ?? '—')),
+            Expanded(
+              child: Metric(label: 'Capítulos', value: '${book.chapterCount}'),
+            ),
+            Expanded(
+              child: Metric(label: 'Segmentos', value: '${book.segmentCount}'),
+            ),
+            Expanded(
+              child: Metric(
+                label: 'Motor',
+                value: book.status == 'ready' ? (book.engine ?? '—') : '—',
+              ),
+            ),
           ],
         ),
         if (book.status != 'ready') ...[
@@ -114,8 +136,9 @@ class _BookDetailView extends ConsumerWidget {
       ],
     );
     return PageScaffold(
-      eyebrow: 'Libro',
-      title: book.title,
+      eyebrow: 'Biblioteca',
+      title: 'Ficha del libro',
+      maxContentWidth: 1000,
       actions: [
         IconButton(
           tooltip: 'Volver a la biblioteca',
@@ -132,10 +155,13 @@ class _BookDetailView extends ConsumerWidget {
           itemBuilder: (context) => const [
             PopupMenuItem(
               value: 'delete',
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.delete_outline),
-                title: Text('Eliminar libro'),
+              height: 44,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 18),
+                  SizedBox(width: 10),
+                  Text('Eliminar libro'),
+                ],
               ),
             ),
           ],
@@ -166,9 +192,14 @@ class _BookDetailView extends ConsumerWidget {
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BibliotecaRadii.sm,
-                onTap: () => context.push('/books/${book.id}/read?chapter=${chapter.index}'),
+                onTap: () => context.push(
+                  '/books/${book.id}/read?chapter=${chapter.index}',
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       SizedBox(
@@ -188,11 +219,17 @@ class _BookDetailView extends ConsumerWidget {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        chapter.durationMs == null ? '—' : _duration(chapter.durationMs!),
+                        chapter.durationMs == null
+                            ? '—'
+                            : _duration(chapter.durationMs!),
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                       const SizedBox(width: 6),
-                      Icon(Icons.chevron_right, size: 18, color: colors.inkFaint),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: colors.inkFaint,
+                      ),
                     ],
                   ),
                 ),
@@ -206,9 +243,18 @@ class _BookDetailView extends ConsumerWidget {
             spacing: 32,
             runSpacing: 18,
             children: [
-              Metric(label: 'Idioma declarado', value: book.declaredLanguage ?? book.language),
-              Metric(label: 'Voz', value: book.voice ?? '—'),
-              Metric(label: 'Velocidad', value: book.rate ?? '—'),
+              Metric(label: 'Idioma', value: book.language.toUpperCase()),
+              if (book.declaredLanguage != null &&
+                  book.declaredLanguage != book.language)
+                Metric(label: 'Declarado', value: book.declaredLanguage!),
+              Metric(
+                label: 'Voz',
+                value: book.status == 'ready' ? (book.voice ?? '—') : '—',
+              ),
+              Metric(
+                label: 'Velocidad',
+                value: book.status == 'ready' ? (book.rate ?? '—') : '—',
+              ),
               Metric(label: 'Archivo', value: book.sourceEpub ?? '—'),
             ],
           ),
@@ -217,7 +263,11 @@ class _BookDetailView extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Book book) async {
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Book book,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

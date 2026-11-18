@@ -53,12 +53,15 @@ class TtsConversionService {
       throw StateError('El modelo Piper no está completo.');
     }
     final manifestFile = File(p.join(directory, 'manifest.json'));
-    final manifest = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+    final manifest =
+        jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
     final rawChapters = manifest['chapters'];
     if (rawChapters is! List) {
       throw StateError('El manifiesto no tiene capítulos.');
     }
-    final chapters = book.chapters.take(maxChapters ?? book.chapters.length).toList(growable: false);
+    final chapters = book.chapters
+        .take(maxChapters ?? book.chapters.length)
+        .toList(growable: false);
     if (chapters.isEmpty) {
       throw StateError('El libro no tiene capítulos para convertir.');
     }
@@ -93,7 +96,8 @@ class TtsConversionService {
           chapterIndex: chapter.index,
           chapterTotal: chapters.length,
           fraction: completed / chapters.length,
-          message: 'Sintetizando capítulo ${chapter.index} de ${chapters.length}…',
+          message:
+              'Sintetizando capítulo ${chapter.index} de ${chapters.length}…',
         ),
       );
       final segmentTexts = {
@@ -121,14 +125,22 @@ class TtsConversionService {
       };
       final result = await renderChapterInBackground(payload);
       final samples = result['samples'] as Float32List;
-      final sampleRate = (result['sample_rate'] as num?)?.toInt() ?? model.sampleRate;
+      final sampleRate =
+          (result['sample_rate'] as num?)?.toInt() ?? model.sampleRate;
       if (samples.isEmpty) {
-        throw StateError('No se generó audio para el capítulo ${chapter.index}.');
+        throw StateError(
+          'No se generó audio para el capítulo ${chapter.index}.',
+        );
       }
       final durationMs = (samples.length * 1000 / sampleRate).round();
       final padded = chapter.index.toString().padLeft(3, '0');
-      final wavFile = File(p.join(temporaryDirectory.path, 'chapter_$padded.wav'));
-      await wavFile.writeAsBytes(wavWriter.encode(samples, sampleRate), flush: true);
+      final wavFile = File(
+        p.join(temporaryDirectory.path, 'chapter_$padded.wav'),
+      );
+      await wavFile.writeAsBytes(
+        wavWriter.encode(samples, sampleRate),
+        flush: true,
+      );
 
       var audioRelative = 'audio/chapters/chapter_$padded.wav';
       final mp3File = File(p.join(audioDirectory.path, 'chapter_$padded.mp3'));
@@ -140,7 +152,9 @@ class TtsConversionService {
         }
       }
       if (!await File(p.join(directory, audioRelative)).exists()) {
-        final fallback = File(p.join(audioDirectory.path, 'chapter_$padded.wav'));
+        final fallback = File(
+          p.join(audioDirectory.path, 'chapter_$padded.wav'),
+        );
         await wavFile.copy(fallback.path);
         audioRelative = 'audio/chapters/chapter_$padded.wav';
       }
@@ -166,7 +180,9 @@ class TtsConversionService {
         }
       }
       if (chapterMap == null) {
-        throw StateError('El manifiesto no contiene el capítulo ${chapter.index}.');
+        throw StateError(
+          'El manifiesto no contiene el capítulo ${chapter.index}.',
+        );
       }
       chapterMap
         ..['audio'] = audioRelative
@@ -192,7 +208,9 @@ class TtsConversionService {
       );
     }
 
-    manifest['status'] = completed == book.chapters.length ? 'ready' : 'converting';
+    manifest['status'] = completed == book.chapters.length
+        ? 'ready'
+        : 'converting';
     manifest['duration_ms'] = totalDuration;
     manifest['engine'] = 'piper';
     manifest['voice'] = model.id;
@@ -229,7 +247,9 @@ class TtsConversionService {
       ].join(' ');
       final session = await FFmpegKit.execute(command);
       final code = await session.getReturnCode();
-      return ReturnCode.isSuccess(code) && await output.exists() && await output.length() > 0;
+      return ReturnCode.isSuccess(code) &&
+          await output.exists() &&
+          await output.length() > 0;
     } catch (_) {
       return false;
     }

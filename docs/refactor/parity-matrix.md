@@ -16,13 +16,13 @@ la estable.
 | TTS local Piper, descarga/instalación de voces | Implementado y verificado |
 | Timings estimados por segmento/palabra | Implementado; tests |
 | M4B con capítulos y M4B ambientado | Implementado; verificado con FFmpegKit |
-| Ambiente procedural en vivo y export | Implementado; cinco camas verificadas |
+| Ambiente en vivo y export | Implementado; seis grabaciones CC0 y plan por capítulo |
 | Bookmarks y posición de lectura | Implementado con JSON por libro; tests |
 | Windows: instalador/ZIP, CI | Implementado; instalador sin firma |
 | Linux: build/CI | Implementado en CI |
 | macOS: DMG arm64/x64 sin firma | Implementado en CI, igual que Tauri |
 | Android: APK arm64, firma opcional | Implementado; sin dispositivo físico |
-| Drift, FTS5, jobs persistentes | Pendiente |
+| Drift, FTS5, jobs persistentes | Pendiente (bookmarks/plan usan JSON por libro) |
 | Lector paginado/Libro y modo Original | Pendiente |
 | Audio en segundo plano/media session | Pendiente |
 | Reparar sync, re-segmentar, proveedores cloud | Pendiente |

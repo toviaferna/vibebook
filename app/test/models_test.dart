@@ -22,8 +22,16 @@ void main() {
           'audio': 'audio/chapters/chapter_001.mp3',
           'duration_ms': 120000,
           'segments': [
-            {'id': 'c001p0001s00', 'paragraph_index': 1, 'text': 'La casa olía a sal.'},
-            {'id': 'c001p0002s00', 'paragraph_index': 2, 'text': 'El gato miraba.'},
+            {
+              'id': 'c001p0001s00',
+              'paragraph_index': 1,
+              'text': 'La casa olía a sal.',
+            },
+            {
+              'id': 'c001p0002s00',
+              'paragraph_index': 2,
+              'text': 'El gato miraba.',
+            },
           ],
         },
       ],
@@ -61,10 +69,7 @@ void main() {
       'ambiencePreset': 'sea',
       'ambienceVolume': 0.5,
       'ambienceDucking': 0.2,
-      'reader': {
-        'playbackRate': 1.25,
-        'volume': 0.8,
-      },
+      'reader': {'playbackRate': 1.25, 'volume': 0.8},
     });
     expect(settings.themeMode, 'dark');
     expect(settings.piperModelId, 'voice-a');
@@ -75,7 +80,10 @@ void main() {
     expect(settings.ambienceDucking, 0.2);
     expect(settings.reader.playbackRate, 1.25);
     expect(settings.reader.volume, 0.8);
-    final updated = settings.copyWith(ambiencePreset: 'fire', ambienceVolume: 0.7);
+    final updated = settings.copyWith(
+      ambiencePreset: 'fire',
+      ambienceVolume: 0.7,
+    );
     expect(updated.ambiencePreset, 'fire');
     expect(updated.ambienceVolume, 0.7);
     expect(updated.ambienceEnabled, isTrue);

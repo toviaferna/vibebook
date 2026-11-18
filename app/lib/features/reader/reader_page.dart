@@ -9,8 +9,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 
 import '../../app/providers.dart';
+import '../../core/design/theme.dart';
 import '../../core/design/tokens.dart';
-import '../../data/ambience/ambience_generator.dart';
+import '../../data/ambience/ambience_library.dart';
 import '../../domain/ambience.dart';
 import '../../domain/bookmarks.dart';
 import '../../domain/models.dart';
@@ -41,6 +42,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   ChapterTiming? _timing;
   String? _bookDirectory;
   String? _ambienceLoadedPreset;
+  String? _ambienceChapterPreset;
+  bool _ambiencePlanSuppressed = false;
+  bool _ambiencePending = false;
+  String? _pendingAmbienceChapterPreset;
+  double _ambienceVolume = 0;
   bool _restored = false;
   bool _ambienceSynced = false;
   bool _ambienceStarting = false;
@@ -94,26 +100,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   Widget build(BuildContext context) {
     final bookAsync = ref.watch(bookProvider(widget.bookId));
     final bookmarkAsync = ref.watch(bookmarkDataProvider(widget.bookId));
+    final ambiencePlanAsync = ref.watch(ambiencePlanProvider(widget.bookId));
     final settings = ref.watch(settingsProvider).value;
     final preferences = settings?.reader ?? const ReaderPreferences();
     final palette = ReaderPalette.byName(preferences.palette);
-    if (!_ambienceSynced && settings != null) {
-      _ambienceSynced = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _syncAmbience(settings);
-        }
-      });
-    }
     return bookAsync.when(
       data: (book) {
         if (book == null) {
           return Scaffold(
-            appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
+            appBar: AppBar(
+              leading: BackButton(onPressed: () => context.go('/')),
+            ),
             body: const Center(child: Text('No encontré este libro.')),
           );
         }
-        final queryChapter = int.tryParse(GoRouterState.of(context).uri.queryParameters['chapter'] ?? '');
+        final queryChapter = int.tryParse(
+          GoRouterState.of(context).uri.queryParameters['chapter'] ?? '',
+        );
         final stored = bookmarkAsync.value;
         if (!_restored && stored != null) {
           _restored = true;
@@ -125,7 +128,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             _pendingSeekMs = state.positionMs;
           }
         }
-        final selected = _chapterIndex ??
+        final selected =
+            _chapterIndex ??
             queryChapter ??
             settings?.lastChapterIndex ??
             (book.chapters.isNotEmpty ? book.chapters.first.index : 1);
@@ -135,6 +139,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         );
         _bookDirectory = book.directoryPath;
         _currentChapterIndex = chapter.index;
+        final chapterPlan = ambiencePlanAsync.value?.forChapter(chapter.index);
+        final chapterPreset = _ambiencePlanSuppressed
+            ? null
+            : chapterPlan?.presetId;
+        if (settings != null &&
+            (!_ambienceSynced || _ambienceChapterPreset != chapterPreset)) {
+          _ambienceSynced = true;
+          _ambienceChapterPreset = chapterPreset;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _syncAmbience(settings, chapterPreset: chapterPreset);
+            }
+          });
+        }
         if (chapter.audio != null && _loadedChapterIndex != chapter.index) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -150,162 +168,216 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             }
           });
         }
-        if (settings?.lastBookId != book.id || settings?.lastChapterIndex != chapter.index) {
+        if (settings?.lastBookId != book.id ||
+            settings?.lastChapterIndex != chapter.index) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              ref.read(settingsProvider.notifier).rememberBook(book.id, chapter.index);
+              ref
+                  .read(settingsProvider.notifier)
+                  .rememberBook(book.id, chapter.index);
             }
           });
         }
-        return Scaffold(
-          backgroundColor: palette.paper,
-          appBar: AppBar(
-            backgroundColor: palette.paper,
-            foregroundColor: palette.ink,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: IconButton(
-              tooltip: 'Volver al libro',
-              onPressed: () => context.push('/books/${book.id}'),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: palette.ink, fontSize: 16, fontWeight: FontWeight.w600)),
-                Text(chapter.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: palette.inkFaint, fontSize: 11)),
-              ],
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Ambiente',
-                onPressed: () => _showAmbience(context, palette),
-                icon: Icon(
-                  settings?.ambienceEnabled == true ? Icons.forest : Icons.forest_outlined,
-                  color: settings?.ambienceEnabled == true ? palette.accent : palette.inkSoft,
+        return Theme(
+          data: buildBibliotecaTheme(dark: palette.name == 'night'),
+          child: Builder(
+            builder: (context) {
+              return Scaffold(
+                backgroundColor: palette.paper,
+                appBar: AppBar(
+                  backgroundColor: palette.paper,
+                  foregroundColor: palette.ink,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  leading: IconButton(
+                    tooltip: 'Volver al libro',
+                    onPressed: () => context.push('/books/${book.id}'),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: palette.ink,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        chapter.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: palette.inkFaint, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    IconButton(
+                      tooltip: 'Ambiente',
+                      onPressed: () => _showAmbience(context, palette),
+                      icon: Icon(
+                        settings?.ambienceEnabled == true
+                            ? Icons.forest
+                            : Icons.forest_outlined,
+                        color: settings?.ambienceEnabled == true
+                            ? palette.accent
+                            : palette.inkSoft,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Marcadores',
+                      onPressed: () => _showBookmarks(context, book, palette),
+                      icon: Icon(
+                        Icons.bookmarks_outlined,
+                        color: palette.inkSoft,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Índice',
+                      onPressed: () =>
+                          _showToc(context, book, palette, chapter.index),
+                      icon: Icon(Icons.list, color: palette.inkSoft),
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Más opciones',
+                      onSelected: (value) {
+                        if (value == 'search') {
+                          _showSearch(book);
+                        } else if (value == 'typography') {
+                          _showSettings(context, preferences, palette);
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: 'search',
+                          height: 44,
+                          child: Row(
+                            children: [
+                              Icon(Icons.search, size: 18),
+                              SizedBox(width: 10),
+                              Text('Buscar en el libro'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'typography',
+                          height: 44,
+                          child: Row(
+                            children: [
+                              Icon(Icons.text_fields, size: 18),
+                              SizedBox(width: 10),
+                              Text('Ajustes de lectura'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              IconButton(
-                tooltip: 'Marcadores',
-                onPressed: () => _showBookmarks(context, book, palette),
-                icon: Icon(Icons.bookmarks_outlined, color: palette.inkSoft),
-              ),
-              IconButton(
-                tooltip: 'Índice',
-                onPressed: () => _showToc(context, book, palette, chapter.index),
-                icon: Icon(Icons.list, color: palette.inkSoft),
-              ),
-              PopupMenuButton<String>(
-                tooltip: 'Más opciones',
-                onSelected: (value) {
-                  if (value == 'search') {
-                    _showSearch(book);
-                  } else if (value == 'typography') {
-                    _showSettings(context, preferences, palette);
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'search',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.search),
-                      title: Text('Buscar en el libro'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'typography',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.text_fields),
-                      title: Text('Ajustes de lectura'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: Scrollbar(
-                  controller: _scrollController,
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              chapter.title,
-                              style: TextStyle(
-                                fontFamily: 'serif',
-                                fontSize: preferences.fontSize + 12,
-                                height: 1.15,
-                                fontWeight: FontWeight.w600,
-                                color: palette.ink,
+                body: Column(
+                  children: [
+                    Expanded(
+                      child: Scrollbar(
+                        controller: _scrollController,
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 720),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    chapter.title,
+                                    style: TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: preferences.fontSize + 12,
+                                      height: 1.15,
+                                      fontWeight: FontWeight.w600,
+                                      color: palette.ink,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    width: 44,
+                                    height: 2,
+                                    color: palette.accent,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  for (final image in book.images.where(
+                                    (image) =>
+                                        image.chapterIndex == chapter.index,
+                                  ))
+                                    _ReaderImage(
+                                      book: book,
+                                      image: image,
+                                      palette: palette,
+                                    ),
+                                  for (final segment in chapter.segments)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 18,
+                                      ),
+                                      child: Text.rich(
+                                        _segmentSpan(
+                                          segment,
+                                          palette: palette,
+                                          preferences: preferences,
+                                          positionMs: _position.inMilliseconds,
+                                        ),
+                                      ),
+                                    ),
+                                  if (chapter.segments.isEmpty)
+                                    Text(
+                                      'Este capítulo no tiene texto legible.',
+                                      style: TextStyle(color: palette.inkSoft),
+                                    ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Container(width: 44, height: 2, color: palette.accent),
-                            const SizedBox(height: 24),
-                            for (final image in book.images.where((image) => image.chapterIndex == chapter.index))
-                              _ReaderImage(
-                                book: book,
-                                image: image,
-                                palette: palette,
-                              ),
-                            for (final segment in chapter.segments)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 18),
-                                child: Text.rich(
-                                  _segmentSpan(
-                                    segment,
-                                    palette: palette,
-                                    preferences: preferences,
-                                    positionMs: _position.inMilliseconds,
-                                  ),
-                                ),
-                              ),
-                            if (chapter.segments.isEmpty)
-                              Text(
-                                'Este capítulo no tiene texto legible.',
-                                style: TextStyle(color: palette.inkSoft),
-                              ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                    _ReaderFooter(
+                      palette: palette,
+                      chapter: chapter,
+                      book: book,
+                      hasAudio: chapter.audio != null,
+                      isPlaying: _isPlaying,
+                      position: _position,
+                      duration: _duration,
+                      onPlayPause: chapter.audio == null ? null : _togglePlay,
+                      onSeekBack: chapter.audio == null
+                          ? null
+                          : () => _seek(Duration(seconds: -15)),
+                      onSeekForward: chapter.audio == null
+                          ? null
+                          : () => _seek(const Duration(seconds: 15)),
+                      onConvert: chapter.audio == null
+                          ? () => context.push('/books/${book.id}/studio')
+                          : null,
+                      onPrevious: chapter.index > book.chapters.first.index
+                          ? () => _goToChapter(book, chapter.index - 1)
+                          : null,
+                      onNext: chapter.index < book.chapters.last.index
+                          ? () => _goToChapter(book, chapter.index + 1)
+                          : null,
+                    ),
+                  ],
                 ),
-              ),
-              _ReaderFooter(
-                palette: palette,
-                chapter: chapter,
-                book: book,
-                hasAudio: chapter.audio != null,
-                isPlaying: _isPlaying,
-                position: _position,
-                duration: _duration,
-                onPlayPause: chapter.audio == null ? null : _togglePlay,
-                onSeekBack: chapter.audio == null ? null : () => _seek(Duration(seconds: -15)),
-                onSeekForward: chapter.audio == null ? null : () => _seek(const Duration(seconds: 15)),
-                onConvert: chapter.audio == null ? () => context.push('/books/${book.id}/studio') : null,
-                onPrevious: chapter.index > book.chapters.first.index
-                    ? () => _goToChapter(book, chapter.index - 1)
-                    : null,
-                onNext: chapter.index < book.chapters.last.index
-                    ? () => _goToChapter(book, chapter.index + 1)
-                    : null,
-              ),
-            ],
+              );
+            },
           ),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) => Scaffold(
         appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
         body: Center(child: Text('$error')),
@@ -355,9 +427,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (directory == null) {
       return;
     }
-    final relative = chapter.timing ??
+    final relative =
+        chapter.timing ??
         'timings/chapter_${chapter.index.toString().padLeft(3, '0')}.json';
-    final path = p.isAbsolute(relative) ? relative : p.join(directory, relative);
+    final path = p.isAbsolute(relative)
+        ? relative
+        : p.join(directory, relative);
     final file = File(path);
     if (!await file.exists()) {
       if (mounted) {
@@ -389,12 +464,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       height: 1.72,
       color: palette.ink,
     );
-    final timingSegment = _timing?.segments.firstWhereOrNull((item) => item.id == segment.id);
-    final segmentActive = timingSegment != null &&
+    final timingSegment = _timing?.segments.firstWhereOrNull(
+      (item) => item.id == segment.id,
+    );
+    final segmentActive =
+        timingSegment != null &&
         positionMs >= timingSegment.startMs &&
         positionMs < timingSegment.endMs;
-    final words = RegExp(r'\S+').allMatches(segment.text).toList(growable: false);
-    if (!preferences.karaoke || timingSegment == null || timingSegment.words.isEmpty) {
+    final words = RegExp(r'\S+')
+        .allMatches(segment.text)
+        .toList(growable: false);
+    if (!preferences.karaoke ||
+        timingSegment == null ||
+        timingSegment.words.isEmpty) {
       return TextSpan(
         text: segment.text,
         style: baseStyle.copyWith(
@@ -407,10 +489,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     for (var index = 0; index < words.length; index++) {
       final match = words[index];
       if (match.start > cursor) {
-        spans.add(TextSpan(text: segment.text.substring(cursor, match.start), style: baseStyle));
+        spans.add(
+          TextSpan(
+            text: segment.text.substring(cursor, match.start),
+            style: baseStyle,
+          ),
+        );
       }
-      final wordTiming = index < timingSegment.words.length ? timingSegment.words[index] : null;
-      final wordActive = wordTiming != null &&
+      final wordTiming = index < timingSegment.words.length
+          ? timingSegment.words[index]
+          : null;
+      final wordActive =
+          wordTiming != null &&
           positionMs >= wordTiming.startMs &&
           positionMs < wordTiming.endMs;
       spans.add(
@@ -420,8 +510,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
             backgroundColor: wordActive
                 ? palette.highlightWord
                 : segmentActive
-                    ? palette.highlight
-                    : null,
+                ? palette.highlight
+                : null,
             fontWeight: wordActive ? FontWeight.w600 : null,
           ),
         ),
@@ -429,7 +519,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       cursor = match.end;
     }
     if (cursor < segment.text.length) {
-      spans.add(TextSpan(text: segment.text.substring(cursor), style: baseStyle));
+      spans.add(
+        TextSpan(text: segment.text.substring(cursor), style: baseStyle),
+      );
     }
     return TextSpan(style: baseStyle, children: spans);
   }
@@ -451,35 +543,75 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     await _player.seek(clamped);
   }
 
-  Future<void> _syncAmbience(AppSettings settings) async {
+  Future<void> _syncAmbience(
+    AppSettings settings, {
+    String? chapterPreset,
+  }) async {
+    if (_ambienceStarting) {
+      _ambiencePending = true;
+      _pendingAmbienceChapterPreset = chapterPreset;
+      return;
+    }
     if (!settings.ambienceEnabled) {
-      await _ambiencePlayer.stop();
+      if (_ambienceLoadedPreset != null) {
+        await _fadeAmbienceTo(0);
+        await _ambiencePlayer.stop();
+      }
       _ambienceLoadedPreset = null;
       return;
     }
-    if (_ambienceStarting) {
-      return;
-    }
-    final preset = AmbiencePresetDetails.byId(settings.ambiencePreset);
-    final volume = (settings.ambienceVolume * (_isPlaying ? settings.ambienceDucking : 1.0))
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final preset = AmbiencePresetDetails.byId(
+      chapterPreset ?? settings.ambiencePreset,
+    );
+    final volume =
+        (settings.ambienceVolume *
+                (_isPlaying ? settings.ambienceDucking : 1.0))
+            .clamp(0.0, 1.0)
+            .toDouble();
     if (_ambienceLoadedPreset == preset.id) {
       await _ambiencePlayer.setVolume(volume);
+      _ambienceVolume = volume;
       return;
     }
     _ambienceStarting = true;
     try {
-      final file = await const AmbienceGenerator().ensurePreset(preset);
-      await _ambiencePlayer.stop();
+      if (_ambienceLoadedPreset != null) {
+        await _fadeAmbienceTo(0);
+        await _ambiencePlayer.stop();
+      }
+      final file = await const AmbienceLibrary().ensurePreset(preset);
       await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ambiencePlayer.setVolume(volume);
+      _ambienceVolume = 0;
+      await _ambiencePlayer.setVolume(0);
       await _ambiencePlayer.play(DeviceFileSource(file.path));
+      await _fadeAmbienceTo(volume);
       _ambienceLoadedPreset = preset.id;
     } catch (_) {
       _ambienceLoadedPreset = null;
     } finally {
       _ambienceStarting = false;
+      if (_ambiencePending && mounted) {
+        _ambiencePending = false;
+        final latest = ref.read(settingsProvider).value;
+        if (latest != null) {
+          unawaited(
+            _syncAmbience(latest, chapterPreset: _pendingAmbienceChapterPreset),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _fadeAmbienceTo(double target) async {
+    const steps = 8;
+    final start = _ambienceVolume;
+    for (var step = 1; step <= steps; step++) {
+      final value = (start + (target - start) * step / steps)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      _ambienceVolume = value;
+      await _ambiencePlayer.setVolume(value);
+      await Future<void>.delayed(const Duration(milliseconds: 70));
     }
   }
 
@@ -491,157 +623,240 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   void _updateAmbienceVolume() {
     final settings = ref.read(settingsProvider).value;
-    if (settings == null || !settings.ambienceEnabled || _ambienceLoadedPreset == null) {
+    if (settings == null ||
+        !settings.ambienceEnabled ||
+        _ambienceLoadedPreset == null) {
       return;
     }
-    final volume = (settings.ambienceVolume * (_isPlaying ? settings.ambienceDucking : 1.0))
-        .clamp(0.0, 1.0)
-        .toDouble();
+    final volume =
+        (settings.ambienceVolume *
+                (_isPlaying ? settings.ambienceDucking : 1.0))
+            .clamp(0.0, 1.0)
+            .toDouble();
+    _ambienceVolume = volume;
     _ambiencePlayer.setVolume(volume);
   }
 
-  Future<void> _showAmbience(BuildContext context, ReaderPalette palette) async {
+  Future<void> _showAmbience(
+    BuildContext context,
+    ReaderPalette palette,
+  ) async {
     final current = ref.read(settingsProvider).value ?? const AppSettings();
     var enabled = current.ambienceEnabled;
     var preset = AmbiencePresetDetails.byId(current.ambiencePreset);
     var volume = current.ambienceVolume;
     var ducking = current.ambienceDucking;
+    final chapterIndex = _currentChapterIndex;
+    final planPresetId = chapterIndex == null
+        ? null
+        : ref
+              .read(ambiencePlanProvider(widget.bookId))
+              .value
+              ?.forChapter(chapterIndex)
+              ?.presetId;
+    var followingPlan = planPresetId != null && !_ambiencePlanSuppressed;
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
       isScrollControlled: true,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> apply({
-              bool? enabledValue,
-              AmbiencePreset? presetValue,
-              double? volumeValue,
-              double? duckingValue,
-            }) async {
-              enabled = enabledValue ?? enabled;
-              preset = presetValue ?? preset;
-              volume = volumeValue ?? volume;
-              ducking = duckingValue ?? ducking;
-              await ref.read(settingsProvider.notifier).updateAmbience(
-                    enabled: enabled,
-                    preset: preset.id,
-                    volume: volume,
-                    ducking: ducking,
-                  );
-              final updated = ref.read(settingsProvider).value;
-              if (updated != null) {
-                await _syncAmbience(updated);
-              }
-              if (mounted) {
-                setModalState(() {});
-              }
-            }
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                final effective = followingPlan
+                    ? AmbiencePresetDetails.byId(planPresetId)
+                    : preset;
+                Future<void> apply({
+                  bool? enabledValue,
+                  AmbiencePreset? presetValue,
+                  double? volumeValue,
+                  double? duckingValue,
+                  bool? followPlan,
+                }) async {
+                  enabled = enabledValue ?? enabled;
+                  preset = presetValue ?? preset;
+                  volume = volumeValue ?? volume;
+                  ducking = duckingValue ?? ducking;
+                  if (followPlan != null) {
+                    followingPlan = followPlan;
+                    _ambiencePlanSuppressed = !followPlan;
+                    _ambienceChapterPreset = followPlan ? planPresetId : null;
+                  }
+                  setModalState(() {});
+                  await ref
+                      .read(settingsProvider.notifier)
+                      .updateAmbience(
+                        enabled: enabled,
+                        preset: preset.id,
+                        volume: volume,
+                        ducking: ducking,
+                      );
+                  final updated = ref.read(settingsProvider).value;
+                  if (updated != null) {
+                    await _syncAmbience(
+                      updated,
+                      chapterPreset: followingPlan ? planPresetId : null,
+                    );
+                  }
+                  if (mounted) {
+                    setModalState(() {});
+                  }
+                }
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Ambiente',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Ambiente',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: palette.ink,
+                              ),
+                            ),
+                          ),
+                          Switch(
+                            value: enabled,
+                            onChanged: (value) => apply(enabledValue: value),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'Grabaciones de campo CC0. Se atenúan mientras suena la voz.',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      if (planPresetId != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          followingPlan
+                              ? 'Este capítulo usa ${AmbiencePresetDetails.byId(planPresetId).label} según el plan del libro.'
+                              : 'Usás el paisaje global; el plan del libro no se aplica en este capítulo.',
                           style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            color: palette.ink,
+                            color: palette.inkFaint,
+                            fontSize: 11,
                           ),
                         ),
+                        if (!followingPlan)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: () =>
+                                  apply(followPlan: true, enabledValue: true),
+                              child: const Text('Volver al plan del libro'),
+                            ),
+                          ),
+                      ],
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final item in AmbiencePreset.values)
+                            ChoiceChip(
+                              label: Text(item.label),
+                              selected: effective == item,
+                              onSelected: enabled
+                                  ? (_) => apply(
+                                      presetValue: item,
+                                      enabledValue: true,
+                                      followPlan: false,
+                                    )
+                                  : null,
+                            ),
+                        ],
                       ),
-                      Switch(
-                        value: enabled,
-                        onChanged: (value) => apply(enabledValue: value),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Volumen',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      Slider(
+                        value: volume,
+                        min: 0,
+                        max: 1,
+                        divisions: 20,
+                        label: '${(volume * 100).round()}%',
+                        onChanged: enabled
+                            ? (value) {
+                                setModalState(() => volume = value);
+                              }
+                            : null,
+                        onChangeEnd: enabled
+                            ? (value) => apply(volumeValue: value)
+                            : null,
+                      ),
+                      Text(
+                        'Atenuación con la voz',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      Slider(
+                        value: ducking,
+                        min: 0,
+                        max: 1,
+                        divisions: 20,
+                        label: '${(ducking * 100).round()}%',
+                        onChanged: enabled
+                            ? (value) {
+                                setModalState(() => ducking = value);
+                              }
+                            : null,
+                        onChangeEnd: enabled
+                            ? (value) => apply(duckingValue: value)
+                            : null,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              effective.description,
+                              style: TextStyle(
+                                color: palette.inkFaint,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => apply(enabledValue: false),
+                            child: const Text('Detener'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  Text(
-                    'Sonido sintetizado en tu equipo. Se atenúa mientras suena la voz.',
-                    style: TextStyle(color: palette.inkSoft, fontSize: 12),
-                  ),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final item in AmbiencePreset.values)
-                        ChoiceChip(
-                          label: Text(item.label),
-                          selected: preset == item,
-                          onSelected: enabled
-                              ? (_) => apply(presetValue: item, enabledValue: true)
-                              : null,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Volumen', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  Slider(
-                    value: volume,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: '${(volume * 100).round()}%',
-                    onChanged: enabled
-                        ? (value) {
-                            setModalState(() => volume = value);
-                          }
-                        : null,
-                    onChangeEnd: enabled ? (value) => apply(volumeValue: value) : null,
-                  ),
-                  Text('Atenuación con la voz', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  Slider(
-                    value: ducking,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: '${(ducking * 100).round()}%',
-                    onChanged: enabled
-                        ? (value) {
-                            setModalState(() => ducking = value);
-                          }
-                        : null,
-                    onChangeEnd: enabled ? (value) => apply(duckingValue: value) : null,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          preset.description,
-                          style: TextStyle(color: palette.inkFaint, fontSize: 11),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => apply(enabledValue: false),
-                        child: const Text('Detener'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
   }
 
-  Future<void> _goToChapter(Book book, int index, {int? positionMs, bool autoPlay = false}) async {
+  Future<void> _goToChapter(
+    Book book,
+    int index, {
+    int? positionMs,
+    bool autoPlay = false,
+  }) async {
     setState(() {
       _chapterIndex = index;
       _position = Duration.zero;
       _duration = Duration.zero;
     });
     _restored = true;
+    _ambiencePlanSuppressed = false;
     _player.stop();
     final chapter = book.chapters.firstWhere(
       (item) => item.index == index,
@@ -673,7 +888,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (book == null || currentIndex == null) {
       return;
     }
-    final position = book.chapters.indexWhere((chapter) => chapter.index == currentIndex);
+    final position = book.chapters.indexWhere(
+      (chapter) => chapter.index == currentIndex,
+    );
     if (position < 0 || position + 1 >= book.chapters.length) {
       return;
     }
@@ -688,7 +905,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     try {
-      await ref.read(bookmarkRepositoryProvider).saveReadingState(
+      await ref
+          .read(bookmarkRepositoryProvider)
+          .saveReadingState(
             directory,
             ReadingState(
               chapterIndex: chapter,
@@ -732,7 +951,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     if (directory == null) {
       return;
     }
-    await ref.read(bookmarkRepositoryProvider).removeBookmark(directory, bookmarkId);
+    await ref
+        .read(bookmarkRepositoryProvider)
+        .removeBookmark(directory, bookmarkId);
     ref.invalidate(bookmarkDataProvider(widget.bookId));
   }
 
@@ -757,7 +978,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  Future<void> _showBookmarks(BuildContext context, Book book, ReaderPalette palette) async {
+  Future<void> _showBookmarks(
+    BuildContext context,
+    Book book,
+    ReaderPalette palette,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
@@ -765,7 +990,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       builder: (context) {
         return Consumer(
           builder: (context, ref, child) {
-            final data = ref.watch(bookmarkDataProvider(widget.bookId)).value ??
+            final data =
+                ref.watch(bookmarkDataProvider(widget.bookId)).value ??
                 BookmarkData.empty;
             final bookmarks = data.bookmarks.reversed.toList(growable: false);
             return DraggableScrollableSheet(
@@ -815,17 +1041,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(Icons.bookmark, color: palette.accent),
                           title: Text(
-                            bookmark.chapterTitle ?? 'Capítulo ${bookmark.chapterIndex}',
+                            bookmark.chapterTitle ??
+                                'Capítulo ${bookmark.chapterIndex}',
                             style: TextStyle(color: palette.ink),
                           ),
                           subtitle: Text(
                             _formatPosition(bookmark.positionMs),
-                            style: TextStyle(color: palette.inkFaint, fontSize: 11),
+                            style: TextStyle(
+                              color: palette.inkFaint,
+                              fontSize: 11,
+                            ),
                           ),
                           trailing: IconButton(
                             tooltip: 'Eliminar marcador',
                             onPressed: () => _removeBookmark(bookmark.id),
-                            icon: Icon(Icons.delete_outline, color: palette.inkFaint),
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: palette.inkFaint,
+                            ),
                           ),
                           onTap: () {
                             Navigator.of(context).pop();
@@ -846,7 +1079,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  Future<void> _showToc(BuildContext context, Book book, ReaderPalette palette, int current) async {
+  Future<void> _showToc(
+    BuildContext context,
+    Book book,
+    ReaderPalette palette,
+    int current,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
@@ -865,7 +1103,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 if (index == 0) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text('Índice', style: TextStyle(fontFamily: 'serif', fontSize: 24, fontWeight: FontWeight.w600, color: palette.ink)),
+                    child: Text(
+                      'Índice',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: palette.ink,
+                      ),
+                    ),
                   );
                 }
                 final chapter = book.chapters[index - 1];
@@ -879,8 +1125,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
-                  subtitle: Text('Capítulo ${chapter.index}', style: TextStyle(color: palette.inkFaint, fontSize: 11)),
-                  trailing: active ? Icon(Icons.bookmark, size: 18, color: palette.accent) : null,
+                  subtitle: Text(
+                    'Capítulo ${chapter.index}',
+                    style: TextStyle(color: palette.inkFaint, fontSize: 11),
+                  ),
+                  trailing: active
+                      ? Icon(Icons.bookmark, size: 18, color: palette.accent)
+                      : null,
                   onTap: () {
                     Navigator.of(context).pop();
                     _goToChapter(book, chapter.index);
@@ -894,101 +1145,150 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     );
   }
 
-  Future<void> _showSettings(BuildContext context, ReaderPreferences preferences, ReaderPalette palette) async {
+  Future<void> _showSettings(
+    BuildContext context,
+    ReaderPreferences preferences,
+    ReaderPalette palette,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: palette.surface,
+      isScrollControlled: true,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final current = ref.read(readerPreferencesProvider);
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Lectura', style: TextStyle(fontFamily: 'serif', fontSize: 24, fontWeight: FontWeight.w600, color: palette.ink)),
-                  const SizedBox(height: 18),
-                  Text('Paleta', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: StatefulBuilder(
+              builder: (context, setModalState) {
+                final current = ref.read(readerPreferencesProvider);
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final entry in const {'paper': 'Papel', 'sepia': 'Sepia', 'night': 'Noche'}.entries)
-                        ChoiceChip(
-                          label: Text(entry.value),
-                          selected: current.palette == entry.key,
-                          onSelected: (_) {
-                            ref.read(settingsProvider.notifier).updateReader(current.copyWith(palette: entry.key));
-                            setModalState(() {});
-                          },
+                      Text(
+                        'Lectura',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: palette.ink,
                         ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Paleta',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final entry in const {
+                            'paper': 'Papel',
+                            'sepia': 'Sepia',
+                            'night': 'Noche',
+                          }.entries)
+                            ChoiceChip(
+                              label: Text(entry.value),
+                              selected: current.palette == entry.key,
+                              onSelected: (_) {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .updateReader(
+                                      current.copyWith(palette: entry.key),
+                                    );
+                                setModalState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Tamaño',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      Slider(
+                        value: current.fontSize,
+                        min: 15,
+                        max: 28,
+                        divisions: 13,
+                        label: '${current.fontSize.round()}',
+                        onChanged: (value) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .updateReader(current.copyWith(fontSize: value));
+                          setModalState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Karaoke',
+                          style: TextStyle(color: palette.ink),
+                        ),
+                        value: current.karaoke,
+                        onChanged: (value) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .updateReader(current.copyWith(karaoke: value));
+                          setModalState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Velocidad de audio',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          for (final speed in const [0.75, 1.0, 1.25, 1.5, 2.0])
+                            ChoiceChip(
+                              label: Text('${speed}x'),
+                              selected: current.playbackRate == speed,
+                              onSelected: (_) {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .updateReader(
+                                      current.copyWith(playbackRate: speed),
+                                    );
+                                _applyPlaybackPreferences();
+                                setModalState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Volumen',
+                        style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                      ),
+                      Slider(
+                        value: current.volume,
+                        min: 0,
+                        max: 1,
+                        divisions: 20,
+                        label: '${(current.volume * 100).round()}%',
+                        onChanged: (value) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .updateReader(current.copyWith(volume: value));
+                          _applyPlaybackPreferences();
+                          setModalState(() {});
+                        },
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  Text('Tamaño', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  Slider(
-                    value: current.fontSize,
-                    min: 15,
-                    max: 28,
-                    divisions: 13,
-                    label: '${current.fontSize.round()}',
-                    onChanged: (value) {
-                      ref.read(settingsProvider.notifier).updateReader(current.copyWith(fontSize: value));
-                      setModalState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Karaoke', style: TextStyle(color: palette.ink)),
-                    value: current.karaoke,
-                    onChanged: (value) {
-                      ref.read(settingsProvider.notifier).updateReader(current.copyWith(karaoke: value));
-                      setModalState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Velocidad de audio', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final speed in const [0.75, 1.0, 1.25, 1.5, 2.0])
-                        ChoiceChip(
-                          label: Text('${speed}x'),
-                          selected: current.playbackRate == speed,
-                          onSelected: (_) {
-                            ref.read(settingsProvider.notifier).updateReader(
-                                  current.copyWith(playbackRate: speed),
-                                );
-                            _applyPlaybackPreferences();
-                            setModalState(() {});
-                          },
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Volumen', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
-                  Slider(
-                    value: current.volume,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    label: '${(current.volume * 100).round()}%',
-                    onChanged: (value) {
-                      ref.read(settingsProvider.notifier).updateReader(
-                            current.copyWith(volume: value),
-                          );
-                      _applyPlaybackPreferences();
-                      setModalState(() {});
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -1009,7 +1309,7 @@ class _SearchHit {
 
 class _BookSearchDelegate extends SearchDelegate<void> {
   _BookSearchDelegate({required this.book, required this.onSelect})
-      : super(searchFieldLabel: 'Buscar en el libro');
+    : super(searchFieldLabel: 'Buscar en el libro');
 
   final Book book;
   final ValueChanged<int> onSelect;
@@ -1094,12 +1394,13 @@ class _BookSearchDelegate extends SearchDelegate<void> {
       itemBuilder: (context, index) {
         final hit = hits[index];
         return ListTile(
-          leading: CircleAvatar(
-            radius: 16,
-            child: Text('${hit.chapterIndex}'),
-          ),
+          leading: CircleAvatar(radius: 16, child: Text('${hit.chapterIndex}')),
           title: Text(hit.chapterTitle),
-          subtitle: Text(hit.snippet, maxLines: 2, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            hit.snippet,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           onTap: () {
             close(context, null);
             onSelect(hit.chapterIndex);
@@ -1111,7 +1412,11 @@ class _BookSearchDelegate extends SearchDelegate<void> {
 }
 
 class _ReaderImage extends StatelessWidget {
-  const _ReaderImage({required this.book, required this.image, required this.palette});
+  const _ReaderImage({
+    required this.book,
+    required this.image,
+    required this.palette,
+  });
 
   final Book book;
   final BookImage image;
@@ -1138,14 +1443,19 @@ class _ReaderImage extends StatelessWidget {
             child: Image.file(
               file,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+              errorBuilder: (context, error, stackTrace) =>
+                  const SizedBox.shrink(),
             ),
           ),
           if (image.caption != null && image.caption!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               image.caption!,
-              style: TextStyle(color: palette.inkFaint, fontSize: 11, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                color: palette.inkFaint,
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ],
@@ -1208,23 +1518,29 @@ class _ReaderFooter extends StatelessWidget {
                     IconButton(
                       tooltip: 'Retroceder 15 segundos',
                       onPressed: onSeekBack,
-                      icon: Icon(Icons.replay_10, color: palette.inkSoft),
+                      icon: Icon(Icons.replay, color: palette.inkSoft),
                     ),
                     IconButton(
                       tooltip: isPlaying ? 'Pausar' : 'Reproducir',
                       onPressed: onPlayPause,
-                      icon: Icon(isPlaying ? Icons.pause_circle : Icons.play_circle, size: 34, color: palette.accent),
+                      icon: Icon(
+                        isPlaying ? Icons.pause_circle : Icons.play_circle,
+                        size: 34,
+                        color: palette.accent,
+                      ),
                     ),
                     IconButton(
                       tooltip: 'Avanzar 15 segundos',
                       onPressed: onSeekForward,
-                      icon: Icon(Icons.forward_10, color: palette.inkSoft),
+                      icon: Icon(Icons.forward, color: palette.inkSoft),
                     ),
                     Expanded(
                       child: Column(
                         children: [
                           ClipRRect(
-                            borderRadius: const BorderRadius.all(Radius.circular(2)),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(2),
+                            ),
                             child: LinearProgressIndicator(
                               value: progress,
                               minHeight: 3,
@@ -1236,8 +1552,20 @@ class _ReaderFooter extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(_duration(position), style: TextStyle(color: palette.inkFaint, fontSize: 10)),
-                              Text(_duration(duration), style: TextStyle(color: palette.inkFaint, fontSize: 10)),
+                              Text(
+                                _duration(position),
+                                style: TextStyle(
+                                  color: palette.inkFaint,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                _duration(duration),
+                                style: TextStyle(
+                                  color: palette.inkFaint,
+                                  fontSize: 10,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -1276,11 +1604,18 @@ class _ReaderFooter extends StatelessWidget {
                           chapter.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: palette.ink, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: palette.ink,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           '${chapter.index} / ${book.chapterCount}',
-                          style: TextStyle(color: palette.inkFaint, fontSize: 10),
+                          style: TextStyle(
+                            color: palette.inkFaint,
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),

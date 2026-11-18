@@ -1,13 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/ambience/ambience_plan_repository.dart';
 import '../data/bookmark_repository.dart';
 import '../data/epub_ingestor.dart';
 import '../data/library_repository.dart';
 import '../data/settings_repository.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
-import '../data/tts/piper_tts_service.dart';
+import '../domain/ambience_plan.dart';
 import '../domain/bookmarks.dart';
 import '../domain/models.dart';
 
@@ -97,7 +98,10 @@ class SettingsController extends AsyncNotifier<AppSettings> {
 
   Future<void> rememberBook(String bookId, int chapterIndex) async {
     final current = state.value ?? const AppSettings();
-    final next = current.copyWith(lastBookId: bookId, lastChapterIndex: chapterIndex);
+    final next = current.copyWith(
+      lastBookId: bookId,
+      lastChapterIndex: chapterIndex,
+    );
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);
   }
@@ -123,7 +127,9 @@ class LibraryController extends AsyncNotifier<List<Book>> {
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(libraryRepositoryProvider).scan());
+    state = await AsyncValue.guard(
+      () => ref.read(libraryRepositoryProvider).scan(),
+    );
   }
 
   Future<Book> importEpub(String path) async {
@@ -147,13 +153,32 @@ final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
   return const BookmarkRepository();
 });
 
-final bookmarkDataProvider = FutureProvider.family<BookmarkData, String>((ref, bookId) async {
+final bookmarkDataProvider = FutureProvider.family<BookmarkData, String>((
+  ref,
+  bookId,
+) async {
   final book = await ref.watch(bookProvider(bookId).future);
   final directory = book?.directoryPath;
   if (directory == null) {
     return BookmarkData.empty;
   }
   return ref.watch(bookmarkRepositoryProvider).load(directory);
+});
+
+final ambiencePlanRepositoryProvider = Provider<AmbiencePlanRepository>((ref) {
+  return const AmbiencePlanRepository();
+});
+
+final ambiencePlanProvider = FutureProvider.family<AmbiencePlan?, String>((
+  ref,
+  bookId,
+) async {
+  final book = await ref.watch(bookProvider(bookId).future);
+  final directory = book?.directoryPath;
+  if (directory == null) {
+    return null;
+  }
+  return ref.watch(ambiencePlanRepositoryProvider).load(directory);
 });
 
 final searchQueryProvider = NotifierProvider<SearchQueryController, String>(
@@ -174,10 +199,13 @@ final filteredBooksProvider = Provider<AsyncValue<List<Book>>>((ref) {
     return books;
   }
   return books.whenData(
-    (items) => items.where((book) {
-      final haystack = '${book.title} ${book.author} ${book.language}'.toLowerCase();
-      return haystack.contains(query);
-    }).toList(growable: false),
+    (items) => items
+        .where((book) {
+          final haystack = '${book.title} ${book.author} ${book.language}'
+              .toLowerCase();
+          return haystack.contains(query);
+        })
+        .toList(growable: false),
   );
 });
 
@@ -208,12 +236,6 @@ final selectedPiperModelProvider = Provider<PiperModel?>((ref) {
   return models.first;
 });
 
-final piperTtsServiceProvider = Provider<PiperTtsService>((ref) {
-  final service = PiperTtsService();
-  ref.onDispose(service.dispose);
-  return service;
-});
-
 final piperDownloaderProvider = Provider<PiperDownloader>((ref) {
   return const PiperDownloader();
 });
@@ -234,52 +256,39 @@ final readerPreferencesProvider = Provider<ReaderPreferences>((ref) {
 enum ImportStatus { idle, working, done, error }
 
 class ImportState {
-  const ImportState({
-    this.status = ImportStatus.idle,
-    this.message,
-    this.book,
-    this.progress,
-  });
+  const ImportState({this.status = ImportStatus.idle, this.message, this.book});
 
   final ImportStatus status;
   final String? message;
   final Book? book;
-  final double? progress;
-
-  ImportState copyWith({
-    ImportStatus? status,
-    String? message,
-    Book? book,
-    double? progress,
-  }) {
-    return ImportState(
-      status: status ?? this.status,
-      message: message ?? this.message,
-      book: book ?? this.book,
-      progress: progress ?? this.progress,
-    );
-  }
 }
 
-final importControllerProvider = NotifierProvider<ImportController, ImportState>(
-  ImportController.new,
-);
+final importControllerProvider =
+    NotifierProvider<ImportController, ImportState>(ImportController.new);
 
 class ImportController extends Notifier<ImportState> {
   @override
   ImportState build() => const ImportState();
 
   Future<Book?> importEpub(String path) async {
-    state = const ImportState(status: ImportStatus.working, message: 'Importando EPUB…');
+    state = const ImportState(
+      status: ImportStatus.working,
+      message: 'Importando EPUB…',
+    );
     try {
       final book = await ref.read(libraryProvider.notifier).importEpub(path);
-      state = ImportState(status: ImportStatus.done, message: 'Importado: ${book.title}', book: book);
+      state = ImportState(
+        status: ImportStatus.done,
+        message: 'Importado: ${book.title}',
+        book: book,
+      );
       return book;
     } catch (error) {
-      state = ImportState(status: ImportStatus.error, message: 'No se pudo importar: $error');
+      state = ImportState(
+        status: ImportStatus.error,
+        message: 'No se pudo importar: $error',
+      );
       return null;
     }
   }
-
-  void reset() => state = const ImportState();
 }

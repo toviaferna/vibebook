@@ -1,10 +1,11 @@
 import 'package:file_selector/file_selector.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
+import '../../core/design/form_controls.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/ambience.dart';
 
@@ -18,63 +19,73 @@ class SettingsPage extends ConsumerWidget {
     return PageScaffold(
       eyebrow: 'Ajustes',
       title: 'Preferencias',
-      subtitle: 'Apariencia, lectura y biblioteca.',
+      subtitle: 'Apariencia, lectura, audio y biblioteca.',
+      maxContentWidth: 980,
       child: settings.when(
         data: (value) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _SettingsSection(
+            BibliotecaSection(
               title: 'Apariencia',
-              children: [
-                _SettingsRow(
-                  title: 'Tema de la app',
-                  subtitle: 'Claro, oscuro o el del sistema.',
-                  trailing: DropdownButton<String>(
-                    value: value.themeMode,
-                    underline: const SizedBox.shrink(),
-                    items: const [
-                      DropdownMenuItem(value: 'system', child: Text('Sistema')),
-                      DropdownMenuItem(value: 'light', child: Text('Claro')),
-                      DropdownMenuItem(value: 'dark', child: Text('Oscuro')),
-                    ],
-                    onChanged: (mode) {
-                      if (mode != null) {
-                        ref.read(settingsProvider.notifier).setThemeMode(mode);
-                      }
-                    },
+              description: 'El tema de la app y la paleta del lector son independientes.',
+              child: Column(
+                children: [
+                  BibliotecaFormRow(
+                    title: 'Tema de la app',
+                    subtitle: 'Claro, oscuro o el del sistema.',
+                    controlWidth: 220,
+                    child: BibliotecaSelect<String>(
+                      label: 'Tema de la app',
+                      showLabel: false,
+                      value: value.themeMode,
+                      options: const [
+                        BibliotecaSelectOption(
+                          value: 'system',
+                          label: 'Sistema',
+                        ),
+                        BibliotecaSelectOption(value: 'light', label: 'Claro'),
+                        BibliotecaSelectOption(value: 'dark', label: 'Oscuro'),
+                      ],
+                      onChanged: (mode) => ref
+                          .read(settingsProvider.notifier)
+                          .setThemeMode(mode),
+                    ),
                   ),
-                ),
-                _SettingsRow(
-                  title: 'Paleta del lector',
-                  subtitle: 'Independiente del tema de la app.',
-                  trailing: DropdownButton<String>(
-                    value: value.reader.palette,
-                    underline: const SizedBox.shrink(),
-                    items: const [
-                      DropdownMenuItem(value: 'paper', child: Text('Papel')),
-                      DropdownMenuItem(value: 'sepia', child: Text('Sepia')),
-                      DropdownMenuItem(value: 'night', child: Text('Noche')),
-                    ],
-                    onChanged: (palette) {
-                      if (palette != null) {
-                        ref.read(settingsProvider.notifier).updateReader(
+                  BibliotecaFormRow(
+                    title: 'Paleta del lector',
+                    subtitle: 'Papel, sepia o noche.',
+                    controlWidth: 220,
+                    child: BibliotecaSelect<String>(
+                      label: 'Paleta del lector',
+                      showLabel: false,
+                      value: value.reader.palette,
+                      options: const [
+                        BibliotecaSelectOption(value: 'paper', label: 'Papel'),
+                        BibliotecaSelectOption(value: 'sepia', label: 'Sepia'),
+                        BibliotecaSelectOption(value: 'night', label: 'Noche'),
+                      ],
+                      onChanged: (palette) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
                               value.reader.copyWith(palette: palette),
                             );
-                      }
-                    },
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
-              title: 'Lectura',
-              children: [
-                _SettingsRow(
-                  title: 'Tamaño del texto',
-                  subtitle: '${value.reader.fontSize.round()} px',
-                  trailing: SizedBox(
-                    width: 220,
+            const SizedBox(height: 18),
+            BibliotecaSection(
+              title: 'Lectura y audio',
+              description: 'Se aplica a todos los libros.',
+              child: Column(
+                children: [
+                  BibliotecaFormRow(
+                    title: 'Tamaño del texto',
+                    subtitle: '${value.reader.fontSize.round()} px',
+                    controlWidth: 240,
                     child: Slider(
                       value: value.reader.fontSize,
                       min: 15,
@@ -82,40 +93,42 @@ class SettingsPage extends ConsumerWidget {
                       divisions: 13,
                       label: '${value.reader.fontSize.round()}',
                       onChanged: (size) {
-                        ref.read(settingsProvider.notifier).updateReader(
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
                               value.reader.copyWith(fontSize: size),
                             );
                       },
                     ),
                   ),
-                ),
-                _SettingsRow(
-                  title: 'Velocidad de audio',
-                  subtitle: '${value.reader.playbackRate}x',
-                  trailing: DropdownButton<double>(
-                    value: value.reader.playbackRate,
-                    underline: const SizedBox.shrink(),
-                    items: const [
-                      DropdownMenuItem(value: 0.75, child: Text('0.75x')),
-                      DropdownMenuItem(value: 1.0, child: Text('1x')),
-                      DropdownMenuItem(value: 1.25, child: Text('1.25x')),
-                      DropdownMenuItem(value: 1.5, child: Text('1.5x')),
-                      DropdownMenuItem(value: 2.0, child: Text('2x')),
-                    ],
-                    onChanged: (speed) {
-                      if (speed != null) {
-                        ref.read(settingsProvider.notifier).updateReader(
+                  BibliotecaFormRow(
+                    title: 'Velocidad de audio',
+                    subtitle: '${value.reader.playbackRate}x',
+                    controlWidth: 180,
+                    child: BibliotecaSelect<double>(
+                      label: 'Velocidad de audio',
+                      showLabel: false,
+                      value: value.reader.playbackRate,
+                      options: const [
+                        BibliotecaSelectOption(value: 0.75, label: '0.75x'),
+                        BibliotecaSelectOption(value: 1.0, label: '1x'),
+                        BibliotecaSelectOption(value: 1.25, label: '1.25x'),
+                        BibliotecaSelectOption(value: 1.5, label: '1.5x'),
+                        BibliotecaSelectOption(value: 2.0, label: '2x'),
+                      ],
+                      onChanged: (speed) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
                               value.reader.copyWith(playbackRate: speed),
                             );
-                      }
-                    },
+                      },
+                    ),
                   ),
-                ),
-                _SettingsRow(
-                  title: 'Volumen',
-                  subtitle: '${(value.reader.volume * 100).round()}%',
-                  trailing: SizedBox(
-                    width: 220,
+                  BibliotecaFormRow(
+                    title: 'Volumen',
+                    subtitle: '${(value.reader.volume * 100).round()}%',
+                    controlWidth: 240,
                     child: Slider(
                       value: value.reader.volume,
                       min: 0,
@@ -123,150 +136,164 @@ class SettingsPage extends ConsumerWidget {
                       divisions: 20,
                       label: '${(value.reader.volume * 100).round()}%',
                       onChanged: (volume) {
-                        ref.read(settingsProvider.notifier).updateReader(
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
                               value.reader.copyWith(volume: volume),
                             );
                       },
                     ),
                   ),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Giro de página'),
-                  subtitle: const Text('Animación de hoja en el modo Libro.'),
-                  value: value.reader.pageTurn,
-                  onChanged: (enabled) {
-                    ref.read(settingsProvider.notifier).updateReader(
-                          value.reader.copyWith(pageTurn: enabled),
-                        );
-                  },
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Karaoke'),
-                  subtitle: const Text('Resaltar la palabra que suena cuando hay timings.'),
-                  value: value.reader.karaoke,
-                  onChanged: (enabled) {
-                    ref.read(settingsProvider.notifier).updateReader(
-                          value.reader.copyWith(karaoke: enabled),
-                        );
-                  },
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Avanzar al terminar'),
-                  subtitle: const Text('Pasar al capítulo siguiente cuando termina el audio.'),
-                  value: value.reader.autoAdvance,
-                  onChanged: (enabled) {
-                    ref.read(settingsProvider.notifier).updateReader(
-                          value.reader.copyWith(autoAdvance: enabled),
-                        );
-                  },
-                ),
-              ],
+                  BibliotecaFormRow(
+                    title: 'Karaoke',
+                    subtitle:
+                        'Resaltar la palabra que suena cuando hay timings.',
+                    controlWidth: 60,
+                    child: Switch(
+                      value: value.reader.karaoke,
+                      onChanged: (enabled) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
+                              value.reader.copyWith(karaoke: enabled),
+                            );
+                      },
+                    ),
+                  ),
+                  BibliotecaFormRow(
+                    title: 'Avanzar al terminar',
+                    subtitle:
+                        'Pasar al capítulo siguiente cuando termina el audio.',
+                    controlWidth: 60,
+                    child: Switch(
+                      value: value.reader.autoAdvance,
+                      onChanged: (enabled) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateReader(
+                              value.reader.copyWith(autoAdvance: enabled),
+                            );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
+            const SizedBox(height: 18),
+            BibliotecaSection(
               title: 'Biblioteca',
-              children: [
-                _SettingsRow(
-                  title: 'Carpeta de libros',
-                  subtitle: value.libraryPath ?? 'Detección automática',
-                  trailing: Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () async {
-                          final path = await getDirectoryPath();
-                          if (path != null) {
-                            await ref.read(settingsProvider.notifier).setLibraryPath(path);
-                          }
-                        },
-                        child: const Text('Elegir'),
+              description: 'La biblioteca no se mueve ni se borra al cambiar esta preferencia.',
+              child: BibliotecaFormRow(
+                title: 'Carpeta de libros',
+                subtitle: value.libraryPath ?? 'Detección automática',
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () async {
+                        final path = await getDirectoryPath();
+                        if (path != null) {
+                          await ref
+                              .read(settingsProvider.notifier)
+                              .setLibraryPath(path);
+                        }
+                      },
+                      child: const Text('Elegir'),
+                    ),
+                    if (value.libraryPath != null)
+                      TextButton(
+                        onPressed: () => ref
+                            .read(settingsProvider.notifier)
+                            .setLibraryPath(null),
+                        child: const Text('Automática'),
                       ),
-                      if (value.libraryPath != null)
-                        TextButton(
-                          onPressed: () => ref.read(settingsProvider.notifier).setLibraryPath(null),
-                          child: const Text('Automática'),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
-                Text(
-                  'La biblioteca no se mueve ni se borra al cambiar esta preferencia.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
+            const SizedBox(height: 18),
+            BibliotecaSection(
               title: 'Voz',
-              children: [
-                _SettingsRow(
-                  title: 'Carpeta de modelos',
-                  subtitle: value.modelsPath ?? 'Carpeta de la app',
-                  trailing: Wrap(
-                    spacing: 8,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () async {
-                          final path = await getDirectoryPath();
-                          if (path != null) {
-                            await ref.read(settingsProvider.notifier).setModelsPath(path);
-                          }
-                        },
-                        child: const Text('Elegir'),
-                      ),
-                      if (value.modelsPath != null)
-                        TextButton(
-                          onPressed: () => ref.read(settingsProvider.notifier).setModelsPath(null),
-                          child: const Text('Automática'),
-                        ),
-                    ],
-                  ),
-                ),
-                Text(
+              description:
                   'Los modelos Piper se detectan en subcarpetas con .onnx y tokens.txt. '
                   'También podés descargarlos desde el Estudio.',
-                  style: Theme.of(context).textTheme.bodySmall,
+              child: BibliotecaFormRow(
+                title: 'Carpeta de modelos',
+                subtitle: value.modelsPath ?? 'Carpeta de la app',
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () async {
+                        final path = await getDirectoryPath();
+                        if (path != null) {
+                          await ref
+                              .read(settingsProvider.notifier)
+                              .setModelsPath(path);
+                        }
+                      },
+                      child: const Text('Elegir'),
+                    ),
+                    if (value.modelsPath != null)
+                      TextButton(
+                        onPressed: () => ref
+                            .read(settingsProvider.notifier)
+                            .setModelsPath(null),
+                        child: const Text('Automática'),
+                      ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
+            const SizedBox(height: 18),
+            BibliotecaSection(
               title: 'Ambiente',
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Ambiente en el lector'),
-                  subtitle: const Text('Sonido de fondo mientras leés o escuchás.'),
-                  value: value.ambienceEnabled,
-                  onChanged: (enabled) {
-                    ref.read(settingsProvider.notifier).updateAmbience(enabled: enabled);
-                  },
-                ),
-                _SettingsRow(
-                  title: 'Sonido',
-                  subtitle: AmbiencePresetDetails.byId(value.ambiencePreset).description,
-                  trailing: DropdownButton<String>(
-                    value: value.ambiencePreset,
-                    underline: const SizedBox.shrink(),
-                    items: [
-                      for (final preset in AmbiencePreset.values)
-                        DropdownMenuItem(value: preset.id, child: Text(preset.label)),
-                    ],
-                    onChanged: (preset) {
-                      if (preset != null) {
-                        ref.read(settingsProvider.notifier).updateAmbience(preset: preset);
-                      }
-                    },
+              description: 'Grabaciones de campo CC0 incluidas en la app. El lector usa el plan por capítulo si existe.',
+              child: Column(
+                children: [
+                  BibliotecaFormRow(
+                    title: 'Ambiente en el lector',
+                    subtitle: 'Sonido de fondo mientras leés o escuchás.',
+                    controlWidth: 60,
+                    child: Switch(
+                      value: value.ambienceEnabled,
+                      onChanged: (enabled) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateAmbience(enabled: enabled);
+                      },
+                    ),
                   ),
-                ),
-                _SettingsRow(
-                  title: 'Volumen',
-                  subtitle: '${(value.ambienceVolume * 100).round()}%',
-                  trailing: SizedBox(
-                    width: 220,
+                  BibliotecaFormRow(
+                    title: 'Sonido',
+                    subtitle: AmbiencePresetDetails.byId(value.ambiencePreset)
+                        .description,
+                    controlWidth: 220,
+                    child: BibliotecaSelect<String>(
+                      label: 'Sonido de ambiente',
+                      showLabel: false,
+                      value: value.ambiencePreset,
+                      options: [
+                        for (final preset in AmbiencePreset.values)
+                          BibliotecaSelectOption(
+                            value: preset.id,
+                            label: preset.label,
+                            description: preset.description,
+                          ),
+                      ],
+                      onChanged: (preset) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateAmbience(preset: preset);
+                      },
+                    ),
+                  ),
+                  BibliotecaFormRow(
+                    title: 'Volumen del ambiente',
+                    subtitle: '${(value.ambienceVolume * 100).round()}%',
+                    controlWidth: 240,
                     child: Slider(
                       value: value.ambienceVolume,
                       min: 0,
@@ -274,16 +301,17 @@ class SettingsPage extends ConsumerWidget {
                       divisions: 20,
                       label: '${(value.ambienceVolume * 100).round()}%',
                       onChanged: (volume) {
-                        ref.read(settingsProvider.notifier).updateAmbience(volume: volume);
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateAmbience(volume: volume);
                       },
                     ),
                   ),
-                ),
-                _SettingsRow(
-                  title: 'Atenuación con la voz',
-                  subtitle: '${(value.ambienceDucking * 100).round()}% del volumen',
-                  trailing: SizedBox(
-                    width: 220,
+                  BibliotecaFormRow(
+                    title: 'Atenuación con la voz',
+                    subtitle:
+                        '${(value.ambienceDucking * 100).round()}% del volumen',
+                    controlWidth: 240,
                     child: Slider(
                       value: value.ambienceDucking,
                       min: 0,
@@ -291,106 +319,47 @@ class SettingsPage extends ConsumerWidget {
                       divisions: 20,
                       label: '${(value.ambienceDucking * 100).round()}%',
                       onChanged: (ducking) {
-                        ref.read(settingsProvider.notifier).updateAmbience(ducking: ducking);
+                        ref
+                            .read(settingsProvider.notifier)
+                            .updateAmbience(ducking: ducking);
                       },
                     ),
                   ),
-                ),
-                Text(
-                  'Los paisajes sonoros se sintetizan localmente y se guardan en la app. '
-                  'No se descargan muestras externas.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            _SettingsSection(
+            const SizedBox(height: 18),
+            BibliotecaSection(
               title: 'Acerca de',
-              children: [
-                FutureBuilder<PackageInfo>(
-                  future: PackageInfo.fromPlatform(),
-                  builder: (context, snapshot) {
-                    final info = snapshot.data;
-                    return _SettingsRow(
-                      title: 'Vibebook',
-                      subtitle: info == null ? 'Flutter' : 'Versión ${info.version} (${info.buildNumber})',
-                      trailing: StatusPill(label: 'FLUTTER', color: colors.accent),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'AGPL-3.0-only. La biblioteca y la lectura funcionan sin cuenta ni nube.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+              child: Column(
+                children: [
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      final info = snapshot.data;
+                      return BibliotecaFormRow(
+                        title: 'Vibebook',
+                        subtitle: info == null
+                            ? 'Flutter'
+                            : 'Versión ${info.version} (${info.buildNumber})',
+                        child: StatusPill(
+                          label: 'FLUTTER',
+                          color: colors.accent,
+                        ),
+                      );
+                    },
+                  ),
+                  Text(
+                    'AGPL-3.0-only. La biblioteca y la lectura funcionan sin cuenta ni nube.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => ErrorView(message: '$error'),
-      ),
-    );
-  }
-}
-
-class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
-
-  final String title;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<BibliotecaColors>()!;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.line),
-        borderRadius: BibliotecaRadii.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionLabel(title),
-          const SizedBox(height: 10),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({required this.title, required this.subtitle, this.trailing});
-
-  final String title;
-  final String subtitle;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 16),
-            trailing!,
-          ],
-        ],
       ),
     );
   }

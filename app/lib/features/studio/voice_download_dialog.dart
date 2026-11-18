@@ -24,7 +24,8 @@ class _VoiceDownloadDialog extends ConsumerStatefulWidget {
   const _VoiceDownloadDialog();
 
   @override
-  ConsumerState<_VoiceDownloadDialog> createState() => _VoiceDownloadDialogState();
+  ConsumerState<_VoiceDownloadDialog> createState() =>
+      _VoiceDownloadDialogState();
 }
 
 class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
@@ -50,7 +51,10 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
       backgroundColor: colors.surface,
       insetPadding: const EdgeInsets.all(24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640, maxHeight: 660),
+        constraints: BoxConstraints(
+          maxWidth: 640,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+        ),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -63,7 +67,10 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Voces Piper', style: Theme.of(context).textTheme.headlineSmall),
+                        Text(
+                          'Voces Piper',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           'Se descargan una vez y quedan en tu equipo. La síntesis es local.',
@@ -81,7 +88,9 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
               ),
               const SizedBox(height: 16),
               if (busy) ...[
-                LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+                LinearProgressIndicator(
+                  value: _progress == 0 ? null : _progress,
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -107,9 +116,14 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: colors.danger.withValues(alpha: 0.08),
-                    border: Border(left: BorderSide(color: colors.danger, width: 2)),
+                    border: Border(
+                      left: BorderSide(color: colors.danger, width: 2),
+                    ),
                   ),
-                  child: Text(_error!, style: Theme.of(context).textTheme.bodySmall),
+                  child: Text(
+                    _error!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -117,7 +131,8 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: piperCatalog.length,
-                  separatorBuilder: (context, index) => Divider(color: colors.line),
+                  separatorBuilder: (context, index) =>
+                      Divider(color: colors.line),
                   itemBuilder: (context, index) {
                     final entry = piperCatalog[index];
                     final installed = installedIds.contains(entry.id);
@@ -133,7 +148,10 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                               color: colors.accentSoft,
                               borderRadius: BibliotecaRadii.md,
                             ),
-                            child: Icon(Icons.record_voice_over, color: colors.accent),
+                            child: Icon(
+                              Icons.record_voice_over,
+                              color: colors.accent,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -145,19 +163,33 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                                   style: Theme.of(context).textTheme.titleSmall,
                                 ),
                                 const SizedBox(height: 2),
-                                Text(entry.description, style: Theme.of(context).textTheme.bodySmall),
+                                Text(
+                                  entry.description,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
                                 const SizedBox(height: 4),
                                 Wrap(
                                   spacing: 10,
                                   children: [
-                                    Text(entry.sizeLabel, style: Theme.of(context).textTheme.labelSmall),
+                                    Text(
+                                      entry.sizeLabel,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall,
+                                    ),
                                     InkWell(
-                                      onTap: () => launchUrl(Uri.parse(entry.licenseUrl)),
+                                      onTap: () => launchUrl(
+                                        Uri.parse(entry.licenseUrl),
+                                      ),
                                       child: Text(
                                         entry.license,
-                                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .labelSmall
+                                            ?.copyWith(
                                               color: colors.audio,
-                                              decoration: TextDecoration.underline,
+                                              decoration:
+                                                  TextDecoration.underline,
                                             ),
                                       ),
                                     ),
@@ -170,7 +202,10 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
                           if (installed)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
-                              child: StatusPill(label: 'INSTALADA', color: colors.brass),
+                              child: StatusPill(
+                                label: 'INSTALADA',
+                                color: colors.brass,
+                              ),
                             )
                           else
                             FilledButton(
@@ -186,20 +221,31 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
               const SizedBox(height: 12),
               Divider(color: colors.line),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '¿Ya tenés un .tar.bz2 de Piper? Podés instalarlo sin conexión.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  OutlinedButton.icon(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final message = Text(
+                    '¿Ya tenés un .tar.bz2 de Piper? Podés instalarlo sin conexión.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  );
+                  final button = OutlinedButton.icon(
                     onPressed: busy ? null : _importFile,
                     icon: const Icon(Icons.folder_open, size: 18),
                     label: const Text('Importar archivo'),
-                  ),
-                ],
+                  );
+                  if (constraints.maxWidth < 560) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [message, const SizedBox(height: 10), button],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: message),
+                      const SizedBox(width: 12),
+                      button,
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -214,7 +260,9 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
       _cancelToken = token;
     });
     await _install(
-      action: (root) => ref.read(piperDownloaderProvider).installFromCatalog(
+      action: (root) => ref
+          .read(piperDownloaderProvider)
+          .installFromCatalog(
             entry,
             rootPath: root,
             cancelToken: token,
@@ -230,7 +278,9 @@ class _VoiceDownloadDialogState extends ConsumerState<_VoiceDownloadDialog> {
       return;
     }
     await _install(
-      action: (root) => ref.read(piperDownloaderProvider).installFromFile(
+      action: (root) => ref
+          .read(piperDownloaderProvider)
+          .installFromFile(
             File(file.path),
             rootPath: root,
             onProgress: _updateProgress,

@@ -11,15 +11,18 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
+import '../../core/design/form_controls.dart';
 import '../../core/design/tokens.dart';
-import '../../data/ambience/ambience_generator.dart';
-import '../../data/demo_conversion.dart';
+import '../../data/ambience/ambience_analyzer.dart';
+import '../../data/ambience/ambience_library.dart';
+import '../../data/ambience/ambience_plan_repository.dart';
 import '../../data/m4b_exporter.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_conversion.dart';
 import '../../data/tts/wav_writer.dart';
 import '../../domain/ambience.dart';
+import '../../domain/ambience_plan.dart';
 import '../../domain/models.dart';
 import 'voice_download_dialog.dart';
 
@@ -36,11 +39,13 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   final _previewController = TextEditingController(
     text: 'La casa de los Ferrer se levantaba sobre una loma que olía a sal.',
   );
-  final _previewPlayer = AudioPlayer();
+  AudioPlayer? _previewPlayer;
   bool _converting = false;
   bool _cancelRequested = false;
   bool _exporting = false;
   bool _previewing = false;
+  bool _analyzingAmbience = false;
+  AmbiencePlan? _ambiencePlan;
   double _progress = 0;
   String? _progressMessage;
   String? _error;
@@ -50,7 +55,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   @override
   void dispose() {
     _previewController.dispose();
-    _previewPlayer.dispose();
+    _previewPlayer?.dispose();
     super.dispose();
   }
 
@@ -61,13 +66,16 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       data: (value) {
         if (value == null) {
           return Scaffold(
-            appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
+            appBar: AppBar(
+              leading: BackButton(onPressed: () => context.go('/')),
+            ),
             body: const ErrorView(message: 'No encontré este libro.'),
           );
         }
         return _buildStudio(value);
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (error, stackTrace) => Scaffold(
         appBar: AppBar(leading: BackButton(onPressed: () => context.go('/'))),
         body: ErrorView(message: '$error'),
@@ -82,10 +90,14 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final selected = ref.watch(selectedPiperModelProvider);
     final rate = settings?.piperRate ?? -10;
     final modelsRoot = ref.watch(modelsRootProvider);
+    final savedAmbiencePlan = ref.watch(ambiencePlanProvider(book.id)).value;
+    final ambiencePlan = _ambiencePlan ?? savedAmbiencePlan;
     return PageScaffold(
       eyebrow: 'Estudio',
       title: book.title,
-      subtitle: 'Voz local, sin cuenta ni nube. La síntesis corre en este equipo.',
+      subtitle:
+          'Voz local, sin cuenta ni nube. La síntesis corre en este equipo.',
+      maxContentWidth: 860,
       actions: [
         IconButton(
           tooltip: 'Volver al libro',
@@ -104,25 +116,43 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 border: Border(left: BorderSide(color: colors.brass, width: 2)),
                 borderRadius: BibliotecaRadii.md,
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_outline, color: colors.brass),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Este libro ya tiene audio. Podés volver a convertirlo o abrir el lector.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                  OutlinedButton(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final message = Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle_outline, color: colors.brass),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Este libro ya tiene audio. Podés volver a convertirlo o abrir el lector.',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  );
+                  final action = OutlinedButton(
                     onPressed: () => context.push('/books/${book.id}/read'),
                     child: const Text('Abrir lector'),
-                  ),
-                ],
+                  );
+                  if (constraints.maxWidth < 560) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [message, const SizedBox(height: 12), action],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: message),
+                      const SizedBox(width: 12),
+                      action,
+                    ],
+                  );
+                },
               ),
             ),
           const SizedBox(height: 24),
-          _Panel(
+          BibliotecaSection(
             title: 'Voz local',
             child: models.when(
               data: (items) {
@@ -136,49 +166,46 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: InputDecorator(
-                            decoration: const InputDecoration(labelText: 'Modelo Piper'),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                value: selected?.id ?? items.first.id,
-                                items: [
-                                  for (final model in items)
-                                    DropdownMenuItem(
-                                      value: model.id,
-                                      child: Text('${model.name} · ${model.language}'),
-                                    ),
-                                ],
-                                onChanged: _converting
-                                    ? null
-                                    : (value) {
-                                        if (value != null) {
-                                          ref
-                                              .read(settingsProvider.notifier)
-                                              .selectPiperModel(value);
-                                        }
-                                      },
-                              ),
-                            ),
+                    BibliotecaSelect<String>(
+                      label: 'Modelo Piper',
+                      value: selected?.id ?? items.first.id,
+                      options: [
+                        for (final model in items)
+                          BibliotecaSelectOption(
+                            value: model.id,
+                            label: model.name,
+                            description:
+                                '${model.language.toUpperCase()} · ${(model.sampleRate / 1000).toStringAsFixed(1)} kHz',
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        OutlinedButton(
+                      ],
+                      onChanged: _converting
+                          ? null
+                          : (value) {
+                              ref
+                                  .read(settingsProvider.notifier)
+                                  .selectPiperModel(value);
+                            },
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
                           onPressed: _converting ? null : _chooseModelsFolder,
-                          child: const Text('Carpeta'),
+                          icon: const Icon(Icons.folder_open, size: 18),
+                          label: const Text('Carpeta de modelos'),
                         ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: _converting ? null : () => showVoiceDownloadDialog(context),
-                          child: const Text('Agregar voz'),
+                        OutlinedButton.icon(
+                          onPressed: _converting
+                              ? null
+                              : () => showVoiceDownloadDialog(context),
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('Agregar voz'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     _ModelDetails(model: selected),
                     const SizedBox(height: 16),
                     TextField(
@@ -194,16 +221,27 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(
-                        onPressed: _converting || _previewing || selected == null
+                        onPressed:
+                            _converting || _previewing || selected == null
                             ? null
                             : () => _preview(selected, rate),
-                        icon: Icon(_previewing ? Icons.hourglass_top : Icons.play_arrow, size: 18),
-                        label: Text(_previewing ? 'Generando muestra…' : 'Escuchar muestra'),
+                        icon: Icon(
+                          _previewing ? Icons.hourglass_top : Icons.play_arrow,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _previewing
+                              ? 'Generando muestra…'
+                              : 'Escuchar muestra',
+                        ),
                       ),
                     ),
                     if (_previewMessage != null) ...[
                       const SizedBox(height: 8),
-                      Text(_previewMessage!, style: Theme.of(context).textTheme.bodySmall),
+                      Text(
+                        _previewMessage!,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                     ],
                   ],
                 );
@@ -212,88 +250,125 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (error, stackTrace) => Text('No se pudieron leer los modelos: $error'),
+              error: (error, stackTrace) =>
+                  Text('No se pudieron leer los modelos: $error'),
             ),
           ),
           const SizedBox(height: 18),
-          _Panel(
+          BibliotecaSection(
             title: 'Lectura y salida',
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Text('Velocidad', style: Theme.of(context).textTheme.titleSmall),
-                    Expanded(
-                      child: Slider(
-                        value: rate,
-                        min: -30,
-                        max: 30,
-                        divisions: 12,
-                        label: '${rate.round()}%',
-                        onChanged: _converting
-                            ? null
-                            : (value) => ref.read(settingsProvider.notifier).setPiperRate(value),
-                      ),
+            child: BibliotecaFormRow(
+              title: 'Velocidad de síntesis',
+              subtitle: 'Se guarda y se aplica a todas las conversiones.',
+              controlWidth: 280,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: rate,
+                      min: -30,
+                      max: 30,
+                      divisions: 12,
+                      label: '${rate.round()}%',
+                      onChanged: _converting
+                          ? null
+                          : (value) => ref
+                                .read(settingsProvider.notifier)
+                                .setPiperRate(value),
                     ),
-                    Text('${rate.round()}%'),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'La velocidad se guarda y se aplica a todas las conversiones.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+                  ),
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      '${rate.round()}%',
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 18),
-          _Panel(
-            title: 'Ambiente',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Mezcla un paisaje sonoro sintetizado debajo de la voz al exportar.',
+          BibliotecaSection(
+            title: 'Ambiente global',
+            description: 'Se usa en los capítulos que no tienen un paisaje propio en el plan.',
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: BibliotecaSelect<String>(
+                  label: 'Paisaje sonoro',
+                  value: settings?.ambiencePreset ?? 'rain',
+                  options: [
+                    for (final preset in AmbiencePreset.values)
+                      BibliotecaSelectOption(
+                        value: preset.id,
+                        label: preset.label,
+                        description: preset.description,
+                      ),
+                  ],
+                  onChanged: _converting || _exporting
+                      ? null
+                      : (preset) {
+                          ref
+                              .read(settingsProvider.notifier)
+                              .updateAmbience(preset: preset);
+                        },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          BibliotecaSection(
+            title: 'Plan por capítulo',
+            description:
+                'Analiza el texto y asigna un paisaje a cada capítulo. '
+                'Se guarda en ambience/plan_flutter.json y el lector lo usa automáticamente.',
+            actions: [
+              OutlinedButton.icon(
+                onPressed: _analyzingAmbience || book.chapterCount == 0
+                    ? null
+                    : () => _analyzeAmbience(book),
+                icon: Icon(
+                  _analyzingAmbience ? Icons.hourglass_top : Icons.auto_awesome,
+                  size: 18,
+                ),
+                label: Text(
+                  _analyzingAmbience ? 'Analizando…' : 'Analizar capítulos',
+                ),
+              ),
+            ],
+            child: ambiencePlan == null || ambiencePlan.chapters.isEmpty
+                ? Text(
+                    'Todavía no hay un plan. Sin plan, el lector usa el paisaje global.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '${ambiencePlan.detectedChapters} de ${book.chapterCount} capítulos '
+                        'tienen un paisaje detectado.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    DropdownButton<String>(
-                      value: settings?.ambiencePreset ?? 'rain',
-                      underline: const SizedBox.shrink(),
-                      items: [
-                        for (final preset in AmbiencePreset.values)
-                          DropdownMenuItem(value: preset.id, child: Text(preset.label)),
-                      ],
-                      onChanged: _converting || _exporting
-                          ? null
-                          : (preset) {
-                              if (preset != null) {
-                                ref.read(settingsProvider.notifier).updateAmbience(preset: preset);
-                              }
-                            },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: _exporting || !book.hasAudio
-                        ? null
-                        : () => _exportM4bWithAmbience(
-                              book,
-                              AmbiencePresetDetails.byId(settings?.ambiencePreset),
-                            ),
-                    icon: const Icon(Icons.forest, size: 18),
-                    label: Text(_exporting ? 'Exportando…' : 'Exportar M4B ambientado'),
+                      const SizedBox(height: 8),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 340),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              for (final chapter in book.chapters)
+                                _ChapterAmbienceRow(
+                                  chapter: chapter,
+                                  plan: ambiencePlan.forChapter(chapter.index),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 18),
@@ -301,7 +376,9 @@ class _StudioPageState extends ConsumerState<StudioPage> {
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: colors.danger.withValues(alpha: 0.08),
-                border: Border(left: BorderSide(color: colors.danger, width: 2)),
+                border: Border(
+                  left: BorderSide(color: colors.danger, width: 2),
+                ),
               ),
               child: Text(_error!),
             ),
@@ -318,9 +395,13 @@ class _StudioPageState extends ConsumerState<StudioPage> {
             runSpacing: 10,
             children: [
               FilledButton.icon(
-                onPressed: _converting || selected == null ? null : () => _convert(book, selected, rate),
+                onPressed: _converting || _exporting || selected == null
+                    ? null
+                    : () => _convert(book, selected, rate),
                 icon: const Icon(Icons.graphic_eq, size: 18),
-                label: Text(_converting ? 'Convirtiendo…' : 'Convertir con Piper'),
+                label: Text(
+                  _converting ? 'Convirtiendo…' : 'Convertir con Piper',
+                ),
               ),
               if (_converting)
                 OutlinedButton.icon(
@@ -329,7 +410,21 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                   label: const Text('Detener al final del capítulo'),
                 ),
               OutlinedButton.icon(
-                onPressed: _exporting || !book.hasAudio ? null : () => _exportM4b(book),
+                onPressed: _exporting || _converting || !book.hasAudio
+                    ? null
+                    : () => _exportM4bWithAmbience(
+                        book,
+                        AmbiencePresetDetails.byId(settings?.ambiencePreset),
+                      ),
+                icon: const Icon(Icons.forest, size: 18),
+                label: Text(
+                  _exporting ? 'Exportando…' : 'Exportar M4B ambientado',
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exporting || _converting || !book.hasAudio
+                    ? null
+                    : () => _exportM4b(book),
                 icon: const Icon(Icons.audio_file, size: 18),
                 label: Text(_exporting ? 'Exportando…' : 'Exportar M4B'),
               ),
@@ -343,7 +438,10 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 color: colors.surface,
                 border: Border(left: BorderSide(color: colors.brass, width: 2)),
               ),
-              child: Text(_exportMessage!, style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                _exportMessage!,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ],
           const SizedBox(height: 24),
@@ -352,18 +450,46 @@ class _StudioPageState extends ConsumerState<StudioPage> {
             'Los timings de karaoke se estiman a partir de la duración real de cada segmento.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 30),
-          ExpansionTile(
-            tilePadding: EdgeInsets.zero,
-            childrenPadding: EdgeInsets.zero,
-            title: Text('Avanzado', style: Theme.of(context).textTheme.titleSmall),
-            children: [
-              _DemoFallback(book: book, onDone: _refreshBook),
-            ],
-          ),
         ],
       ),
     );
+  }
+
+  Future<void> _analyzeAmbience(Book book) async {
+    final directory = book.directoryPath;
+    if (directory == null) {
+      setState(() => _error = 'El libro no tiene una carpeta de biblioteca.');
+      return;
+    }
+    setState(() {
+      _analyzingAmbience = true;
+      _error = null;
+    });
+    try {
+      final plan = const AmbienceAnalyzer().analyze(book);
+      await const AmbiencePlanRepository().save(directory, plan);
+      ref.invalidate(ambiencePlanProvider(book.id));
+      if (mounted) {
+        setState(() {
+          _ambiencePlan = plan;
+          _analyzingAmbience = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Plan listo: ${plan.detectedChapters} de ${book.chapterCount} capítulos.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _analyzingAmbience = false;
+          _error = 'No se pudo analizar el ambiente: $error';
+        });
+      }
+    }
   }
 
   Future<void> _chooseModelsFolder() async {
@@ -404,15 +530,20 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         ],
       });
       final samples = result['samples'] as Float32List;
-      final sampleRate = (result['sample_rate'] as num?)?.toInt() ?? model.sampleRate;
+      final sampleRate =
+          (result['sample_rate'] as num?)?.toInt() ?? model.sampleRate;
       if (samples.isEmpty) {
         throw StateError('La voz no generó audio.');
       }
       final temp = await getTemporaryDirectory();
       final file = File(p.join(temp.path, 'vibebook-preview.wav'));
-      await file.writeAsBytes(const WavWriter().encode(samples, sampleRate), flush: true);
-      await _previewPlayer.stop();
-      await _previewPlayer.play(DeviceFileSource(file.path));
+      await file.writeAsBytes(
+        const WavWriter().encode(samples, sampleRate),
+        flush: true,
+      );
+      final player = _previewPlayer ??= AudioPlayer();
+      await player.stop();
+      await player.play(DeviceFileSource(file.path));
       if (mounted) {
         setState(() {
           _previewing = false;
@@ -474,7 +605,8 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         setState(() {
           _converting = false;
           _progress = 0;
-          _progressMessage = 'Conversión detenida. Los capítulos terminados se conservaron.';
+          _progressMessage =
+              'Conversión detenida. Los capítulos terminados se conservaron.';
         });
         ref.invalidate(bookProvider(book.id));
         ref.invalidate(libraryProvider);
@@ -521,10 +653,28 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       _exportMessage = 'Generando ambiente…';
     });
     try {
-      final bed = await const AmbienceGenerator().ensurePreset(preset);
+      final library = const AmbienceLibrary();
+      final globalBed = await library.ensurePreset(preset);
+      final plan =
+          _ambiencePlan ?? ref.read(ambiencePlanProvider(book.id)).value;
+      final chapterBeds = <int, String>{};
+      if (plan != null) {
+        final cache = <String, String>{};
+        for (final chapter in plan.chapters) {
+          final presetId = chapter.presetId;
+          if (presetId == null) {
+            continue;
+          }
+          final path = cache[presetId] ??= (await library.ensurePreset(
+            AmbiencePresetDetails.byId(presetId),
+          )).path;
+          chapterBeds[chapter.chapterIndex] = path;
+        }
+      }
       final result = await const M4bExporter().exportWithAmbience(
         book,
-        bedPath: bed.path,
+        bedPath: globalBed.path,
+        chapterBeds: chapterBeds,
         onProgress: (chapter, total) {
           if (mounted) {
             setState(() {
@@ -548,10 +698,62 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       }
     }
   }
+}
 
-  void _refreshBook() {
-    ref.invalidate(bookProvider(widget.bookId));
-    ref.invalidate(libraryProvider);
+class _ChapterAmbienceRow extends StatelessWidget {
+  const _ChapterAmbienceRow({required this.chapter, required this.plan});
+
+  final Chapter chapter;
+  final AmbienceChapterPlan? plan;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    final presetId = plan?.presetId;
+    final preset = presetId == null
+        ? null
+        : AmbiencePresetDetails.byId(presetId);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              chapter.index.toString().padLeft(2, '0'),
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  chapter.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: colors.ink),
+                ),
+                if (plan != null && plan!.reason.isNotEmpty)
+                  Text(
+                    '${plan!.reason} · ${(plan!.confidence * 100).round()}%',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (preset == null)
+            Text('Sin ambiente', style: Theme.of(context).textTheme.labelSmall)
+          else
+            StatusPill(label: preset.label.toUpperCase(), color: colors.audio),
+        ],
+      ),
+    );
   }
 }
 
@@ -585,7 +787,11 @@ class _ModelDetails extends StatelessWidget {
 }
 
 class _NoModels extends StatelessWidget {
-  const _NoModels({required this.root, required this.onChoose, required this.onRefresh});
+  const _NoModels({
+    required this.root,
+    required this.onChoose,
+    required this.onRefresh,
+  });
 
   final String? root;
   final VoidCallback onChoose;
@@ -611,7 +817,8 @@ class _NoModels extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Carpeta de modelos: $root',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.inkFaint),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: colors.inkFaint),
           ),
         ],
         const SizedBox(height: 14),
@@ -635,101 +842,6 @@ class _NoModels extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _DemoFallback extends ConsumerStatefulWidget {
-  const _DemoFallback({required this.book, required this.onDone});
-
-  final Book book;
-  final VoidCallback onDone;
-
-  @override
-  ConsumerState<_DemoFallback> createState() => _DemoFallbackState();
-}
-
-class _DemoFallbackState extends ConsumerState<_DemoFallback> {
-  bool _working = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Generar silencio de prueba reemplaza el audio actual. Usalo solo para validar la interfaz.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          const SizedBox(width: 12),
-          OutlinedButton(
-            onPressed: _working ? null : _run,
-            child: Text(_working ? 'Generando…' : 'Audio de prueba'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _run() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Reemplazar el audio?'),
-        content: const Text('Se generará silencio y se perderá el audio actual de este libro.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Reemplazar')),
-        ],
-      ),
-    );
-    if (confirmed != true) {
-      return;
-    }
-    setState(() => _working = true);
-    try {
-      await const DemoConversionService().convert(
-        widget.book,
-        engine: 'demo',
-        voice: 'demo',
-        rate: '0%',
-      );
-      widget.onDone();
-    } finally {
-      if (mounted) {
-        setState(() => _working = false);
-      }
-    }
-  }
-}
-
-class _Panel extends StatelessWidget {
-  const _Panel({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<BibliotecaColors>()!;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        border: Border.all(color: colors.line),
-        borderRadius: BibliotecaRadii.md,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionLabel(title),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
     );
   }
 }

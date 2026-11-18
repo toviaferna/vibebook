@@ -7,7 +7,9 @@ import 'package:vibebook_app/domain/bookmarks.dart';
 
 void main() {
   test('guarda y recupera marcadores y estado de lectura', () async {
-    final directory = await Directory.systemTemp.createTemp('vibebook-bookmarks-');
+    final directory = await Directory.systemTemp.createTemp(
+      'vibebook-bookmarks-',
+    );
     addTearDown(() async {
       if (await directory.exists()) {
         await directory.delete(recursive: true);
@@ -45,13 +47,16 @@ void main() {
   });
 
   test('un archivo corrupto cae a datos vacíos', () async {
-    final directory = await Directory.systemTemp.createTemp('vibebook-bookmarks-');
+    final directory = await Directory.systemTemp.createTemp(
+      'vibebook-bookmarks-',
+    );
     addTearDown(() async {
       if (await directory.exists()) {
         await directory.delete(recursive: true);
       }
     });
-    await File(p.join(directory.path, 'bookmarks.json')).writeAsString('{not json');
+    await File(p.join(directory.path, 'bookmarks.json'))
+        .writeAsString('{not json');
     final loaded = await const BookmarkRepository().load(directory.path);
     expect(loaded.bookmarks, isEmpty);
     expect(loaded.readingState, isNull);

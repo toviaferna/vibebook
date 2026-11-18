@@ -24,9 +24,10 @@ release estable**; esta rama no crea tags ni publicaciones.
   México), instalación offline desde `.tar.bz2` y detección de modelos locales.
 - **Salida**: MP3 por capítulo (64 kbps mono) con fallback a WAV y exportación
   M4B con capítulos usando FFmpegKit.
-- **Ambiente**: cinco paisajes sonoros sintetizados localmente (lluvia, viento,
-  mar, fuego, noche), reproducción en vivo en el lector con atenuación bajo la
-  voz y exportación de **M4B ambientado**.
+- **Ambiente**: seis grabaciones de campo CC0 (lluvia, viento, mar, fuego,
+  noche, bosque), con loops de 90 s, reproducción en vivo con atenuación bajo
+  la voz, exportación de **M4B ambientado** y un plan por capítulo basado en
+  palabras clave del texto.
 - **Marcadores y posición**: se guardan en `bookmarks.json` junto al libro,
   con salto al capítulo/segundo guardado y restauración al abrir el lector.
 - **Ajustes**: tema, paleta, lectura, biblioteca, modelos, velocidad de voz,
@@ -34,8 +35,8 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 24 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
-  WAV, ambiente, bookmarks y widget.
+- **Tests**: 28 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+  WAV, ambiente, plan por capítulo, bookmarks y widget.
 
 ## Requisitos
 
@@ -59,7 +60,7 @@ La biblioteca se detecta automáticamente:
 - Windows: `%LOCALAPPDATA%\vibebook\vibebook\library`
 - Linux: `$XDG_DATA_HOME/vibebook/library` o `~/.local/share/vibebook/library`
 - macOS: `~/Library/Application Support/vibebook/library`
-- Android/iOS: directorio de documentos de la app / `library`
+- Android: directorio de documentos de la app / `library`
 
 Se puede cambiar desde **Ajustes → Biblioteca**.
 
@@ -107,26 +108,22 @@ vibebook_app --convert-smoke <model-dir> <book.epub> <library-dir> <out.json> [c
 # Exportar M4B de un libro ya convertido
 vibebook_app --m4b-smoke <book-dir> <out.json> [out.m4b]
 
-# Reproducir un audio con el plugin nativo
-vibebook_app --audio-smoke <audio-file> <out.json>
-
-# Instalar un .tar.bz2 o una entrada del catálogo sin interfaz
-vibebook_app --install-smoke <archive.tar.bz2|catalog:id> <models-root> <out.json>
-
-# Generar las cinco camas de ambiente
-vibebook_app --ambience-smoke <out.json>
-
 # Exportar un M4B con ambiente
 vibebook_app --ambient-m4b-smoke <book-dir> <preset> <out.json> [out.m4b]
 ```
 
+El plan de ambiente se genera desde el Estudio con **Analizar capítulos** y se
+guarda en `<libro>/ambience/plan_flutter.json` (no sobrescribe el plan de la app
+Tauri/Python).
+
 Resultados medidos en Windows durante esta iteración:
 
 - Piper: 8,9 s de audio en ~1,1 s de síntesis.
-- Libro de prueba de 6 capítulos (~4 min): conversión completa en ~42 s.
-- M4B de 6 capítulos: 2,1 MB.
-- Cinco camas de ambiente de 30 s generadas y verificadas (1,32 MB cada una).
-- M4B ambientado con ducking: exportación verificada con FFmpegKit.
+- Libro real de 1 capítulo (21.579 caracteres, 20:25 de audio): conversión
+  completa en ~167 s.
+- M4B de ese capítulo: 9,8 MB; con ambiente mezclado: 10,2 MB.
+- Seis grabaciones de campo CC0 convertidas a loops de 90 s (1,44 MB cada una).
+- M4B ambientado con ducking y plan por capítulo: verificado con FFmpegKit.
 - APK arm64: **182,7 MB** con Piper, sherpa-onnx y FFmpegKit.
 - Reproducción MP3: posición avanzando y estado `playing` verificados.
 
@@ -222,8 +219,9 @@ que la prueba y la aprobación explícita habiliten el cutover.
 
 ## Limitaciones actuales
 
-- El ambiente es **procedural** (sintetizado), no un catálogo de samples
-  externos. No hay análisis automático del texto para elegir el paisaje.
+- El plan de ambiente es **heurístico** (palabras clave en español/inglés), no
+  comprensión semántica. Los capítulos sin señales claras quedan sin ambiente y
+  usan el paisaje global.
 - Los bookmarks/posición usan un **JSON por libro**, no Drift. Es portable y
   suficiente para esta etapa, pero falta migrar la base de datos completa.
 - El lector es de **scroll continuo**: faltan el modo paginado/Libro y el modo
@@ -249,11 +247,12 @@ lib/
   app/                 # MaterialApp, router, shell, providers
   core/                # texto, tokens, tema, componentes, rutas nativas
   data/                # EPUB, biblioteca, settings, M4B, bookmarks, TTS
-    ambience/          # generador procedural de paisajes sonoros
+    ambience/          # biblioteca de grabaciones, analizador y plan
     tts/               # modelos, catálogo, descarga, worker, conversión
-  domain/              # modelos, timings, bookmarks y presets
+  domain/              # modelos, timings, bookmarks, presets y plan
   features/            # library, import, detail, studio, reader, settings
   dev/                 # modos de verificación sin interfaz
+assets/ambience/       # loops CC0 y créditos
 packaging/windows/     # script de Inno Setup
 test/                  # unit/widget/ingest/library/tts/ambience/bookmarks tests
 ```

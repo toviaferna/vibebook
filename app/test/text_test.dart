@@ -25,13 +25,15 @@ void main() {
 
   group('detectLanguage', () {
     test('detecta espanol', () {
-      const text = 'La casa de los Ferrer se levantaba sobre una loma que olia a sal. '
+      const text =
+          'La casa de los Ferrer se levantaba sobre una loma que olia a sal. '
           'Desde la ventana se veia el puerto y una linea de barcos que entraban y salian.';
       expect(detectLanguage(text), 'es');
     });
 
     test('detecta ingles', () {
-      const text = 'The house of the Ferrer family stood on a hill that smelled of salt. '
+      const text =
+          'The house of the Ferrer family stood on a hill that smelled of salt. '
           'From the window you could see the harbor and a line of boats that came and went.';
       expect(detectLanguage(text), 'en');
     });

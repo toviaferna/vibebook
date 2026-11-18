@@ -20,7 +20,9 @@ Future<void> runConvertSmoke(List<String> args) async {
   final epub = flag + 2 < args.length ? args[flag + 2] : '';
   final libraryDir = flag + 3 < args.length ? args[flag + 3] : '';
   final outputJson = flag + 4 < args.length ? args[flag + 4] : '';
-  final maxChapters = flag + 5 < args.length ? int.tryParse(args[flag + 5]) : null;
+  final maxChapters = flag + 5 < args.length
+      ? int.tryParse(args[flag + 5])
+      : null;
   final result = <String, dynamic>{
     'ok': false,
     'model_dir': modelDir,
@@ -28,7 +30,10 @@ Future<void> runConvertSmoke(List<String> args) async {
     'library': libraryDir,
   };
   try {
-    if (modelDir.isEmpty || epub.isEmpty || libraryDir.isEmpty || outputJson.isEmpty) {
+    if (modelDir.isEmpty ||
+        epub.isEmpty ||
+        libraryDir.isEmpty ||
+        outputJson.isEmpty) {
       throw ArgumentError(
         'Uso: --convert-smoke <model-dir> <epub> <library-dir> <out.json> [chapters]',
       );
@@ -65,15 +70,21 @@ Future<void> runConvertSmoke(List<String> args) async {
     );
     stopwatch.stop();
     final first = converted.chapters.first;
-    final audioFile = first.audio == null ? null : File(p.join(library.path, imported.id, first.audio!));
-    final timingFile = first.timing == null ? null : File(p.join(library.path, imported.id, first.timing!));
+    final audioFile = first.audio == null
+        ? null
+        : File(p.join(library.path, imported.id, first.audio!));
+    final timingFile = first.timing == null
+        ? null
+        : File(p.join(library.path, imported.id, first.timing!));
     if (audioFile == null || !await audioFile.exists()) {
       throw StateError('El audio del primer capítulo no existe.');
     }
     if (timingFile == null || !await timingFile.exists()) {
       throw StateError('El timing del primer capítulo no existe.');
     }
-    final timing = ChapterTiming.fromJsonString(await timingFile.readAsString());
+    final timing = ChapterTiming.fromJsonString(
+      await timingFile.readAsString(),
+    );
     if (timing.segments.isEmpty) {
       throw StateError('El timing no tiene segmentos.');
     }

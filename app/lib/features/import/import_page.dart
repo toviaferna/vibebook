@@ -20,6 +20,7 @@ class ImportPage extends ConsumerWidget {
       eyebrow: 'Importar',
       title: 'Sumar un libro',
       subtitle: 'EPUB sin DRM. La app conserva acentos, índice e imágenes.',
+      maxContentWidth: 900,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -47,7 +48,11 @@ class ImportPage extends ConsumerWidget {
                       color: colors.accentSoft,
                       borderRadius: BibliotecaRadii.lg,
                     ),
-                    child: Icon(Icons.upload_file, size: 30, color: colors.accent),
+                    child: Icon(
+                      Icons.upload_file,
+                      size: 30,
+                      color: colors.accent,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(
@@ -69,7 +74,9 @@ class ImportPage extends ConsumerWidget {
                               extensions: ['epub'],
                               mimeTypes: ['application/epub+zip'],
                             );
-                            final file = await openFile(acceptedTypeGroups: [typeGroup]);
+                            final file = await openFile(
+                              acceptedTypeGroups: [typeGroup],
+                            );
                             if (file != null && context.mounted) {
                               await _import(context, ref, file.path);
                             }
@@ -107,7 +114,9 @@ class ImportPage extends ConsumerWidget {
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: colors.danger.withValues(alpha: 0.08),
-                border: Border(left: BorderSide(color: colors.danger, width: 2)),
+                border: Border(
+                  left: BorderSide(color: colors.danger, width: 2),
+                ),
                 borderRadius: BibliotecaRadii.md,
               ),
               child: Text(state.message ?? 'No se pudo importar el EPUB.'),
@@ -161,7 +170,9 @@ class ImportPage extends ConsumerWidget {
   }
 
   Future<void> _import(BuildContext context, WidgetRef ref, String path) async {
-    final book = await ref.read(importControllerProvider.notifier).importEpub(path);
+    final book = await ref
+        .read(importControllerProvider.notifier)
+        .importEpub(path);
     if (book != null && context.mounted) {
       context.push('/books/${book.id}');
     }
@@ -169,7 +180,11 @@ class ImportPage extends ConsumerWidget {
 }
 
 class _ImportFeature extends StatelessWidget {
-  const _ImportFeature({required this.icon, required this.title, required this.message});
+  const _ImportFeature({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
   final IconData icon;
   final String title;

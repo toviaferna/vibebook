@@ -33,7 +33,13 @@ class LibraryRepository {
     } else if (Platform.isMacOS) {
       final home = environment['HOME'];
       if (home != null && home.isNotEmpty) {
-        candidate = p.join(home, 'Library', 'Application Support', 'vibebook', 'library');
+        candidate = p.join(
+          home,
+          'Library',
+          'Application Support',
+          'vibebook',
+          'library',
+        );
       }
     } else if (Platform.isLinux) {
       final home = environment['HOME'];
@@ -85,7 +91,8 @@ class LibraryRepository {
           directoryPath: entity.path,
         );
         if (normalizedQuery != null && normalizedQuery.isNotEmpty) {
-          final haystack = '${book.title} ${book.author} ${book.language}'.toLowerCase();
+          final haystack = '${book.title} ${book.author} ${book.language}'
+              .toLowerCase();
           if (!haystack.contains(normalizedQuery)) {
             continue;
           }
@@ -95,7 +102,9 @@ class LibraryRepository {
         // A corrupt book must not break the whole library.
       }
     }
-    books.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    books.sort(
+      (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
     return books;
   }
 
@@ -154,7 +163,9 @@ class LibraryRepository {
         directoryPath: target.path,
       );
     }
-    final temporary = Directory(p.join(rootPath, '.import-${DateTime.now().microsecondsSinceEpoch}'));
+    final temporary = Directory(
+      p.join(rootPath, '.import-${DateTime.now().microsecondsSinceEpoch}'),
+    );
     await temporary.create(recursive: true);
     try {
       final sourceCopy = File(p.join(temporary.path, 'source.epub'));
@@ -182,7 +193,9 @@ class LibraryRepository {
               'chunk_index': chunkIndex,
               'text': chunks[chunkIndex],
               'source_href': chapter.sourceHref,
-              'boundary': chunkIndex == chunks.length - 1 ? 'paragraph' : 'sentence',
+              'boundary': chunkIndex == chunks.length - 1
+                  ? 'paragraph'
+                  : 'sentence',
               'continuation': chunkIndex > 0,
             });
           }
@@ -238,7 +251,10 @@ class LibraryRepository {
         'updated_at': now,
       };
       final manifestFile = File(p.join(temporary.path, 'manifest.json'));
-      await manifestFile.writeAsString(const JsonEncoder.withIndent('  ').convert(manifest), flush: true);
+      await manifestFile.writeAsString(
+        const JsonEncoder.withIndent('  ').convert(manifest),
+        flush: true,
+      );
       final bookMd = File(p.join(temporary.path, 'book.md'));
       await bookMd.writeAsString(markdown.toString(), flush: true);
       if (await target.exists()) {
@@ -260,19 +276,28 @@ class LibraryRepository {
     }
   }
 
-  Future<String?> _writeCover(Directory directory, IngestedBook ingested) async {
+  Future<String?> _writeCover(
+    Directory directory,
+    IngestedBook ingested,
+  ) async {
     final bytes = ingested.coverBytes;
     if (bytes == null || bytes.isEmpty) {
       return null;
     }
     final extension = ingested.coverExtension ?? 'jpg';
-    final safeExtension = const {'jpg', 'jpeg', 'png', 'gif', 'webp'}.contains(extension) ? extension : 'jpg';
+    final safeExtension =
+        const {'jpg', 'jpeg', 'png', 'gif', 'webp'}.contains(extension)
+        ? extension
+        : 'jpg';
     final name = 'cover.$safeExtension';
     await File(p.join(directory.path, name)).writeAsBytes(bytes, flush: true);
     return name;
   }
 
-  Future<List<Map<String, dynamic>>> _writeImages(Directory directory, IngestedBook ingested) async {
+  Future<List<Map<String, dynamic>>> _writeImages(
+    Directory directory,
+    IngestedBook ingested,
+  ) async {
     final result = <Map<String, dynamic>>[];
     if (ingested.images.isEmpty) {
       return result;
@@ -281,7 +306,8 @@ class LibraryRepository {
     await imagesDirectory.create(recursive: true);
     for (final image in ingested.images) {
       final name = '${image.id}.${image.extension}';
-      await File(p.join(imagesDirectory.path, name)).writeAsBytes(image.bytes, flush: true);
+      await File(p.join(imagesDirectory.path, name))
+          .writeAsBytes(image.bytes, flush: true);
       result.add({
         'id': image.id,
         'path': p.posix.join('images', name),

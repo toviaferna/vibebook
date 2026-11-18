@@ -44,15 +44,15 @@ class PiperModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'language': language,
-        'directory': directory,
-        'model': modelFile,
-        'tokens': tokensFile,
-        'espeak_voice': espeakVoice,
-        'sample_rate': sampleRate,
-      };
+    'id': id,
+    'name': name,
+    'language': language,
+    'directory': directory,
+    'model': modelFile,
+    'tokens': tokensFile,
+    'espeak_voice': espeakVoice,
+    'sample_rate': sampleRate,
+  };
 }
 
 /// Discovers Piper voices stored as one directory per voice.
@@ -105,8 +105,12 @@ class PiperModelStore {
         .where((entity) => entity is File)
         .cast<File>()
         .toList();
-    final onnx = files.where((file) => file.path.toLowerCase().endsWith('.onnx')).firstOrNull;
-    final tokens = files.where((file) => p.basename(file.path) == 'tokens.txt').firstOrNull;
+    final onnx = files
+        .where((file) => file.path.toLowerCase().endsWith('.onnx'))
+        .firstOrNull;
+    final tokens = files
+        .where((file) => p.basename(file.path) == 'tokens.txt')
+        .firstOrNull;
     if (onnx == null || tokens == null) {
       return null;
     }
@@ -171,14 +175,21 @@ class PiperModelStore {
   }
 
   String _displayName(String stem) {
-    var cleaned = stem.replaceFirst(RegExp(r'^vits-piper-', caseSensitive: false), '');
+    var cleaned = stem.replaceFirst(
+      RegExp(r'^vits-piper-', caseSensitive: false),
+      '',
+    );
     cleaned = cleaned.replaceAll(RegExp(r'[-_]+'), ' ').trim();
     if (cleaned.isEmpty) {
       return 'Piper';
     }
     return cleaned
         .split(' ')
-        .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+        .map(
+          (word) => word.isEmpty
+              ? word
+              : '${word[0].toUpperCase()}${word.substring(1)}',
+        )
         .join(' ');
   }
 }

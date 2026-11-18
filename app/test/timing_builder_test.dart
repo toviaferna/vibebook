@@ -26,7 +26,10 @@ void main() {
     expect(segment.words.last.endMs, 1400);
     for (var index = 1; index < segment.words.length; index++) {
       expect(segment.words[index].startMs, segment.words[index - 1].endMs);
-      expect(segment.words[index].endMs, greaterThanOrEqualTo(segment.words[index].startMs));
+      expect(
+        segment.words[index].endMs,
+        greaterThanOrEqualTo(segment.words[index].startMs),
+      );
     }
   });
 

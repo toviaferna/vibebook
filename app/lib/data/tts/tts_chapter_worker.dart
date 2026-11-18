@@ -107,11 +107,7 @@ Map<String, dynamic> _renderChapter(Map<String, dynamic> payload) {
       merged.setAll(offset, part);
       offset += part.length;
     }
-    return {
-      'samples': merged,
-      'sample_rate': sampleRate,
-      'spans': spans,
-    };
+    return {'samples': merged, 'sample_rate': sampleRate, 'spans': spans};
   } finally {
     tts?.free();
   }

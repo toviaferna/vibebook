@@ -7,7 +7,9 @@ import 'package:vibebook_app/data/library_repository.dart';
 
 void main() {
   test('importa un EPUB a la biblioteca y lo vuelve a leer', () async {
-    final temp = await Directory.systemTemp.createTemp('vibebook-flutter-test-');
+    final temp = await Directory.systemTemp.createTemp(
+      'vibebook-flutter-test-',
+    );
     addTearDown(() async {
       if (await temp.exists()) {
         await temp.delete(recursive: true);
@@ -21,8 +23,14 @@ void main() {
     expect(book.title, isNotEmpty);
     expect(book.chapters, isNotEmpty);
     expect(book.directoryPath, isNotNull);
-    expect(File(p.join(book.directoryPath!, 'manifest.json')).existsSync(), isTrue);
-    expect(File(p.join(book.directoryPath!, 'source.epub')).existsSync(), isTrue);
+    expect(
+      File(p.join(book.directoryPath!, 'manifest.json')).existsSync(),
+      isTrue,
+    );
+    expect(
+      File(p.join(book.directoryPath!, 'source.epub')).existsSync(),
+      isTrue,
+    );
 
     final scanned = await repository.scan();
     expect(scanned, hasLength(1));
