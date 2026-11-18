@@ -51,4 +51,27 @@ void main() {
     expect(book.chapterCount, 0);
     expect(book.segmentCount, 0);
   });
+
+  test('conserva las preferencias de ambiente y voz', () {
+    final settings = AppSettings.fromJson({
+      'themeMode': 'dark',
+      'piperModelId': 'voice-a',
+      'piperRate': -5,
+      'ambienceEnabled': true,
+      'ambiencePreset': 'sea',
+      'ambienceVolume': 0.5,
+      'ambienceDucking': 0.2,
+    });
+    expect(settings.themeMode, 'dark');
+    expect(settings.piperModelId, 'voice-a');
+    expect(settings.piperRate, -5);
+    expect(settings.ambienceEnabled, isTrue);
+    expect(settings.ambiencePreset, 'sea');
+    expect(settings.ambienceVolume, 0.5);
+    expect(settings.ambienceDucking, 0.2);
+    final updated = settings.copyWith(ambiencePreset: 'fire', ambienceVolume: 0.7);
+    expect(updated.ambiencePreset, 'fire');
+    expect(updated.ambienceVolume, 0.7);
+    expect(updated.ambienceEnabled, isTrue);
+  });
 }

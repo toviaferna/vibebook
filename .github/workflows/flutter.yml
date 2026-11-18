@@ -48,10 +48,36 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release --no-pub
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build unsigned installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\vibebook.iss'
+      - name: Package portable zip
+        shell: pwsh
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath Vibebook-windows-portable.zip -Force
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $files = @()
+          $files += Get-ChildItem "dist/Vibebook-Setup-*.exe"
+          $files += Get-Item "Vibebook-windows-portable.zip"
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content checksums-windows.txt
       - uses: actions/upload-artifact@v4
         with:
           name: vibebook-windows
-          path: app/build/windows/x64/runner/Release
+          path: |
+            app/build/windows/x64/runner/Release
+            app/Vibebook-windows-portable.zip
+            app/checksums-windows.txt
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-windows-installer
+          path: app/dist/Vibebook-Setup-*.exe
           if-no-files-found: error
 
   build-linux:

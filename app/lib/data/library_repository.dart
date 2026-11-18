@@ -99,6 +99,23 @@ class LibraryRepository {
     return books;
   }
 
+  Future<void> deleteBook(String id) async {
+    if (id.isEmpty || p.basename(id) != id) {
+      throw ArgumentError.value(id, 'id', 'Identificador de libro inválido.');
+    }
+    final root = await resolveLibraryPath();
+    final directory = Directory(p.join(root, id));
+    if (!await directory.exists()) {
+      return;
+    }
+    final rootPath = p.canonicalize(root);
+    final target = p.canonicalize(directory.path);
+    if (!p.isWithin(rootPath, target)) {
+      throw StateError('La carpeta del libro queda fuera de la biblioteca.');
+    }
+    await directory.delete(recursive: true);
+  }
+
   Future<Book?> get(String id) async {
     final root = await resolveLibraryPath();
     final directory = Directory(p.join(root, id));

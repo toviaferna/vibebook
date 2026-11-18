@@ -322,6 +322,7 @@ class ReaderPreferences {
     this.fontFamily = 'Literata',
     this.pageTurn = true,
     this.karaoke = true,
+    this.autoAdvance = true,
   });
 
   final String palette;
@@ -329,6 +330,7 @@ class ReaderPreferences {
   final String fontFamily;
   final bool pageTurn;
   final bool karaoke;
+  final bool autoAdvance;
 
   ReaderPreferences copyWith({
     String? palette,
@@ -336,6 +338,7 @@ class ReaderPreferences {
     String? fontFamily,
     bool? pageTurn,
     bool? karaoke,
+    bool? autoAdvance,
   }) {
     return ReaderPreferences(
       palette: palette ?? this.palette,
@@ -343,6 +346,7 @@ class ReaderPreferences {
       fontFamily: fontFamily ?? this.fontFamily,
       pageTurn: pageTurn ?? this.pageTurn,
       karaoke: karaoke ?? this.karaoke,
+      autoAdvance: autoAdvance ?? this.autoAdvance,
     );
   }
 
@@ -352,6 +356,7 @@ class ReaderPreferences {
         'fontFamily': fontFamily,
         'pageTurn': pageTurn,
         'karaoke': karaoke,
+        'autoAdvance': autoAdvance,
       };
 
   factory ReaderPreferences.fromJson(Map<String, dynamic> json) {
@@ -361,6 +366,7 @@ class ReaderPreferences {
       fontFamily: json['fontFamily'] as String? ?? 'Literata',
       pageTurn: json['pageTurn'] as bool? ?? true,
       karaoke: json['karaoke'] as bool? ?? true,
+      autoAdvance: json['autoAdvance'] as bool? ?? true,
     );
   }
 }
@@ -372,6 +378,10 @@ class AppSettings {
     this.modelsPath,
     this.piperModelId,
     this.piperRate = -10,
+    this.ambienceEnabled = false,
+    this.ambiencePreset = 'rain',
+    this.ambienceVolume = 0.35,
+    this.ambienceDucking = 0.3,
     this.reader = const ReaderPreferences(),
     this.lastBookId,
     this.lastChapterIndex = 1,
@@ -382,6 +392,10 @@ class AppSettings {
   final String? modelsPath;
   final String? piperModelId;
   final double piperRate;
+  final bool ambienceEnabled;
+  final String ambiencePreset;
+  final double ambienceVolume;
+  final double ambienceDucking;
   final ReaderPreferences reader;
   final String? lastBookId;
   final int lastChapterIndex;
@@ -392,6 +406,10 @@ class AppSettings {
     String? modelsPath,
     String? piperModelId,
     double? piperRate,
+    bool? ambienceEnabled,
+    String? ambiencePreset,
+    double? ambienceVolume,
+    double? ambienceDucking,
     ReaderPreferences? reader,
     String? lastBookId,
     int? lastChapterIndex,
@@ -404,6 +422,10 @@ class AppSettings {
       modelsPath: clearModelsPath ? null : (modelsPath ?? this.modelsPath),
       piperModelId: clearPiperModel ? null : (piperModelId ?? this.piperModelId),
       piperRate: piperRate ?? this.piperRate,
+      ambienceEnabled: ambienceEnabled ?? this.ambienceEnabled,
+      ambiencePreset: ambiencePreset ?? this.ambiencePreset,
+      ambienceVolume: ambienceVolume ?? this.ambienceVolume,
+      ambienceDucking: ambienceDucking ?? this.ambienceDucking,
       reader: reader ?? this.reader,
       lastBookId: lastBookId ?? this.lastBookId,
       lastChapterIndex: lastChapterIndex ?? this.lastChapterIndex,
@@ -416,6 +438,10 @@ class AppSettings {
         'modelsPath': modelsPath,
         'piperModelId': piperModelId,
         'piperRate': piperRate,
+        'ambienceEnabled': ambienceEnabled,
+        'ambiencePreset': ambiencePreset,
+        'ambienceVolume': ambienceVolume,
+        'ambienceDucking': ambienceDucking,
         'reader': reader.toJson(),
         'lastBookId': lastBookId,
         'lastChapterIndex': lastChapterIndex,
@@ -428,6 +454,10 @@ class AppSettings {
       modelsPath: json['modelsPath'] as String?,
       piperModelId: json['piperModelId'] as String?,
       piperRate: (json['piperRate'] as num?)?.toDouble() ?? -10,
+      ambienceEnabled: json['ambienceEnabled'] as bool? ?? false,
+      ambiencePreset: json['ambiencePreset'] as String? ?? 'rain',
+      ambienceVolume: (json['ambienceVolume'] as num?)?.toDouble() ?? 0.35,
+      ambienceDucking: (json['ambienceDucking'] as num?)?.toDouble() ?? 0.3,
       reader: json['reader'] is Map<String, dynamic>
           ? ReaderPreferences.fromJson(json['reader'] as Map<String, dynamic>)
           : const ReaderPreferences(),

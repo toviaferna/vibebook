@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'app/app.dart';
+import 'dev/ambience_smoke.dart';
+import 'dev/ambient_m4b_smoke.dart';
 import 'dev/audio_smoke.dart';
 import 'dev/convert_smoke.dart';
 import 'dev/install_smoke.dart';
@@ -29,6 +31,14 @@ Future<void> main(List<String> args) async {
   }
   if (args.contains('--audio-smoke')) {
     await runAudioSmoke(args);
+    return;
+  }
+  if (args.contains('--ambience-smoke')) {
+    await runAmbienceSmoke(args);
+    return;
+  }
+  if (args.contains('--ambient-m4b-smoke')) {
+    await runAmbientM4bSmoke(args);
     return;
   }
   if (args.contains('--piper-smoke')) {

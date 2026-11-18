@@ -12,12 +12,14 @@ import 'package:path_provider/path_provider.dart';
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
+import '../../data/ambience/ambience_generator.dart';
 import '../../data/demo_conversion.dart';
 import '../../data/m4b_exporter.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_conversion.dart';
 import '../../data/tts/wav_writer.dart';
+import '../../domain/ambience.dart';
 import '../../domain/models.dart';
 import 'voice_download_dialog.dart';
 
@@ -244,6 +246,55 @@ class _StudioPageState extends ConsumerState<StudioPage> {
               ],
             ),
           ),
+          const SizedBox(height: 18),
+          _Panel(
+            title: 'Ambiente',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Mezcla un paisaje sonoro sintetizado debajo de la voz al exportar.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    DropdownButton<String>(
+                      value: settings?.ambiencePreset ?? 'rain',
+                      underline: const SizedBox.shrink(),
+                      items: [
+                        for (final preset in AmbiencePreset.values)
+                          DropdownMenuItem(value: preset.id, child: Text(preset.label)),
+                      ],
+                      onChanged: _converting || _exporting
+                          ? null
+                          : (preset) {
+                              if (preset != null) {
+                                ref.read(settingsProvider.notifier).updateAmbience(preset: preset);
+                              }
+                            },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _exporting || !book.hasAudio
+                        ? null
+                        : () => _exportM4bWithAmbience(
+                              book,
+                              AmbiencePresetDetails.byId(settings?.ambiencePreset),
+                            ),
+                    icon: const Icon(Icons.forest, size: 18),
+                    label: Text(_exporting ? 'Exportando…' : 'Exportar M4B ambientado'),
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (_error != null) ...[
             const SizedBox(height: 18),
             Container(
@@ -458,6 +509,41 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         setState(() {
           _exporting = false;
           _error = 'No se pudo exportar el M4B: $error';
+        });
+      }
+    }
+  }
+
+  Future<void> _exportM4bWithAmbience(Book book, AmbiencePreset preset) async {
+    setState(() {
+      _exporting = true;
+      _error = null;
+      _exportMessage = 'Generando ambiente…';
+    });
+    try {
+      final bed = await const AmbienceGenerator().ensurePreset(preset);
+      final result = await const M4bExporter().exportWithAmbience(
+        book,
+        bedPath: bed.path,
+        onProgress: (chapter, total) {
+          if (mounted) {
+            setState(() {
+              _exportMessage = 'Mezclando capítulo $chapter de $total…';
+            });
+          }
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+          _exportMessage = 'M4B ambientado exportado en ${result.path}';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+          _error = 'No se pudo exportar el M4B ambientado: $error';
         });
       }
     }

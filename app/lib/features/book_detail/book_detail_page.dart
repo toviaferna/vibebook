@@ -122,6 +122,24 @@ class _BookDetailView extends ConsumerWidget {
           onPressed: () => context.go('/'),
           icon: const Icon(Icons.arrow_back),
         ),
+        PopupMenuButton<String>(
+          tooltip: 'Más opciones',
+          onSelected: (value) {
+            if (value == 'delete') {
+              _confirmDelete(context, ref, book);
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.delete_outline),
+                title: Text('Eliminar libro'),
+              ),
+            ),
+          ],
+        ),
       ],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -197,6 +215,47 @@ class _BookDetailView extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, Book book) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Eliminar este libro?'),
+        content: const Text(
+          'Se borrarán el texto, el audio, los timings y los marcadores de este libro. '
+          'No se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    try {
+      await ref.read(libraryProvider.notifier).deleteBook(book.id);
+      if (context.mounted) {
+        context.go('/');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Libro eliminado: ${book.title}.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar el libro: $error')),
+        );
+      }
+    }
   }
 
   String _duration(int milliseconds) {

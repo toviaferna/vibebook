@@ -1,12 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/bookmark_repository.dart';
 import '../data/epub_ingestor.dart';
 import '../data/library_repository.dart';
 import '../data/settings_repository.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
 import '../data/tts/piper_tts_service.dart';
+import '../domain/bookmarks.dart';
 import '../domain/models.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
@@ -76,6 +78,23 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     await ref.read(settingsRepositoryProvider).save(next);
   }
 
+  Future<void> updateAmbience({
+    bool? enabled,
+    String? preset,
+    double? volume,
+    double? ducking,
+  }) async {
+    final current = state.value ?? const AppSettings();
+    final next = current.copyWith(
+      ambienceEnabled: enabled,
+      ambiencePreset: preset,
+      ambienceVolume: volume,
+      ambienceDucking: ducking,
+    );
+    state = AsyncData(next);
+    await ref.read(settingsRepositoryProvider).save(next);
+  }
+
   Future<void> rememberBook(String bookId, int chapterIndex) async {
     final current = state.value ?? const AppSettings();
     final next = current.copyWith(lastBookId: bookId, lastChapterIndex: chapterIndex);
@@ -112,10 +131,29 @@ class LibraryController extends AsyncNotifier<List<Book>> {
     await refresh();
     return book;
   }
+
+  Future<void> deleteBook(String id) async {
+    await ref.read(libraryRepositoryProvider).deleteBook(id);
+    ref.invalidate(bookProvider(id));
+    await refresh();
+  }
 }
 
 final bookProvider = FutureProvider.family<Book?, String>((ref, id) {
   return ref.watch(libraryRepositoryProvider).get(id);
+});
+
+final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
+  return const BookmarkRepository();
+});
+
+final bookmarkDataProvider = FutureProvider.family<BookmarkData, String>((ref, bookId) async {
+  final book = await ref.watch(bookProvider(bookId).future);
+  final directory = book?.directoryPath;
+  if (directory == null) {
+    return BookmarkData.empty;
+  }
+  return ref.watch(bookmarkRepositoryProvider).load(directory);
 });
 
 final searchQueryProvider = NotifierProvider<SearchQueryController, String>(

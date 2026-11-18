@@ -32,5 +32,10 @@ void main() {
     expect(loaded, isNotNull);
     expect(loaded!.title, book.title);
     expect(loaded.segmentCount, greaterThan(0));
+
+    await repository.deleteBook(book.id);
+    expect(await repository.get(book.id), isNull);
+    expect(await repository.scan(), isEmpty);
+    expect(await Directory(p.join(temp.path, book.id)).exists(), isFalse);
   });
 }

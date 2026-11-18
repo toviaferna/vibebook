@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
+import '../../domain/ambience.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -110,6 +111,17 @@ class SettingsPage extends ConsumerWidget {
                         );
                   },
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Avanzar al terminar'),
+                  subtitle: const Text('Pasar al capítulo siguiente cuando termina el audio.'),
+                  value: value.reader.autoAdvance,
+                  onChanged: (enabled) {
+                    ref.read(settingsProvider.notifier).updateReader(
+                          value.reader.copyWith(autoAdvance: enabled),
+                        );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -175,6 +187,77 @@ class SettingsPage extends ConsumerWidget {
                 Text(
                   'Los modelos Piper se detectan en subcarpetas con .onnx y tokens.txt. '
                   'También podés descargarlos desde el Estudio.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SettingsSection(
+              title: 'Ambiente',
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Ambiente en el lector'),
+                  subtitle: const Text('Sonido de fondo mientras leés o escuchás.'),
+                  value: value.ambienceEnabled,
+                  onChanged: (enabled) {
+                    ref.read(settingsProvider.notifier).updateAmbience(enabled: enabled);
+                  },
+                ),
+                _SettingsRow(
+                  title: 'Sonido',
+                  subtitle: AmbiencePresetDetails.byId(value.ambiencePreset).description,
+                  trailing: DropdownButton<String>(
+                    value: value.ambiencePreset,
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (final preset in AmbiencePreset.values)
+                        DropdownMenuItem(value: preset.id, child: Text(preset.label)),
+                    ],
+                    onChanged: (preset) {
+                      if (preset != null) {
+                        ref.read(settingsProvider.notifier).updateAmbience(preset: preset);
+                      }
+                    },
+                  ),
+                ),
+                _SettingsRow(
+                  title: 'Volumen',
+                  subtitle: '${(value.ambienceVolume * 100).round()}%',
+                  trailing: SizedBox(
+                    width: 220,
+                    child: Slider(
+                      value: value.ambienceVolume,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      label: '${(value.ambienceVolume * 100).round()}%',
+                      onChanged: (volume) {
+                        ref.read(settingsProvider.notifier).updateAmbience(volume: volume);
+                      },
+                    ),
+                  ),
+                ),
+                _SettingsRow(
+                  title: 'Atenuación con la voz',
+                  subtitle: '${(value.ambienceDucking * 100).round()}% del volumen',
+                  trailing: SizedBox(
+                    width: 220,
+                    child: Slider(
+                      value: value.ambienceDucking,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      label: '${(value.ambienceDucking * 100).round()}%',
+                      onChanged: (ducking) {
+                        ref.read(settingsProvider.notifier).updateAmbience(ducking: ducking);
+                      },
+                    ),
+                  ),
+                ),
+                Text(
+                  'Los paisajes sonoros se sintetizan localmente y se guardan en la app. '
+                  'No se descargan muestras externas.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

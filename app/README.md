@@ -7,12 +7,14 @@ release estable**; esta rama no crea tags ni publicaciones.
 ## Estado actual
 
 - **Biblioteca local**: escanea `<library>/<slug>-<hash>/manifest.json`,
-  muestra portadas, búsqueda, detalle y estado de conversión.
+  muestra portadas, búsqueda, detalle, estado de conversión y eliminación con
+  confirmación.
 - **Importación EPUB**: validación, decodificación determinista
   UTF-8/Windows-1252, estructura/TOC, imágenes, portada, detección de idioma y
   manifiesto compatible con la app Python.
 - **Lector**: texto, índice, paletas paper/sepia/night, tamaño de letra,
-  ilustraciones y reproducción de audio por capítulo.
+  ilustraciones, reproducción de audio por capítulo y avance automático al
+  terminar (configurable).
 - **Karaoke**: lee los timings por segmento y resalta la palabra activa. Los
   timings nuevos se estiman a partir de la duración real de cada segmento.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
@@ -21,10 +23,18 @@ release estable**; esta rama no crea tags ni publicaciones.
   México), instalación offline desde `.tar.bz2` y detección de modelos locales.
 - **Salida**: MP3 por capítulo (64 kbps mono) con fallback a WAV y exportación
   M4B con capítulos usando FFmpegKit.
-- **Ajustes**: tema, paleta, lectura, carpeta de biblioteca, carpeta de modelos,
-  velocidad de voz y datos de versión.
-- **Tests**: 19 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
-  WAV y widget.
+- **Ambiente**: cinco paisajes sonoros sintetizados localmente (lluvia, viento,
+  mar, fuego, noche), reproducción en vivo en el lector con atenuación bajo la
+  voz y exportación de **M4B ambientado**.
+- **Marcadores y posición**: se guardan en `bookmarks.json` junto al libro,
+  con salto al capítulo/segundo guardado y restauración al abrir el lector.
+- **Ajustes**: tema, paleta, lectura, biblioteca, modelos, velocidad de voz,
+  ambiente y datos de versión.
+- **Instalador Windows**: script de Inno Setup y job de CI sin firma.
+- **Android**: configuración de firma opcional por `key.properties`; sin
+  keystore el APK queda firmado con la clave de debug.
+- **Tests**: 24 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+  WAV, ambiente, bookmarks y widget.
 
 ## Requisitos
 
@@ -101,6 +111,12 @@ vibebook_app --audio-smoke <audio-file> <out.json>
 
 # Instalar un .tar.bz2 o una entrada del catálogo sin interfaz
 vibebook_app --install-smoke <archive.tar.bz2|catalog:id> <models-root> <out.json>
+
+# Generar las cinco camas de ambiente
+vibebook_app --ambience-smoke <out.json>
+
+# Exportar un M4B con ambiente
+vibebook_app --ambient-m4b-smoke <book-dir> <preset> <out.json> [out.m4b]
 ```
 
 Resultados medidos en Windows durante esta iteración:
@@ -108,6 +124,8 @@ Resultados medidos en Windows durante esta iteración:
 - Piper: 8,9 s de audio en ~1,1 s de síntesis.
 - Libro de prueba de 6 capítulos (~4 min): conversión completa en ~42 s.
 - M4B de 6 capítulos: 2,1 MB.
+- Cinco camas de ambiente de 30 s generadas y verificadas (1,32 MB cada una).
+- M4B ambientado con ducking: exportación verificada con FFmpegKit.
 - APK arm64: **182,7 MB** con Piper, sherpa-onnx y FFmpegKit.
 - Reproducción MP3: posición avanzando y estado `playing` verificados.
 
@@ -119,6 +137,23 @@ flutter build apk --release --target-platform android-arm64
 flutter build linux --release
 flutter build macos --release   # solo en macOS
 ```
+
+### Instalador de Windows
+
+```powershell
+flutter build windows --release
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\vibebook.iss
+# app/dist/Vibebook-Setup-0.1.0.exe
+```
+
+Es un instalador **sin firma**: SmartScreen puede advertir. Ver
+[`packaging/windows/README.md`](packaging/windows/README.md).
+
+### Firma de Android
+
+Copiá `android/key.properties.example` a `android/key.properties`, apuntá
+`storeFile` a tu keystore y completá las contraseñas. Sin ese archivo, el APK
+de release se firma con la clave de debug y **no debe distribuirse**.
 
 ### macOS sin certificado (igual que la release Tauri)
 
@@ -172,11 +207,14 @@ falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
 
 ## Limitaciones actuales
 
-- **Ambience** (paisajes sonoros en vivo y export ambientado) todavía no está.
-- No hay **bookmarks/Drift** ni base de datos de estado de lectura; se guarda el
-  último libro/capítulo en preferencias.
-- No hay **audio en segundo plano** con pantalla apagada.
-- No hay **firma, instaladores ni auto-update**.
+- El ambiente es **procedural** (sintetizado), no un catálogo de samples
+  externos. No hay análisis automático del texto para elegir el paisaje.
+- Los bookmarks/posición usan un **JSON por libro**, no Drift. Es portable y
+  suficiente para esta etapa, pero falta migrar la base de datos completa.
+- No hay **audio en segundo plano** con pantalla apagada ni controles de media
+  session.
+- El instalador de Windows y los DMG de macOS son **sin firma**. No hay
+  auto-update ni notarización.
 - **macOS** se compila sin firma en CI y genera `.dmg` arm64/x64, pero no se
   probó en una Mac real. Gatekeeper pide confirmación, igual que en Tauri.
 - **iOS** está descartado.
@@ -193,10 +231,12 @@ falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
 lib/
   app/                 # MaterialApp, router, shell, providers
   core/                # texto, tokens, tema, componentes, rutas nativas
-  data/                # EPUB, biblioteca, settings, M4B, TTS
+  data/                # EPUB, biblioteca, settings, M4B, bookmarks, TTS
+    ambience/          # generador procedural de paisajes sonoros
     tts/               # modelos, catálogo, descarga, worker, conversión
-  domain/              # modelos y timings
+  domain/              # modelos, timings, bookmarks y presets
   features/            # library, import, detail, studio, reader, settings
   dev/                 # modos de verificación sin interfaz
-test/                  # unit/widget/ingest/library/tts tests
+packaging/windows/     # script de Inno Setup
+test/                  # unit/widget/ingest/library/tts/ambience/bookmarks tests
 ```

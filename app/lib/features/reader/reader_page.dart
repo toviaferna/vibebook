@@ -10,6 +10,9 @@ import 'package:path/path.dart' as p;
 
 import '../../app/providers.dart';
 import '../../core/design/tokens.dart';
+import '../../data/ambience/ambience_generator.dart';
+import '../../domain/ambience.dart';
+import '../../domain/bookmarks.dart';
 import '../../domain/models.dart';
 import '../../domain/timing.dart';
 
@@ -25,13 +28,22 @@ class ReaderPage extends ConsumerStatefulWidget {
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   final _scrollController = ScrollController();
   final _player = AudioPlayer();
+  final _ambiencePlayer = AudioPlayer();
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration>? _durationSubscription;
   int? _chapterIndex;
+  int? _loadedChapterIndex;
   int? _timingAttempted;
+  int? _pendingSeekMs;
+  int? _currentChapterIndex;
+  int _lastSavedSecond = -1;
   ChapterTiming? _timing;
-  String? _loadedAudioPath;
+  String? _bookDirectory;
+  String? _ambienceLoadedPreset;
+  bool _restored = false;
+  bool _ambienceSynced = false;
+  bool _ambienceStarting = false;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -42,11 +54,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     _playerStateSubscription = _player.onPlayerStateChanged.listen((state) {
       if (mounted) {
         setState(() => _isPlaying = state == PlayerState.playing);
+        _updateAmbienceVolume();
+        if (state == PlayerState.completed) {
+          unawaited(_autoAdvanceIfNeeded());
+        }
       }
     });
     _positionSubscription = _player.onPositionChanged.listen((position) {
       if (mounted) {
         setState(() => _position = position);
+        if (position.inSeconds > 0 &&
+            position.inSeconds != _lastSavedSecond &&
+            position.inSeconds % 5 == 0) {
+          _lastSavedSecond = position.inSeconds;
+          unawaited(_saveReadingState());
+        }
       }
     });
     _durationSubscription = _player.onDurationChanged.listen((duration) {
@@ -58,10 +80,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
 
   @override
   void dispose() {
+    unawaited(_saveReadingState());
     _playerStateSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _player.dispose();
+    _ambiencePlayer.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -69,9 +93,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   Widget build(BuildContext context) {
     final bookAsync = ref.watch(bookProvider(widget.bookId));
+    final bookmarkAsync = ref.watch(bookmarkDataProvider(widget.bookId));
     final settings = ref.watch(settingsProvider).value;
     final preferences = settings?.reader ?? const ReaderPreferences();
     final palette = ReaderPalette.byName(preferences.palette);
+    if (!_ambienceSynced && settings != null) {
+      _ambienceSynced = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _syncAmbience(settings);
+        }
+      });
+    }
     return bookAsync.when(
       data: (book) {
         if (book == null) {
@@ -81,6 +114,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           );
         }
         final queryChapter = int.tryParse(GoRouterState.of(context).uri.queryParameters['chapter'] ?? '');
+        final stored = bookmarkAsync.value;
+        if (!_restored && stored != null) {
+          _restored = true;
+          final state = stored.readingState;
+          if (queryChapter == null &&
+              state != null &&
+              book.chapters.any((item) => item.index == state.chapterIndex)) {
+            _chapterIndex = state.chapterIndex;
+            _pendingSeekMs = state.positionMs;
+          }
+        }
         final selected = _chapterIndex ??
             queryChapter ??
             settings?.lastChapterIndex ??
@@ -89,7 +133,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           (item) => item.index == selected,
           orElse: () => book.chapters.first,
         );
-        if (chapter.audio != null && _loadedAudioPath == null) {
+        _bookDirectory = book.directoryPath;
+        _currentChapterIndex = chapter.index;
+        if (chapter.audio != null && _loadedChapterIndex != chapter.index) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               _loadAudio(book, chapter);
@@ -131,6 +177,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               ],
             ),
             actions: [
+              IconButton(
+                tooltip: 'Ambiente',
+                onPressed: () => _showAmbience(context, palette),
+                icon: Icon(
+                  settings?.ambienceEnabled == true ? Icons.forest : Icons.forest_outlined,
+                  color: settings?.ambienceEnabled == true ? palette.accent : palette.inkSoft,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Marcadores',
+                onPressed: () => _showBookmarks(context, book, palette),
+                icon: Icon(Icons.bookmarks_outlined, color: palette.inkSoft),
+              ),
               IconButton(
                 tooltip: 'Índice',
                 onPressed: () => _showToc(context, book, palette, chapter.index),
@@ -238,16 +297,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       return;
     }
     final path = p.join(directory, relative);
-    if (_loadedAudioPath == path) {
+    if (_loadedChapterIndex == chapter.index) {
       return;
     }
+    _loadedChapterIndex = chapter.index;
     if (!File(path).existsSync()) {
       return;
     }
-    _loadedAudioPath = path;
     await _player.stop();
     await _player.setSource(DeviceFileSource(path));
     await _player.setReleaseMode(ReleaseMode.stop);
+    final pendingSeek = _pendingSeekMs;
+    if (pendingSeek != null) {
+      _pendingSeekMs = null;
+      await _player.seek(Duration(milliseconds: pendingSeek));
+    }
     if (mounted) {
       setState(() {
         _position = Duration.zero;
@@ -357,21 +421,381 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     await _player.seek(clamped);
   }
 
-  void _goToChapter(Book book, int index) {
-    setState(() => _chapterIndex = index);
+  Future<void> _syncAmbience(AppSettings settings) async {
+    if (!settings.ambienceEnabled) {
+      await _ambiencePlayer.stop();
+      _ambienceLoadedPreset = null;
+      return;
+    }
+    if (_ambienceStarting) {
+      return;
+    }
+    final preset = AmbiencePresetDetails.byId(settings.ambiencePreset);
+    final volume = (settings.ambienceVolume * (_isPlaying ? settings.ambienceDucking : 1.0))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    if (_ambienceLoadedPreset == preset.id) {
+      await _ambiencePlayer.setVolume(volume);
+      return;
+    }
+    _ambienceStarting = true;
+    try {
+      final file = await const AmbienceGenerator().ensurePreset(preset);
+      await _ambiencePlayer.stop();
+      await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
+      await _ambiencePlayer.setVolume(volume);
+      await _ambiencePlayer.play(DeviceFileSource(file.path));
+      _ambienceLoadedPreset = preset.id;
+    } catch (_) {
+      _ambienceLoadedPreset = null;
+    } finally {
+      _ambienceStarting = false;
+    }
+  }
+
+  void _updateAmbienceVolume() {
+    final settings = ref.read(settingsProvider).value;
+    if (settings == null || !settings.ambienceEnabled || _ambienceLoadedPreset == null) {
+      return;
+    }
+    final volume = (settings.ambienceVolume * (_isPlaying ? settings.ambienceDucking : 1.0))
+        .clamp(0.0, 1.0)
+        .toDouble();
+    _ambiencePlayer.setVolume(volume);
+  }
+
+  Future<void> _showAmbience(BuildContext context, ReaderPalette palette) async {
+    final current = ref.read(settingsProvider).value ?? const AppSettings();
+    var enabled = current.ambienceEnabled;
+    var preset = AmbiencePresetDetails.byId(current.ambiencePreset);
+    var volume = current.ambienceVolume;
+    var ducking = current.ambienceDucking;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: palette.surface,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> apply({
+              bool? enabledValue,
+              AmbiencePreset? presetValue,
+              double? volumeValue,
+              double? duckingValue,
+            }) async {
+              enabled = enabledValue ?? enabled;
+              preset = presetValue ?? preset;
+              volume = volumeValue ?? volume;
+              ducking = duckingValue ?? ducking;
+              await ref.read(settingsProvider.notifier).updateAmbience(
+                    enabled: enabled,
+                    preset: preset.id,
+                    volume: volume,
+                    ducking: ducking,
+                  );
+              final updated = ref.read(settingsProvider).value;
+              if (updated != null) {
+                await _syncAmbience(updated);
+              }
+              if (mounted) {
+                setModalState(() {});
+              }
+            }
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Ambiente',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: palette.ink,
+                          ),
+                        ),
+                      ),
+                      Switch(
+                        value: enabled,
+                        onChanged: (value) => apply(enabledValue: value),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Sonido sintetizado en tu equipo. Se atenúa mientras suena la voz.',
+                    style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final item in AmbiencePreset.values)
+                        ChoiceChip(
+                          label: Text(item.label),
+                          selected: preset == item,
+                          onSelected: enabled
+                              ? (_) => apply(presetValue: item, enabledValue: true)
+                              : null,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text('Volumen', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
+                  Slider(
+                    value: volume,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    label: '${(volume * 100).round()}%',
+                    onChanged: enabled
+                        ? (value) {
+                            setModalState(() => volume = value);
+                          }
+                        : null,
+                    onChangeEnd: enabled ? (value) => apply(volumeValue: value) : null,
+                  ),
+                  Text('Atenuación con la voz', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
+                  Slider(
+                    value: ducking,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    label: '${(ducking * 100).round()}%',
+                    onChanged: enabled
+                        ? (value) {
+                            setModalState(() => ducking = value);
+                          }
+                        : null,
+                    onChangeEnd: enabled ? (value) => apply(duckingValue: value) : null,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          preset.description,
+                          style: TextStyle(color: palette.inkFaint, fontSize: 11),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => apply(enabledValue: false),
+                        child: const Text('Detener'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _goToChapter(Book book, int index, {int? positionMs, bool autoPlay = false}) async {
+    setState(() {
+      _chapterIndex = index;
+      _position = Duration.zero;
+      _duration = Duration.zero;
+    });
+    _restored = true;
     _player.stop();
     final chapter = book.chapters.firstWhere(
       (item) => item.index == index,
       orElse: () => book.chapters.first,
     );
-    _loadedAudioPath = null;
+    _loadedChapterIndex = null;
+    _pendingSeekMs = positionMs;
     _timing = null;
     _timingAttempted = null;
-    _loadAudio(book, chapter);
-    _loadTiming(book, chapter);
+    _currentChapterIndex = chapter.index;
+    unawaited(_saveReadingState());
+    await _loadAudio(book, chapter);
+    if (autoPlay && chapter.audio != null) {
+      await _player.resume();
+    }
+    await _loadTiming(book, chapter);
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
+  }
+
+  Future<void> _autoAdvanceIfNeeded() async {
+    final preferences = ref.read(settingsProvider).value?.reader;
+    if (preferences?.autoAdvance != true || _isPlaying) {
+      return;
+    }
+    final book = ref.read(bookProvider(widget.bookId)).value;
+    final currentIndex = _currentChapterIndex;
+    if (book == null || currentIndex == null) {
+      return;
+    }
+    final position = book.chapters.indexWhere((chapter) => chapter.index == currentIndex);
+    if (position < 0 || position + 1 >= book.chapters.length) {
+      return;
+    }
+    final next = book.chapters[position + 1];
+    await _goToChapter(book, next.index, autoPlay: true);
+  }
+
+  Future<void> _saveReadingState() async {
+    final directory = _bookDirectory;
+    final chapter = _currentChapterIndex;
+    if (directory == null || chapter == null) {
+      return;
+    }
+    try {
+      await ref.read(bookmarkRepositoryProvider).saveReadingState(
+            directory,
+            ReadingState(
+              chapterIndex: chapter,
+              positionMs: _position.inMilliseconds,
+              updatedAt: DateTime.now().toUtc().toIso8601String(),
+            ),
+          );
+    } catch (_) {
+      // A failed position save must not interrupt reading.
+    }
+  }
+
+  Future<void> _addBookmark(Book book) async {
+    final directory = book.directoryPath;
+    final chapterIndex = _currentChapterIndex;
+    if (directory == null || chapterIndex == null) {
+      return;
+    }
+    final chapter = book.chapters.firstWhere(
+      (item) => item.index == chapterIndex,
+      orElse: () => book.chapters.first,
+    );
+    final bookmark = Bookmark(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      chapterIndex: chapter.index,
+      positionMs: _position.inMilliseconds,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+      chapterTitle: chapter.title,
+    );
+    await ref.read(bookmarkRepositoryProvider).addBookmark(directory, bookmark);
+    ref.invalidate(bookmarkDataProvider(widget.bookId));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Marcador guardado: ${chapter.title}.')),
+      );
+    }
+  }
+
+  Future<void> _removeBookmark(String bookmarkId) async {
+    final directory = _bookDirectory;
+    if (directory == null) {
+      return;
+    }
+    await ref.read(bookmarkRepositoryProvider).removeBookmark(directory, bookmarkId);
+    ref.invalidate(bookmarkDataProvider(widget.bookId));
+  }
+
+  String _formatPosition(int milliseconds) {
+    if (milliseconds <= 0) {
+      return 'Inicio del capítulo';
+    }
+    final minutes = milliseconds ~/ 60000;
+    final seconds = (milliseconds % 60000) ~/ 1000;
+    return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showBookmarks(BuildContext context, Book book, ReaderPalette palette) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: palette.surface,
+      isScrollControlled: true,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final data = ref.watch(bookmarkDataProvider(widget.bookId)).value ??
+                BookmarkData.empty;
+            final bookmarks = data.bookmarks.reversed.toList(growable: false);
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.6,
+              maxChildSize: 0.9,
+              builder: (context, controller) {
+                return ListView(
+                  controller: controller,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+                  children: [
+                    Text(
+                      'Marcadores',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: palette.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Guardá la posición actual para volver después.',
+                      style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                    ),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.icon(
+                        onPressed: () => _addBookmark(book),
+                        icon: const Icon(Icons.bookmark_add, size: 18),
+                        label: const Text('Guardar esta posición'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (bookmarks.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 28),
+                        child: Text(
+                          'Todavía no hay marcadores en este libro.',
+                          style: TextStyle(color: palette.inkSoft),
+                        ),
+                      )
+                    else
+                      for (final bookmark in bookmarks)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.bookmark, color: palette.accent),
+                          title: Text(
+                            bookmark.chapterTitle ?? 'Capítulo ${bookmark.chapterIndex}',
+                            style: TextStyle(color: palette.ink),
+                          ),
+                          subtitle: Text(
+                            _formatPosition(bookmark.positionMs),
+                            style: TextStyle(color: palette.inkFaint, fontSize: 11),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Eliminar marcador',
+                            onPressed: () => _removeBookmark(bookmark.id),
+                            icon: Icon(Icons.delete_outline, color: palette.inkFaint),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _goToChapter(
+                              book,
+                              bookmark.chapterIndex,
+                              positionMs: bookmark.positionMs,
+                            );
+                          },
+                        ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _showToc(BuildContext context, Book book, ReaderPalette palette, int current) async {
