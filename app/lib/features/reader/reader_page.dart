@@ -195,10 +195,33 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 onPressed: () => _showToc(context, book, palette, chapter.index),
                 icon: Icon(Icons.list, color: palette.inkSoft),
               ),
-              IconButton(
-                tooltip: 'Ajustes de lectura',
-                onPressed: () => _showSettings(context, preferences, palette),
-                icon: Icon(Icons.text_fields, color: palette.inkSoft),
+              PopupMenuButton<String>(
+                tooltip: 'Más opciones',
+                onSelected: (value) {
+                  if (value == 'search') {
+                    _showSearch(book);
+                  } else if (value == 'typography') {
+                    _showSettings(context, preferences, palette);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'search',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.search),
+                      title: Text('Buscar en el libro'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'typography',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.text_fields),
+                      title: Text('Ajustes de lectura'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -709,6 +732,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  void _showSearch(Book book) {
+    showSearch<void>(
+      context: context,
+      delegate: _BookSearchDelegate(
+        book: book,
+        onSelect: (chapterIndex) {
+          unawaited(_goToChapter(book, chapterIndex));
+        },
+      ),
+    );
+  }
+
   Future<void> _showBookmarks(BuildContext context, Book book, ReaderPalette palette) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -904,6 +939,121 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                 ],
               ),
             );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SearchHit {
+  const _SearchHit({
+    required this.chapterIndex,
+    required this.chapterTitle,
+    required this.snippet,
+  });
+
+  final int chapterIndex;
+  final String chapterTitle;
+  final String snippet;
+}
+
+class _BookSearchDelegate extends SearchDelegate<void> {
+  _BookSearchDelegate({required this.book, required this.onSelect})
+      : super(searchFieldLabel: 'Buscar en el libro');
+
+  final Book book;
+  final ValueChanged<int> onSelect;
+
+  @override
+  List<Widget>? buildActions(BuildContext context) {
+    return [
+      IconButton(
+        tooltip: 'Limpiar',
+        onPressed: () => query = '',
+        icon: const Icon(Icons.clear),
+      ),
+    ];
+  }
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      tooltip: 'Volver',
+      onPressed: () => close(context, null),
+      icon: const Icon(Icons.arrow_back),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) => _results(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) => _results(context);
+
+  Widget _results(BuildContext context) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.length < 2) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text('Escribí al menos dos letras para buscar en el libro.'),
+        ),
+      );
+    }
+    final hits = <_SearchHit>[];
+    outer:
+    for (final chapter in book.chapters) {
+      for (final segment in chapter.segments) {
+        final text = segment.text;
+        final index = text.toLowerCase().indexOf(normalized);
+        if (index < 0) {
+          continue;
+        }
+        final start = (index - 36).clamp(0, text.length);
+        final end = (index + normalized.length + 72).clamp(0, text.length);
+        var snippet = text.substring(start, end).trim();
+        if (start > 0) {
+          snippet = '… $snippet';
+        }
+        if (end < text.length) {
+          snippet = '$snippet …';
+        }
+        hits.add(
+          _SearchHit(
+            chapterIndex: chapter.index,
+            chapterTitle: chapter.title,
+            snippet: snippet,
+          ),
+        );
+        if (hits.length >= 60) {
+          break outer;
+        }
+      }
+    }
+    if (hits.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text('No encontré «${query.trim()}» en este libro.'),
+        ),
+      );
+    }
+    return ListView.separated(
+      itemCount: hits.length,
+      separatorBuilder: (context, index) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final hit = hits[index];
+        return ListTile(
+          leading: CircleAvatar(
+            radius: 16,
+            child: Text('${hit.chapterIndex}'),
+          ),
+          title: Text(hit.chapterTitle),
+          subtitle: Text(hit.snippet, maxLines: 2, overflow: TextOverflow.ellipsis),
+          onTap: () {
+            close(context, null);
+            onSelect(hit.chapterIndex);
           },
         );
       },

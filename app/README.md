@@ -12,9 +12,9 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Importación EPUB**: validación, decodificación determinista
   UTF-8/Windows-1252, estructura/TOC, imágenes, portada, detección de idioma y
   manifiesto compatible con la app Python.
-- **Lector**: texto, índice, paletas paper/sepia/night, tamaño de letra,
-  ilustraciones, reproducción de audio por capítulo y avance automático al
-  terminar (configurable).
+- **Lector**: texto, índice, búsqueda dentro del libro, paletas
+  paper/sepia/night, tamaño de letra, ilustraciones, reproducción de audio por
+  capítulo y avance automático al terminar (configurable).
 - **Karaoke**: lee los timings por segmento y resalta la palabra activa. Los
   timings nuevos se estiman a partir de la duración real de cada segmento.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
@@ -211,6 +211,8 @@ falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
   externos. No hay análisis automático del texto para elegir el paisaje.
 - Los bookmarks/posición usan un **JSON por libro**, no Drift. Es portable y
   suficiente para esta etapa, pero falta migrar la base de datos completa.
+- El lector es de **scroll continuo**: faltan el modo paginado/Libro y el modo
+  Original.
 - No hay **audio en segundo plano** con pantalla apagada ni controles de media
   session.
 - El instalador de Windows y los DMG de macOS son **sin firma**. No hay
