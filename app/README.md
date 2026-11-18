@@ -205,6 +205,20 @@ También se agregó un fallback para rutas Windows con caracteres no ASCII: las
 librerías nativas reciben la ruta corta 8.3 (`GetShortPathNameW`) cuando hace
 falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
 
+## Artefactos de prueba
+
+Esta rama genera artefactos para probar, **no una release**. No se crearon
+tags, versiones ni publicaciones; la app Tauri sigue siendo la estable hasta
+que la prueba y la aprobación explícita habiliten el cutover.
+
+- Windows: `dist/Vibebook-Setup-0.1.0.exe` (sin firma) y
+  `Vibebook-windows-portable.zip`.
+- Android: `build/app/outputs/flutter-apk/app-release.apk` (arm64; sin keystore
+  propio queda firmado con debug, solo para pruebas).
+- macOS: `Vibebook-macos-arm64.dmg` y `Vibebook-macos-x64.dmg` desde el
+  workflow `Flutter` (sin firma).
+- Linux: `vibebook-linux-x64.tar.gz` desde el workflow `Flutter`.
+
 ## Limitaciones actuales
 
 - El ambiente es **procedural** (sintetizado), no un catálogo de samples

@@ -1,5 +1,35 @@
 # Matriz de paridad funcional
 
+## Estado de la implementación Flutter (2026-11-18)
+
+Esta tabla resume qué parte de la matriz ya tiene una implementación
+verificable en `app/`. No implica cutover ni release: la app Tauri sigue siendo
+la estable.
+
+| Área | Estado Flutter |
+|---|---|
+| Biblioteca, búsqueda, detalle, borrado | Implementado; tests de repositorio |
+| Importación EPUB, TOC, imágenes, portada, idioma | Implementado; tests de ingest |
+| Lector de texto, paletas, tipografía, ilustraciones | Implementado |
+| Audio por capítulo, karaoke, avance automático | Implementado; playback verificado en Windows |
+| Búsqueda dentro del libro | Implementado (nivel capítulo) |
+| TTS local Piper, descarga/instalación de voces | Implementado y verificado |
+| Timings estimados por segmento/palabra | Implementado; tests |
+| M4B con capítulos y M4B ambientado | Implementado; verificado con FFmpegKit |
+| Ambiente procedural en vivo y export | Implementado; cinco camas verificadas |
+| Bookmarks y posición de lectura | Implementado con JSON por libro; tests |
+| Windows: instalador/ZIP, CI | Implementado; instalador sin firma |
+| Linux: build/CI | Implementado en CI |
+| macOS: DMG arm64/x64 sin firma | Implementado en CI, igual que Tauri |
+| Android: APK arm64, firma opcional | Implementado; sin dispositivo físico |
+| Drift, FTS5, jobs persistentes | Pendiente |
+| Lector paginado/Libro y modo Original | Pendiente |
+| Audio en segundo plano/media session | Pendiente |
+| Reparar sync, re-segmentar, proveedores cloud | Pendiente |
+| Auto-update, firma/notarización | Pendiente |
+| Web | Fuera de alcance de esta iteración |
+| iOS | Descartado explícitamente |
+
 > Prioridad: **P0** = imprescindible para la primera beta Flutter; **P1** =
 > importante, puede llegar en una beta posterior; **P2** = deseable.
 > Estado objetivo: **Paridad**, **Condicional** (depende de plataforma/runtime),
