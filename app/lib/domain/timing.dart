@@ -14,6 +14,12 @@ class WordTiming {
       endMs: _int(json['end_ms']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'text': text,
+        'start_ms': startMs,
+        'end_ms': endMs,
+      };
 }
 
 class SegmentTiming {
@@ -49,6 +55,14 @@ class SegmentTiming {
       words: words,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'start_ms': startMs,
+        'end_ms': endMs,
+        'precision': precision,
+        'words': words.map((word) => word.toJson()).toList(growable: false),
+      };
 }
 
 class ChapterTiming {
@@ -81,6 +95,13 @@ class ChapterTiming {
       segments: segments,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'chapter_index': chapterIndex,
+        'duration_ms': durationMs,
+        'precision': precision,
+        'segments': segments.map((segment) => segment.toJson()).toList(growable: false),
+      };
 
   factory ChapterTiming.fromJsonString(String source) {
     final decoded = jsonDecode(source);

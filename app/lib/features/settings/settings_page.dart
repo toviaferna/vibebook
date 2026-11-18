@@ -147,6 +147,40 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             _SettingsSection(
+              title: 'Voz',
+              children: [
+                _SettingsRow(
+                  title: 'Carpeta de modelos',
+                  subtitle: value.modelsPath ?? 'Carpeta de la app',
+                  trailing: Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton(
+                        onPressed: () async {
+                          final path = await getDirectoryPath();
+                          if (path != null) {
+                            await ref.read(settingsProvider.notifier).setModelsPath(path);
+                          }
+                        },
+                        child: const Text('Elegir'),
+                      ),
+                      if (value.modelsPath != null)
+                        TextButton(
+                          onPressed: () => ref.read(settingsProvider.notifier).setModelsPath(null),
+                          child: const Text('Automática'),
+                        ),
+                    ],
+                  ),
+                ),
+                Text(
+                  'Los modelos Piper se detectan en subcarpetas con .onnx y tokens.txt. '
+                  'También podés descargarlos desde el Estudio.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SettingsSection(
               title: 'Acerca de',
               children: [
                 FutureBuilder<PackageInfo>(

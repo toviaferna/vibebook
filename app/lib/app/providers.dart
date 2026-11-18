@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/epub_ingestor.dart';
 import '../data/library_repository.dart';
 import '../data/settings_repository.dart';
+import '../data/tts/piper_downloader.dart';
+import '../data/tts/piper_models.dart';
+import '../data/tts/piper_tts_service.dart';
 import '../domain/models.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
@@ -43,6 +46,32 @@ class SettingsController extends AsyncNotifier<AppSettings> {
   Future<void> updateReader(ReaderPreferences preferences) async {
     final current = state.value ?? const AppSettings();
     final next = current.copyWith(reader: preferences);
+    state = AsyncData(next);
+    await ref.read(settingsRepositoryProvider).save(next);
+  }
+
+  Future<void> setModelsPath(String? path) async {
+    final current = state.value ?? const AppSettings();
+    final next = path == null
+        ? current.copyWith(clearModelsPath: true, clearPiperModel: true)
+        : current.copyWith(modelsPath: path, clearPiperModel: true);
+    state = AsyncData(next);
+    await ref.read(settingsRepositoryProvider).save(next);
+    ref.invalidate(piperModelStoreProvider);
+    ref.invalidate(piperModelsProvider);
+    ref.invalidate(modelsRootProvider);
+  }
+
+  Future<void> selectPiperModel(String modelId) async {
+    final current = state.value ?? const AppSettings();
+    final next = current.copyWith(piperModelId: modelId);
+    state = AsyncData(next);
+    await ref.read(settingsRepositoryProvider).save(next);
+  }
+
+  Future<void> setPiperRate(double rate) async {
+    final current = state.value ?? const AppSettings();
+    final next = current.copyWith(piperRate: rate);
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);
   }
@@ -112,6 +141,43 @@ final filteredBooksProvider = Provider<AsyncValue<List<Book>>>((ref) {
       return haystack.contains(query);
     }).toList(growable: false),
   );
+});
+
+final piperModelStoreProvider = Provider<PiperModelStore>((ref) {
+  final path = ref.watch(settingsProvider).value?.modelsPath;
+  return PiperModelStore(rootPath: path);
+});
+
+final piperModelsProvider = FutureProvider<List<PiperModel>>((ref) {
+  return ref.watch(piperModelStoreProvider).scan();
+});
+
+final modelsRootProvider = FutureProvider<String>((ref) {
+  return ref.watch(piperModelStoreProvider).resolveRoot();
+});
+
+final selectedPiperModelProvider = Provider<PiperModel?>((ref) {
+  final models = ref.watch(piperModelsProvider).value ?? const <PiperModel>[];
+  if (models.isEmpty) {
+    return null;
+  }
+  final id = ref.watch(settingsProvider).value?.piperModelId;
+  for (final model in models) {
+    if (model.id == id) {
+      return model;
+    }
+  }
+  return models.first;
+});
+
+final piperTtsServiceProvider = Provider<PiperTtsService>((ref) {
+  final service = PiperTtsService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final piperDownloaderProvider = Provider<PiperDownloader>((ref) {
+  return const PiperDownloader();
 });
 
 final themeModeProvider = Provider<ThemeMode>((ref) {

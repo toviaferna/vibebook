@@ -369,6 +369,9 @@ class AppSettings {
   const AppSettings({
     this.themeMode = 'system',
     this.libraryPath,
+    this.modelsPath,
+    this.piperModelId,
+    this.piperRate = -10,
     this.reader = const ReaderPreferences(),
     this.lastBookId,
     this.lastChapterIndex = 1,
@@ -376,6 +379,9 @@ class AppSettings {
 
   final String themeMode;
   final String? libraryPath;
+  final String? modelsPath;
+  final String? piperModelId;
+  final double piperRate;
   final ReaderPreferences reader;
   final String? lastBookId;
   final int lastChapterIndex;
@@ -383,13 +389,21 @@ class AppSettings {
   AppSettings copyWith({
     String? themeMode,
     String? libraryPath,
+    String? modelsPath,
+    String? piperModelId,
+    double? piperRate,
     ReaderPreferences? reader,
     String? lastBookId,
     int? lastChapterIndex,
+    bool clearPiperModel = false,
+    bool clearModelsPath = false,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
       libraryPath: libraryPath ?? this.libraryPath,
+      modelsPath: clearModelsPath ? null : (modelsPath ?? this.modelsPath),
+      piperModelId: clearPiperModel ? null : (piperModelId ?? this.piperModelId),
+      piperRate: piperRate ?? this.piperRate,
       reader: reader ?? this.reader,
       lastBookId: lastBookId ?? this.lastBookId,
       lastChapterIndex: lastChapterIndex ?? this.lastChapterIndex,
@@ -399,6 +413,9 @@ class AppSettings {
   Map<String, dynamic> toJson() => {
         'themeMode': themeMode,
         'libraryPath': libraryPath,
+        'modelsPath': modelsPath,
+        'piperModelId': piperModelId,
+        'piperRate': piperRate,
         'reader': reader.toJson(),
         'lastBookId': lastBookId,
         'lastChapterIndex': lastChapterIndex,
@@ -408,6 +425,9 @@ class AppSettings {
     return AppSettings(
       themeMode: json['themeMode'] as String? ?? 'system',
       libraryPath: json['libraryPath'] as String?,
+      modelsPath: json['modelsPath'] as String?,
+      piperModelId: json['piperModelId'] as String?,
+      piperRate: (json['piperRate'] as num?)?.toDouble() ?? -10,
       reader: json['reader'] is Map<String, dynamic>
           ? ReaderPreferences.fromJson(json['reader'] as Map<String, dynamic>)
           : const ReaderPreferences(),

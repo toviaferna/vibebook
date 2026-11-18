@@ -1,29 +1,37 @@
 # Vibebook Flutter
 
-Primera implementación Flutter de Vibebook. Convive con la app Tauri/Python
-existente mientras se completa la migración.
+Implementación Flutter de Vibebook. Convive con la app Tauri/Python existente
+mientras se completa la migración. **La app Tauri/Python sigue siendo la
+release estable**; esta rama no crea tags ni publicaciones.
 
 ## Estado actual
 
-- Biblioteca local: escanea `<library>/<slug>-<hash>/manifest.json`, muestra
-  portadas, búsqueda y detalle.
-- Importación EPUB: valida, decodifica XHTML (UTF-8/Windows-1252), extrae
-  capítulos, TOC, imágenes y portada, detecta el idioma y escribe un manifiesto
-  compatible con la app Python.
-- Lector de texto con índice, paletas paper/sepia/night, tamaño de letra y
-  reproducción de audio por capítulo cuando existe.
-- Estudio con selección de motor/voz y una conversión **demo** que genera WAV de
-  silencio para validar el pipeline. La síntesis real y el M4B son la siguiente
-  fase.
-- Ajustes: tema, paleta, lectura, carpeta de biblioteca y datos de versión.
-- Tests de texto, modelos, ingest EPUB, repositorio de biblioteca y widget.
+- **Biblioteca local**: escanea `<library>/<slug>-<hash>/manifest.json`,
+  muestra portadas, búsqueda, detalle y estado de conversión.
+- **Importación EPUB**: validación, decodificación determinista
+  UTF-8/Windows-1252, estructura/TOC, imágenes, portada, detección de idioma y
+  manifiesto compatible con la app Python.
+- **Lector**: texto, índice, paletas paper/sepia/night, tamaño de letra,
+  ilustraciones y reproducción de audio por capítulo.
+- **Karaoke**: lee los timings por segmento y resalta la palabra activa. Los
+  timings nuevos se estiman a partir de la duración real de cada segmento.
+- **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
+  isolate aparte para no bloquear la interfaz.
+- **Voces**: catálogo con descarga e instalación de modelos Piper (España y
+  México), instalación offline desde `.tar.bz2` y detección de modelos locales.
+- **Salida**: MP3 por capítulo (64 kbps mono) con fallback a WAV y exportación
+  M4B con capítulos usando FFmpegKit.
+- **Ajustes**: tema, paleta, lectura, carpeta de biblioteca, carpeta de modelos,
+  velocidad de voz y datos de versión.
+- **Tests**: 19 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+  WAV y widget.
 
 ## Requisitos
 
 - Flutter 3.50+ / Dart 3.14.
-- Para Windows: Visual Studio Build Tools con C++.
-- Para Android: Android SDK 36, build-tools 36, NDK 28.2 y JDK 17+.
-- `ffmpeg` no es necesario para el modo demo.
+- Windows: Visual Studio Build Tools con C++.
+- Android: Android SDK 36, build-tools 36, NDK 28.2 y JDK 17+.
+- No hace falta instalar `ffmpeg` por separado: FFmpegKit viene con la app.
 
 ## Ejecutar
 
@@ -44,12 +52,64 @@ La biblioteca se detecta automáticamente:
 
 Se puede cambiar desde **Ajustes → Biblioteca**.
 
-## Tests
+## Voces locales
+
+La forma más simple es abrir el **Estudio → Agregar voz** y descargar una voz
+del catálogo. Las voces quedan en la carpeta de modelos de la app y se pueden
+usar sin conexión.
+
+También se puede copiar a mano una carpeta con:
+
+```text
+<nombre-del-modelo>/
+  modelo.onnx
+  tokens.txt
+  modelo.onnx.json    # opcional: sample rate, voz espeak, inferencia
+```
+
+La carpeta de modelos se cambia desde **Ajustes → Voz** o desde el Estudio.
+`espeak-ng-data` no hace falta en la carpeta del modelo: `piper-phonemize`
+trae sus propios datos.
+
+Voces incluidas en el catálogo:
+
+- Davefx (español de España, CC0).
+- Ald (español de México, Unlicense).
+
+## Verificación
 
 ```bash
 flutter analyze
 flutter test
 ```
+
+La app incluye modos de verificación sin interfaz, útiles para CI o para
+diagnosticar una instalación:
+
+```bash
+# Una frase -> WAV
+vibebook_app --tts-smoke <model-dir> <out.wav> <out.json>
+
+# EPUB -> biblioteca -> audio/timings reales
+vibebook_app --convert-smoke <model-dir> <book.epub> <library-dir> <out.json> [chapters]
+
+# Exportar M4B de un libro ya convertido
+vibebook_app --m4b-smoke <book-dir> <out.json> [out.m4b]
+
+# Reproducir un audio con el plugin nativo
+vibebook_app --audio-smoke <audio-file> <out.json>
+
+# Instalar un .tar.bz2 o una entrada del catálogo sin interfaz
+vibebook_app --install-smoke <archive.tar.bz2|catalog:id> <models-root> <out.json>
+```
+
+Resultados medidos en Windows durante esta iteración:
+
+- Piper: 8,9 s de audio en ~1,1 s de síntesis.
+- Libro de prueba de 6 capítulos (~4 min): conversión completa en ~42 s.
+- M4B de 6 capítulos: 2,1 MB.
+- APK arm64: **182,7 MB** con Piper, sherpa-onnx y FFmpegKit.
+- Reproducción MP3: posición avanzando y estado `playing` verificados.
 
 ## Build
 
@@ -58,27 +118,41 @@ flutter build windows --release
 flutter build apk --release --target-platform android-arm64
 ```
 
-Medici?n local de esta iteraci?n: APK arm64 de **171,9 MB** con FFmpegKit y
-las librer?as de sherpa-onnx incluidas.
+En Windows, si Developer Mode no está habilitado, Flutter no puede crear los
+symlinks de plugins. La alternativa usada en este entorno es crear junctions en
+`windows/flutter/ephemeral/.plugin_symlinks` a partir de
+`.flutter-plugins-dependencies`; ver `docs/refactor/`.
 
-## Limitaciones de esta primera iteración
+También se agregó un fallback para rutas Windows con caracteres no ASCII: las
+librerías nativas reciben la ruta corta 8.3 (`GetShortPathNameW`) cuando hace
+falta, porque `piper-phonemize`/espeak-ng falla con rutas Unicode.
 
-- La conversión es demo (silencio), no TTS real.
-- No hay M4B, ambience ni karaoke por palabra todavía.
-- No hay firma ni instaladores.
-- La app Tauri/Python sigue siendo la release estable.
-- En Windows, Flutter necesita Developer Mode para enlaces simbólicos de
-  plugins; si no está habilitado, se pueden usar junctions en
-  `windows/flutter/ephemeral/.plugin_symlinks` (ver `docs/refactor/`).
+## Limitaciones actuales
+
+- **Ambience** (paisajes sonoros en vivo y export ambientado) todavía no está.
+- No hay **bookmarks/Drift** ni base de datos de estado de lectura; se guarda el
+  último libro/capítulo en preferencias.
+- No hay **audio en segundo plano** con pantalla apagada.
+- No hay **firma, instaladores ni auto-update**.
+- **macOS/iOS** no se compilaron ni probaron en este entorno (requiere macOS y
+  credenciales Apple).
+- **Android** compila, pero no se probó en un dispositivo físico.
+- Los motores cloud (Edge, Gemini, ElevenLabs, Azure) no están conectados; la
+  app usa Piper local.
+- Web no está en el alcance de esta iteración (TTS nativo y FFmpegKit no
+  aplican igual).
+- En Android, un APK universal/arm64 pesa ~183 MB por las librerías nativas.
 
 ## Estructura
 
 ```text
 lib/
   app/                 # MaterialApp, router, shell, providers
-  core/                # texto, tokens, tema, componentes
-  data/                # EPUB, biblioteca, settings, conversión demo
-  domain/              # modelos
+  core/                # texto, tokens, tema, componentes, rutas nativas
+  data/                # EPUB, biblioteca, settings, M4B, TTS
+    tts/               # modelos, catálogo, descarga, worker, conversión
+  domain/              # modelos y timings
   features/            # library, import, detail, studio, reader, settings
-test/                  # unit/widget/ingest/library tests
+  dev/                 # modos de verificación sin interfaz
+test/                  # unit/widget/ingest/library/tts tests
 ```
