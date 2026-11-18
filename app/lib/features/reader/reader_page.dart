@@ -330,6 +330,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     await _player.stop();
     await _player.setSource(DeviceFileSource(path));
     await _player.setReleaseMode(ReleaseMode.stop);
+    final reader = ref.read(readerPreferencesProvider);
+    try {
+      await _player.setPlaybackRate(reader.playbackRate);
+      await _player.setVolume(reader.volume);
+    } catch (_) {
+      // Some platform players do not support rate changes; keep playback.
+    }
     final pendingSeek = _pendingSeekMs;
     if (pendingSeek != null) {
       _pendingSeekMs = null;
@@ -474,6 +481,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     } finally {
       _ambienceStarting = false;
     }
+  }
+
+  void _applyPlaybackPreferences() {
+    final reader = ref.read(readerPreferencesProvider);
+    _player.setPlaybackRate(reader.playbackRate);
+    _player.setVolume(reader.volume);
   }
 
   void _updateAmbienceVolume() {
@@ -933,6 +946,42 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                     value: current.karaoke,
                     onChanged: (value) {
                       ref.read(settingsProvider.notifier).updateReader(current.copyWith(karaoke: value));
+                      setModalState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Velocidad de audio', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      for (final speed in const [0.75, 1.0, 1.25, 1.5, 2.0])
+                        ChoiceChip(
+                          label: Text('${speed}x'),
+                          selected: current.playbackRate == speed,
+                          onSelected: (_) {
+                            ref.read(settingsProvider.notifier).updateReader(
+                                  current.copyWith(playbackRate: speed),
+                                );
+                            _applyPlaybackPreferences();
+                            setModalState(() {});
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Volumen', style: TextStyle(color: palette.inkSoft, fontSize: 12)),
+                  Slider(
+                    value: current.volume,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    label: '${(current.volume * 100).round()}%',
+                    onChanged: (value) {
+                      ref.read(settingsProvider.notifier).updateReader(
+                            current.copyWith(volume: value),
+                          );
+                      _applyPlaybackPreferences();
                       setModalState(() {});
                     },
                   ),

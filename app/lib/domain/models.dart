@@ -323,6 +323,8 @@ class ReaderPreferences {
     this.pageTurn = true,
     this.karaoke = true,
     this.autoAdvance = true,
+    this.playbackRate = 1.0,
+    this.volume = 1.0,
   });
 
   final String palette;
@@ -331,6 +333,8 @@ class ReaderPreferences {
   final bool pageTurn;
   final bool karaoke;
   final bool autoAdvance;
+  final double playbackRate;
+  final double volume;
 
   ReaderPreferences copyWith({
     String? palette,
@@ -339,6 +343,8 @@ class ReaderPreferences {
     bool? pageTurn,
     bool? karaoke,
     bool? autoAdvance,
+    double? playbackRate,
+    double? volume,
   }) {
     return ReaderPreferences(
       palette: palette ?? this.palette,
@@ -347,6 +353,8 @@ class ReaderPreferences {
       pageTurn: pageTurn ?? this.pageTurn,
       karaoke: karaoke ?? this.karaoke,
       autoAdvance: autoAdvance ?? this.autoAdvance,
+      playbackRate: playbackRate ?? this.playbackRate,
+      volume: volume ?? this.volume,
     );
   }
 
@@ -357,6 +365,8 @@ class ReaderPreferences {
         'pageTurn': pageTurn,
         'karaoke': karaoke,
         'autoAdvance': autoAdvance,
+        'playbackRate': playbackRate,
+        'volume': volume,
       };
 
   factory ReaderPreferences.fromJson(Map<String, dynamic> json) {
@@ -367,6 +377,8 @@ class ReaderPreferences {
       pageTurn: json['pageTurn'] as bool? ?? true,
       karaoke: json['karaoke'] as bool? ?? true,
       autoAdvance: json['autoAdvance'] as bool? ?? true,
+      playbackRate: (json['playbackRate'] as num?)?.toDouble() ?? 1.0,
+      volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
     );
   }
 }

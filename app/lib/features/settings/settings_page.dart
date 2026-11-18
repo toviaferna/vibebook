@@ -89,6 +89,47 @@ class SettingsPage extends ConsumerWidget {
                     ),
                   ),
                 ),
+                _SettingsRow(
+                  title: 'Velocidad de audio',
+                  subtitle: '${value.reader.playbackRate}x',
+                  trailing: DropdownButton<double>(
+                    value: value.reader.playbackRate,
+                    underline: const SizedBox.shrink(),
+                    items: const [
+                      DropdownMenuItem(value: 0.75, child: Text('0.75x')),
+                      DropdownMenuItem(value: 1.0, child: Text('1x')),
+                      DropdownMenuItem(value: 1.25, child: Text('1.25x')),
+                      DropdownMenuItem(value: 1.5, child: Text('1.5x')),
+                      DropdownMenuItem(value: 2.0, child: Text('2x')),
+                    ],
+                    onChanged: (speed) {
+                      if (speed != null) {
+                        ref.read(settingsProvider.notifier).updateReader(
+                              value.reader.copyWith(playbackRate: speed),
+                            );
+                      }
+                    },
+                  ),
+                ),
+                _SettingsRow(
+                  title: 'Volumen',
+                  subtitle: '${(value.reader.volume * 100).round()}%',
+                  trailing: SizedBox(
+                    width: 220,
+                    child: Slider(
+                      value: value.reader.volume,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      label: '${(value.reader.volume * 100).round()}%',
+                      onChanged: (volume) {
+                        ref.read(settingsProvider.notifier).updateReader(
+                              value.reader.copyWith(volume: volume),
+                            );
+                      },
+                    ),
+                  ),
+                ),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Giro de página'),

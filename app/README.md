@@ -14,7 +14,8 @@ release estable**; esta rama no crea tags ni publicaciones.
   manifiesto compatible con la app Python.
 - **Lector**: texto, índice, búsqueda dentro del libro, paletas
   paper/sepia/night, tamaño de letra, ilustraciones, reproducción de audio por
-  capítulo y avance automático al terminar (configurable).
+  capítulo con velocidad/volumen, y avance automático al terminar
+  (configurable).
 - **Karaoke**: lee los timings por segmento y resalta la palabra activa. Los
   timings nuevos se estiman a partir de la duración real de cada segmento.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
