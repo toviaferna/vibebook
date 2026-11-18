@@ -150,7 +150,8 @@ El proyecto Linux se genera y compila con las dependencias de GTK/GStreamer:
 ```bash
 sudo apt-get install -y clang cmake ninja-build pkg-config \
   libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev \
-  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+  libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+  libjson-glib-dev
 flutter build linux --release
 ```
 
