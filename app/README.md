@@ -58,6 +58,9 @@ flutter build windows --release
 flutter build apk --release --target-platform android-arm64
 ```
 
+Medici?n local de esta iteraci?n: APK arm64 de **171,9 MB** con FFmpegKit y
+las librer?as de sherpa-onnx incluidas.
+
 ## Limitaciones de esta primera iteración
 
 - La conversión es demo (silencio), no TTS real.

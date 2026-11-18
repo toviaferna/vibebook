@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
 import '../../data/demo_conversion.dart';
+import '../../data/m4b_exporter.dart';
 import '../../domain/models.dart';
 
 class StudioPage extends ConsumerStatefulWidget {
@@ -22,9 +23,11 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   String _voice = 'es-MX-JorgeNeural';
   double _rate = -10;
   bool _converting = false;
+  bool _exporting = false;
   int _completed = 0;
   int _total = 0;
   String? _error;
+  String? _exportMessage;
 
   static const _engines = {
     'demo': 'Demo local (silencio)',
@@ -189,18 +192,37 @@ class _StudioPageState extends ConsumerState<StudioPage> {
             Text('Generando audio de demostración: $_completed / $_total capítulos'),
           ],
           const SizedBox(height: 22),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: _converting ? null : () => _convert(book),
-              icon: const Icon(Icons.graphic_eq, size: 18),
-              label: Text(_converting ? 'Convirtiendo…' : 'Convertir'),
-            ),
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                onPressed: _converting ? null : () => _convert(book),
+                icon: const Icon(Icons.graphic_eq, size: 18),
+                label: Text(_converting ? 'Convirtiendo…' : 'Convertir'),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exporting || !book.hasAudio ? null : () => _exportM4b(book),
+                icon: const Icon(Icons.audio_file, size: 18),
+                label: Text(_exporting ? 'Exportando…' : 'Exportar M4B'),
+              ),
+            ],
           ),
+          if (_exportMessage != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: colors.surface,
+                border: Border(left: BorderSide(color: colors.brass, width: 2)),
+              ),
+              child: Text(_exportMessage!, style: Theme.of(context).textTheme.bodySmall),
+            ),
+          ],
           const SizedBox(height: 28),
           Text(
             'Modo demo: el pipeline de capítulos, manifiesto y archivos ya está conectado. '
-            'La síntesis real (Piper/Kokoro/cloud) y el M4B se agregan en la próxima fase.',
+            'La síntesis real (Piper/Kokoro/cloud) se agrega en la próxima fase.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -246,6 +268,30 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         setState(() {
           _converting = false;
           _error = 'No se pudo convertir: $error';
+        });
+      }
+    }
+  }
+
+  Future<void> _exportM4b(Book book) async {
+    setState(() {
+      _exporting = true;
+      _error = null;
+      _exportMessage = null;
+    });
+    try {
+      final result = await const M4bExporter().export(book);
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+          _exportMessage = 'M4B exportado en ${result.path}';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+          _error = 'No se pudo exportar el M4B: $error';
         });
       }
     }

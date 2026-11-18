@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as p;
 import '../../app/providers.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/models.dart';
+import '../../domain/timing.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({super.key, required this.bookId});
@@ -27,6 +29,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration>? _durationSubscription;
   int? _chapterIndex;
+  int? _timingAttempted;
+  ChapterTiming? _timing;
   String? _loadedAudioPath;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
@@ -89,6 +93,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               _loadAudio(book, chapter);
+            }
+          });
+        }
+        if (_timingAttempted != chapter.index) {
+          _timingAttempted = chapter.index;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _loadTiming(book, chapter);
             }
           });
         }
@@ -158,16 +170,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                             const SizedBox(height: 8),
                             Container(width: 44, height: 2, color: palette.accent),
                             const SizedBox(height: 24),
-                            for (final paragraph in chapter.segments)
+                            for (final image in book.images.where((image) => image.chapterIndex == chapter.index))
+                              _ReaderImage(
+                                book: book,
+                                image: image,
+                                palette: palette,
+                              ),
+                            for (final segment in chapter.segments)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 18),
-                                child: Text(
-                                  paragraph.text,
-                                  style: TextStyle(
-                                    fontFamily: preferences.fontFamily,
-                                    fontSize: preferences.fontSize,
-                                    height: 1.72,
-                                    color: palette.ink,
+                                child: Text.rich(
+                                  _segmentSpan(
+                                    segment,
+                                    palette: palette,
+                                    preferences: preferences,
+                                    positionMs: _position.inMilliseconds,
                                   ),
                                 ),
                               ),
@@ -239,6 +256,90 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     }
   }
 
+  Future<void> _loadTiming(Book book, Chapter chapter) async {
+    final directory = book.directoryPath;
+    if (directory == null) {
+      return;
+    }
+    final relative = chapter.timing ??
+        'timings/chapter_${chapter.index.toString().padLeft(3, '0')}.json';
+    final path = p.isAbsolute(relative) ? relative : p.join(directory, relative);
+    final file = File(path);
+    if (!await file.exists()) {
+      if (mounted) {
+        setState(() => _timing = null);
+      }
+      return;
+    }
+    try {
+      final timing = ChapterTiming.fromJsonString(await file.readAsString());
+      if (mounted) {
+        setState(() => _timing = timing);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _timing = null);
+      }
+    }
+  }
+
+  TextSpan _segmentSpan(
+    Segment segment, {
+    required ReaderPalette palette,
+    required ReaderPreferences preferences,
+    required int positionMs,
+  }) {
+    final baseStyle = TextStyle(
+      fontFamily: preferences.fontFamily,
+      fontSize: preferences.fontSize,
+      height: 1.72,
+      color: palette.ink,
+    );
+    final timingSegment = _timing?.segments.firstWhereOrNull((item) => item.id == segment.id);
+    final segmentActive = timingSegment != null &&
+        positionMs >= timingSegment.startMs &&
+        positionMs < timingSegment.endMs;
+    final words = RegExp(r'\S+').allMatches(segment.text).toList(growable: false);
+    if (!preferences.karaoke || timingSegment == null || timingSegment.words.isEmpty) {
+      return TextSpan(
+        text: segment.text,
+        style: baseStyle.copyWith(
+          backgroundColor: segmentActive ? palette.highlight : null,
+        ),
+      );
+    }
+    final spans = <TextSpan>[];
+    var cursor = 0;
+    for (var index = 0; index < words.length; index++) {
+      final match = words[index];
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: segment.text.substring(cursor, match.start), style: baseStyle));
+      }
+      final wordTiming = index < timingSegment.words.length ? timingSegment.words[index] : null;
+      final wordActive = wordTiming != null &&
+          positionMs >= wordTiming.startMs &&
+          positionMs < wordTiming.endMs;
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style: baseStyle.copyWith(
+            backgroundColor: wordActive
+                ? palette.highlightWord
+                : segmentActive
+                    ? palette.highlight
+                    : null,
+            fontWeight: wordActive ? FontWeight.w600 : null,
+          ),
+        ),
+      );
+      cursor = match.end;
+    }
+    if (cursor < segment.text.length) {
+      spans.add(TextSpan(text: segment.text.substring(cursor), style: baseStyle));
+    }
+    return TextSpan(style: baseStyle, children: spans);
+  }
+
   Future<void> _togglePlay() async {
     if (_isPlaying) {
       await _player.pause();
@@ -264,7 +365,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
       orElse: () => book.chapters.first,
     );
     _loadedAudioPath = null;
+    _timing = null;
+    _timingAttempted = null;
     _loadAudio(book, chapter);
+    _loadTiming(book, chapter);
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
@@ -379,6 +483,50 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           },
         );
       },
+    );
+  }
+}
+
+class _ReaderImage extends StatelessWidget {
+  const _ReaderImage({required this.book, required this.image, required this.palette});
+
+  final Book book;
+  final BookImage image;
+  final ReaderPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final directory = book.directoryPath;
+    final relative = image.path;
+    if (directory == null || relative == null || relative.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final file = File(p.join(directory, relative));
+    if (!file.existsSync()) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BibliotecaRadii.md,
+            child: Image.file(
+              file,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+            ),
+          ),
+          if (image.caption != null && image.caption!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              image.caption!,
+              style: TextStyle(color: palette.inkFaint, fontSize: 11, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
