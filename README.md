@@ -12,6 +12,10 @@ El Studio usa un token local y tickets firmados de corta duración para los
 medios; el escritorio lo pasa por `stdin`, nunca por la línea de comandos. Ver
 [`SECURITY.md`](SECURITY.md) y [`docs/security-audit.md`](docs/security-audit.md).
 
+> **Migración Flutter en curso:** la nueva app vive en [`app/`](app/README.md) y
+> convive con la app Tauri/Python. Todavía no reemplaza la release estable; ver
+> [`docs/refactor/`](docs/refactor/README.md) para el plan y el estado.
+
 ## Instalación
 
 Requisitos:
