@@ -48,6 +48,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   bool _cancelRequested = false;
   bool _exporting = false;
   bool _previewing = false;
+  String? _previewingVoiceId;
   bool _analyzingAmbience = false;
   AmbiencePlan? _ambiencePlan;
   double _progress = 0;
@@ -195,28 +196,59 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 ),
                 const SizedBox(height: 14),
                 if (engine == 'edge') ...[
-                  BibliotecaSelect<String>(
-                    label: 'Voz Edge',
-                    value: settings?.edgeVoiceId ?? defaultEdgeVoiceId,
-                    options: [
-                      for (final voice in edgeVoices)
-                        BibliotecaSelectOption(
-                          value: voice.id,
-                          label: voice.name,
-                          description:
-                              '${voice.locale.toUpperCase()} · ${voice.gender}',
+                  _EdgeVoicePicker(
+                    voices: edgeVoices,
+                    selected: settings?.edgeVoiceId ?? defaultEdgeVoiceId,
+                    favorites: settings?.edgeFavorites ?? const [],
+                    previewing: _previewingVoiceId,
+                    bookLanguage: book.language,
+                    onSelect: _converting
+                        ? null
+                        : (voiceId) => ref
+                              .read(settingsProvider.notifier)
+                              .updateTtsEngine(edgeVoice: voiceId),
+                    onToggleFavorite: _converting
+                        ? null
+                        : (voiceId) {
+                            final current =
+                                settings?.edgeFavorites ?? const <String>[];
+                            final next = current.contains(voiceId)
+                                ? current
+                                      .where((id) => id != voiceId)
+                                      .toList(growable: false)
+                                : [...current, voiceId];
+                            ref
+                                .read(settingsProvider.notifier)
+                                .updateTtsEngine(edgeFavorites: next);
+                          },
+                    onPreview: _converting || _previewing
+                        ? null
+                        : (voiceId) => _previewEdge(voiceId),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final preset in _speedPresets)
+                        ChoiceChip(
+                          label: Text('${preset.label} (${preset.rate}%)'),
+                          selected:
+                              ((settings?.edgeRate ?? 0) - preset.rate).abs() <
+                              0.01,
+                          onSelected: _converting
+                              ? null
+                              : (_) => ref
+                                    .read(settingsProvider.notifier)
+                                    .updateTtsEngine(edgeRate: preset.rate),
                         ),
                     ],
-                    onChanged: _converting
-                        ? null
-                        : (value) => ref
-                              .read(settingsProvider.notifier)
-                              .updateTtsEngine(edgeVoice: value),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'El texto se envía a Microsoft y el servicio puede fallar, '
-                    'limitarse o cambiar sin aviso. No sirve sin conexión.',
+                    'Online y no oficial: el texto se envía a Microsoft y el '
+                    'servicio puede fallar, limitarse o cambiar sin aviso. No '
+                    'sirve sin conexión.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ] else ...[
@@ -666,6 +698,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final percent = rate.round();
     setState(() {
       _previewing = true;
+      _previewingVoiceId = voiceId;
       _previewMessage = null;
       _error = null;
     });
@@ -691,16 +724,20 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       await player.stop();
       await player.play(DeviceFileSource(file.path));
       if (mounted) {
+        final voice = edgeVoiceById(voiceId);
         setState(() {
           _previewing = false;
+          _previewingVoiceId = null;
           _previewMessage =
-              'Muestra lista · ${(data.length / 1024).round()} KB · online';
+              'Muestra de ${voice?.name ?? voiceId} lista · '
+              '${(data.length / 1024).round()} KB · online';
         });
       }
     } catch (error) {
       if (mounted) {
         setState(() {
           _previewing = false;
+          _previewingVoiceId = null;
           _error = 'No se pudo consultar Edge: $error';
         });
       }
@@ -1029,6 +1066,176 @@ class _NoModels extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SpeedPreset {
+  const _SpeedPreset({required this.label, required this.rate});
+
+  final String label;
+  final double rate;
+}
+
+const _speedPresets = [
+  _SpeedPreset(label: 'Natural', rate: -5),
+  _SpeedPreset(label: 'Pausado', rate: -15),
+  _SpeedPreset(label: 'Lento', rate: -25),
+  _SpeedPreset(label: 'Muy lento', rate: -35),
+];
+
+/// Grid de voces Edge con favoritas, preview por voz y aviso de idioma,
+/// como el picker del Studio Tauri.
+class _EdgeVoicePicker extends StatelessWidget {
+  const _EdgeVoicePicker({
+    required this.voices,
+    required this.selected,
+    required this.favorites,
+    required this.previewing,
+    required this.bookLanguage,
+    this.onSelect,
+    this.onToggleFavorite,
+    this.onPreview,
+  });
+
+  final List<EdgeVoice> voices;
+  final String selected;
+  final List<String> favorites;
+  final String? previewing;
+  final String bookLanguage;
+  final ValueChanged<String>? onSelect;
+  final ValueChanged<String>? onToggleFavorite;
+  final ValueChanged<String>? onPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    final ordered = [...voices]
+      ..sort((left, right) {
+        final leftFavorite = favorites.contains(left.id) ? 0 : 1;
+        final rightFavorite = favorites.contains(right.id) ? 0 : 1;
+        final byFavorite = leftFavorite.compareTo(rightFavorite);
+        if (byFavorite != 0) {
+          return byFavorite;
+        }
+        return left.id.compareTo(right.id);
+      });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 560 ? 2 : 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final voice in ordered)
+              _voiceCard(context, voice, colors, columns),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _voiceCard(
+    BuildContext context,
+    EdgeVoice voice,
+    BibliotecaColors colors,
+    int columns,
+  ) {
+    final active = voice.id == selected;
+    final favorite = favorites.contains(voice.id);
+    final previewingThis = previewing == voice.id;
+    final width = (MediaQuery.sizeOf(context).width - 120) / columns - 10;
+    final voiceLocale = voice.locale.split('-').last.toLowerCase();
+    final mismatch =
+        bookLanguage.isNotEmpty &&
+        voiceLocale.isNotEmpty &&
+        !voiceLocale.startsWith(bookLanguage.split('-').first.toLowerCase());
+    return SizedBox(
+      width: width.clamp(160.0, 320.0),
+      child: Material(
+        color: active ? colors.accentSoft : colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        child: InkWell(
+          borderRadius: BibliotecaRadii.md,
+          onTap: onSelect == null ? null : () => onSelect!(voice.id),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+            decoration: BoxDecoration(
+              borderRadius: BibliotecaRadii.md,
+              border: Border.all(
+                color: active ? colors.accent : colors.line,
+                width: active ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        voice.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: active ? colors.ink : colors.inkSoft,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (onToggleFavorite != null)
+                      IconButton(
+                        tooltip: favorite
+                            ? 'Quitar de favoritas'
+                            : 'Marcar como favorita',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => onToggleFavorite!(voice.id),
+                        icon: Icon(
+                          favorite ? Icons.star : Icons.star_border,
+                          size: 18,
+                          color: favorite ? colors.brass : colors.inkFaint,
+                        ),
+                      ),
+                    if (onPreview != null)
+                      IconButton(
+                        tooltip: 'Escuchar ${voice.name}',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: previewingThis
+                            ? null
+                            : () => onPreview!(voice.id),
+                        icon: previewingThis
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                Icons.play_arrow,
+                                size: 20,
+                                color: colors.accent,
+                              ),
+                      ),
+                  ],
+                ),
+                Text(
+                  '${voice.locale.toUpperCase()} � ${voice.gender}',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                if (mismatch) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Idioma del libro: $bookLanguage',
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: colors.warning),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

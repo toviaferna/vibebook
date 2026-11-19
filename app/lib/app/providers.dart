@@ -102,12 +102,14 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     String? engine,
     String? edgeVoice,
     double? edgeRate,
+    List<String>? edgeFavorites,
   }) async {
     final current = state.value ?? const AppSettings();
     final next = current.copyWith(
       ttsEngine: engine,
       edgeVoiceId: edgeVoice,
       edgeRate: edgeRate,
+      edgeFavorites: edgeFavorites,
     );
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);

@@ -410,6 +410,7 @@ class AppSettings {
     this.ttsEngine = 'piper',
     this.edgeVoiceId = 'es-MX-JorgeNeural',
     this.edgeRate = 0,
+    this.edgeFavorites = const [],
     this.ambienceEnabled = false,
     this.ambiencePreset = 'rain',
     this.ambienceVolume = 0.35,
@@ -429,6 +430,7 @@ class AppSettings {
   final String ttsEngine;
   final String edgeVoiceId;
   final double edgeRate;
+  final List<String> edgeFavorites;
   final bool ambienceEnabled;
   final String ambiencePreset;
   final double ambienceVolume;
@@ -446,6 +448,7 @@ class AppSettings {
     String? ttsEngine,
     String? edgeVoiceId,
     double? edgeRate,
+    List<String>? edgeFavorites,
     bool? ambienceEnabled,
     String? ambiencePreset,
     double? ambienceVolume,
@@ -467,6 +470,7 @@ class AppSettings {
       ttsEngine: ttsEngine ?? this.ttsEngine,
       edgeVoiceId: edgeVoiceId ?? this.edgeVoiceId,
       edgeRate: edgeRate ?? this.edgeRate,
+      edgeFavorites: edgeFavorites ?? this.edgeFavorites,
       ambienceEnabled: ambienceEnabled ?? this.ambienceEnabled,
       ambiencePreset: ambiencePreset ?? this.ambiencePreset,
       ambienceVolume: ambienceVolume ?? this.ambienceVolume,
@@ -486,6 +490,7 @@ class AppSettings {
     'ttsEngine': ttsEngine,
     'edgeVoiceId': edgeVoiceId,
     'edgeRate': edgeRate,
+    'edgeFavorites': edgeFavorites,
     'ambienceEnabled': ambienceEnabled,
     'ambiencePreset': ambiencePreset,
     'ambienceVolume': ambienceVolume,
@@ -505,6 +510,10 @@ class AppSettings {
       ttsEngine: json['ttsEngine'] as String? ?? 'piper',
       edgeVoiceId: json['edgeVoiceId'] as String? ?? 'es-MX-JorgeNeural',
       edgeRate: (json['edgeRate'] as num?)?.toDouble() ?? 0,
+      edgeFavorites: (json['edgeFavorites'] as List?)
+          ?.whereType<String>()
+          .toList(growable: false) ??
+          const [],
       ambienceEnabled: json['ambienceEnabled'] as bool? ?? false,
       ambiencePreset: json['ambiencePreset'] as String? ?? 'rain',
       ambienceVolume: (json['ambienceVolume'] as num?)?.toDouble() ?? 0.35,

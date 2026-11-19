@@ -95,20 +95,24 @@ void main() {
     expect(legacy.ttsEngine, 'piper');
     expect(legacy.edgeVoiceId, 'es-MX-JorgeNeural');
     expect(legacy.edgeRate, 0);
+    expect(legacy.edgeFavorites, isEmpty);
 
     final edge = legacy.copyWith(
       ttsEngine: 'edge',
       edgeVoiceId: 'es-ES-ElviraNeural',
       edgeRate: -10,
+      edgeFavorites: const ['es-ES-ElviraNeural', 'es-MX-DaliaNeural'],
     );
     expect(edge.ttsEngine, 'edge');
     expect(edge.edgeVoiceId, 'es-ES-ElviraNeural');
     expect(edge.edgeRate, -10);
+    expect(edge.edgeFavorites, ['es-ES-ElviraNeural', 'es-MX-DaliaNeural']);
 
     final restored = AppSettings.fromJson(edge.toJson());
     expect(restored.ttsEngine, 'edge');
     expect(restored.edgeVoiceId, 'es-ES-ElviraNeural');
     expect(restored.edgeRate, -10);
+    expect(restored.edgeFavorites, contains('es-MX-DaliaNeural'));
     expect(restored.piperModelId, legacy.piperModelId);
   });
 }
