@@ -407,6 +407,9 @@ class AppSettings {
     this.modelsPath,
     this.piperModelId,
     this.piperRate = -10,
+    this.ttsEngine = 'piper',
+    this.edgeVoiceId = 'es-MX-JorgeNeural',
+    this.edgeRate = 0,
     this.ambienceEnabled = false,
     this.ambiencePreset = 'rain',
     this.ambienceVolume = 0.35,
@@ -421,6 +424,11 @@ class AppSettings {
   final String? modelsPath;
   final String? piperModelId;
   final double piperRate;
+
+  /// Active conversion engine: `piper` (local) or `edge` (online).
+  final String ttsEngine;
+  final String edgeVoiceId;
+  final double edgeRate;
   final bool ambienceEnabled;
   final String ambiencePreset;
   final double ambienceVolume;
@@ -435,6 +443,9 @@ class AppSettings {
     String? modelsPath,
     String? piperModelId,
     double? piperRate,
+    String? ttsEngine,
+    String? edgeVoiceId,
+    double? edgeRate,
     bool? ambienceEnabled,
     String? ambiencePreset,
     double? ambienceVolume,
@@ -453,6 +464,9 @@ class AppSettings {
           ? null
           : (piperModelId ?? this.piperModelId),
       piperRate: piperRate ?? this.piperRate,
+      ttsEngine: ttsEngine ?? this.ttsEngine,
+      edgeVoiceId: edgeVoiceId ?? this.edgeVoiceId,
+      edgeRate: edgeRate ?? this.edgeRate,
       ambienceEnabled: ambienceEnabled ?? this.ambienceEnabled,
       ambiencePreset: ambiencePreset ?? this.ambiencePreset,
       ambienceVolume: ambienceVolume ?? this.ambienceVolume,
@@ -469,6 +483,9 @@ class AppSettings {
     'modelsPath': modelsPath,
     'piperModelId': piperModelId,
     'piperRate': piperRate,
+    'ttsEngine': ttsEngine,
+    'edgeVoiceId': edgeVoiceId,
+    'edgeRate': edgeRate,
     'ambienceEnabled': ambienceEnabled,
     'ambiencePreset': ambiencePreset,
     'ambienceVolume': ambienceVolume,
@@ -485,6 +502,9 @@ class AppSettings {
       modelsPath: json['modelsPath'] as String?,
       piperModelId: json['piperModelId'] as String?,
       piperRate: (json['piperRate'] as num?)?.toDouble() ?? -10,
+      ttsEngine: json['ttsEngine'] as String? ?? 'piper',
+      edgeVoiceId: json['edgeVoiceId'] as String? ?? 'es-MX-JorgeNeural',
+      edgeRate: (json['edgeRate'] as num?)?.toDouble() ?? 0,
       ambienceEnabled: json['ambienceEnabled'] as bool? ?? false,
       ambiencePreset: json['ambiencePreset'] as String? ?? 'rain',
       ambienceVolume: (json['ambienceVolume'] as num?)?.toDouble() ?? 0.35,

@@ -20,6 +20,9 @@ release estable**; esta rama no crea tags ni publicaciones.
   timings nuevos se estiman a partir de la duración real de cada segmento.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
   isolate aparte para no bloquear la interfaz.
+- **Motor Edge (online, experimental)**: voces neuronales de Microsoft vía el
+  servicio Read Aloud, con karaoke por palabra real (`native_word`),
+  reintentos y cooldowns. No oficial: el texto sale del equipo.
 - **Voces**: catálogo con descarga e instalación de modelos Piper (España y
   México), instalación offline desde `.tar.bz2` y detección de modelos locales.
 - **Salida**: MP3 por capítulo (64 kbps mono) con fallback a WAV y exportación
@@ -35,9 +38,9 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 43 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Tests**: 55 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector,
-  catálogo de voces, bookmarks y widget.
+  catálogo de voces, cliente y sintetizador Edge, bookmarks y widget.
 
 ## Requisitos
 
@@ -122,8 +125,11 @@ La app incluye modos de verificación sin interfaz, útiles para CI o para
 diagnosticar una instalación:
 
 ```bash
-# Una frase -> WAV
+# Una frase -> WAV (Piper)
 vibebook_app --tts-smoke <model-dir> <out.wav> <out.json>
+
+# Una frase -> WAV (Edge, online y manual; no entra a CI)
+vibebook_app --edge-tts-smoke <es-ES-ElviraNeural> <out.wav> <out.json>
 
 # EPUB -> biblioteca -> audio/timings reales
 vibebook_app --convert-smoke <model-dir> <book.epub> <library-dir> <out.json> [chapters]
@@ -241,6 +247,10 @@ que la prueba y la aprobación explícita habiliten el cutover.
 - Linux: `vibebook-linux-x64.tar.gz` desde el workflow `Flutter`.
 
 ## Limitaciones actuales
+
+- **Edge TTS es un servicio no oficial**: el texto se envía a Microsoft, puede
+  limitar peticiones, fallar o desaparecer sin aviso. Piper sigue siendo el
+  motor recomendado para uso offline y estable.
 
 - El plan de ambiente es **heurístico** (palabras clave en español/inglés), no
   comprensión semántica. Los capítulos sin señales claras quedan sin ambiente y

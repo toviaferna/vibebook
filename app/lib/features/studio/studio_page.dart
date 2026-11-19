@@ -18,6 +18,9 @@ import '../../data/ambience/ambience_library.dart';
 import '../../data/ambience/ambience_plan_repository.dart';
 import '../../data/m4b_exporter.dart';
 import '../../data/tts/chapter_synthesizer.dart';
+import '../../data/tts/edge/edge_client.dart';
+import '../../data/tts/edge/edge_synthesizer.dart';
+import '../../data/tts/edge/edge_voices.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_conversion.dart';
@@ -89,7 +92,10 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final settings = ref.watch(settingsProvider).value;
     final models = ref.watch(piperModelsProvider);
     final selected = ref.watch(selectedPiperModelProvider);
-    final rate = settings?.piperRate ?? -10;
+    final engine = settings?.ttsEngine ?? 'piper';
+    final rate = engine == 'edge'
+        ? (settings?.edgeRate ?? 0)
+        : (settings?.piperRate ?? -10);
     final modelsRoot = ref.watch(modelsRootProvider);
     final savedAmbiencePlan = ref.watch(ambiencePlanProvider(book.id)).value;
     final ambiencePlan = _ambiencePlan ?? savedAmbiencePlan;
@@ -160,105 +166,160 @@ class _StudioPageState extends ConsumerState<StudioPage> {
             ),
           const SizedBox(height: 24),
           BibliotecaSection(
-            title: 'Voz local',
-            child: models.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return _NoModels(
-                    root: modelsRoot.value,
-                    onChoose: _chooseModelsFolder,
-                    onRefresh: () => ref.invalidate(piperModelsProvider),
-                  );
-                }
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    BibliotecaSelect<String>(
-                      label: 'Modelo Piper',
-                      value: selected?.id ?? items.first.id,
-                      options: [
-                        for (final model in items)
-                          BibliotecaSelectOption(
-                            value: model.id,
-                            label: model.name,
-                            description:
-                                '${model.language.toUpperCase()} · ${(model.sampleRate / 1000).toStringAsFixed(1)} kHz',
-                          ),
-                      ],
-                      onChanged: _converting
-                          ? null
-                          : (value) {
-                              ref
-                                  .read(settingsProvider.notifier)
-                                  .selectPiperModel(value);
-                            },
+            title: 'Voz y motor',
+            description:
+                'Piper corre en este equipo; Edge es online y no oficial.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                BibliotecaSelect<String>(
+                  label: 'Motor',
+                  value: engine,
+                  options: const [
+                    BibliotecaSelectOption(
+                      value: 'piper',
+                      label: 'Piper (local)',
+                      description: 'Sin cuenta ni nube. La síntesis corre acá.',
                     ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _converting ? null : _chooseModelsFolder,
-                          icon: const Icon(Icons.folder_open, size: 18),
-                          label: const Text('Carpeta de modelos'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _converting
-                              ? null
-                              : () => showVoiceDownloadDialog(context),
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('Agregar voz'),
-                        ),
-                      ],
+                    BibliotecaSelectOption(
+                      value: 'edge',
+                      label: 'Edge (online, experimental)',
+                      description: 'Voces neuronales de Microsoft vía red.',
                     ),
-                    const SizedBox(height: 14),
-                    _ModelDetails(model: selected),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _previewController,
-                      maxLines: 2,
-                      minLines: 1,
-                      decoration: const InputDecoration(
-                        labelText: 'Probar la voz',
-                        hintText: 'Escribí una frase para escucharla.',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            _converting || _previewing || selected == null
-                            ? null
-                            : () => _preview(selected, rate),
-                        icon: Icon(
-                          _previewing ? Icons.hourglass_top : Icons.play_arrow,
-                          size: 18,
-                        ),
-                        label: Text(
-                          _previewing
-                              ? 'Generando muestra…'
-                              : 'Escuchar muestra',
-                        ),
-                      ),
-                    ),
-                    if (_previewMessage != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        _previewMessage!,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
                   ],
-                );
-              },
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, stackTrace) =>
-                  Text('No se pudieron leer los modelos: $error'),
+                  onChanged: _converting
+                      ? null
+                      : (value) => ref
+                            .read(settingsProvider.notifier)
+                            .updateTtsEngine(engine: value),
+                ),
+                const SizedBox(height: 14),
+                if (engine == 'edge') ...[
+                  BibliotecaSelect<String>(
+                    label: 'Voz Edge',
+                    value: settings?.edgeVoiceId ?? defaultEdgeVoiceId,
+                    options: [
+                      for (final voice in edgeVoices)
+                        BibliotecaSelectOption(
+                          value: voice.id,
+                          label: voice.name,
+                          description:
+                              '${voice.locale.toUpperCase()} · ${voice.gender}',
+                        ),
+                    ],
+                    onChanged: _converting
+                        ? null
+                        : (value) => ref
+                              .read(settingsProvider.notifier)
+                              .updateTtsEngine(edgeVoice: value),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'El texto se envía a Microsoft y el servicio puede fallar, '
+                    'limitarse o cambiar sin aviso. No sirve sin conexión.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ] else ...[
+                  models.when(
+                    data: (items) {
+                      if (items.isEmpty) {
+                        return _NoModels(
+                          root: modelsRoot.value,
+                          onChoose: _chooseModelsFolder,
+                          onRefresh: () => ref.invalidate(piperModelsProvider),
+                        );
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          BibliotecaSelect<String>(
+                            label: 'Modelo Piper',
+                            value: selected?.id ?? items.first.id,
+                            options: [
+                              for (final model in items)
+                                BibliotecaSelectOption(
+                                  value: model.id,
+                                  label: model.name,
+                                  description:
+                                      '${model.language.toUpperCase()} · ${(model.sampleRate / 1000).toStringAsFixed(1)} kHz',
+                                ),
+                            ],
+                            onChanged: _converting
+                                ? null
+                                : (value) {
+                                    ref
+                                        .read(settingsProvider.notifier)
+                                        .selectPiperModel(value);
+                                  },
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: _converting
+                                    ? null
+                                    : _chooseModelsFolder,
+                                icon: const Icon(Icons.folder_open, size: 18),
+                                label: const Text('Carpeta de modelos'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _converting
+                                    ? null
+                                    : () => showVoiceDownloadDialog(context),
+                                icon: const Icon(Icons.download, size: 18),
+                                label: const Text('Agregar voz'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          _ModelDetails(model: selected),
+                        ],
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (error, stackTrace) =>
+                        Text('No se pudieron leer los modelos: $error'),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _previewController,
+                  maxLines: 2,
+                  minLines: 1,
+                  decoration: const InputDecoration(
+                    labelText: 'Probar la voz',
+                    hintText: 'Escribí una frase para escucharla.',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _converting || _previewing
+                        ? null
+                        : () => _previewAny(),
+                    icon: Icon(
+                      _previewing ? Icons.hourglass_top : Icons.play_arrow,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _previewing ? 'Generando muestra…' : 'Escuchar muestra',
+                    ),
+                  ),
+                ),
+                if (_previewMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _previewMessage!,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 18),
@@ -279,9 +340,17 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                       label: '${rate.round()}%',
                       onChanged: _converting
                           ? null
-                          : (value) => ref
-                                .read(settingsProvider.notifier)
-                                .setPiperRate(value),
+                          : (value) {
+                              if (engine == 'edge') {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .updateTtsEngine(edgeRate: value);
+                              } else {
+                                ref
+                                    .read(settingsProvider.notifier)
+                                    .setPiperRate(value);
+                              }
+                            },
                     ),
                   ),
                   SizedBox(
@@ -402,12 +471,19 @@ class _StudioPageState extends ConsumerState<StudioPage> {
             runSpacing: 10,
             children: [
               FilledButton.icon(
-                onPressed: _converting || _exporting || selected == null
+                onPressed:
+                    _converting ||
+                        _exporting ||
+                        (engine == 'piper' && selected == null)
                     ? null
-                    : () => _convert(book, selected, rate),
+                    : () => _convertCurrent(book, engine, selected, rate),
                 icon: const Icon(Icons.graphic_eq, size: 18),
                 label: Text(
-                  _converting ? 'Convirtiendo…' : 'Convertir con Piper',
+                  _converting
+                      ? 'Convirtiendo…'
+                      : engine == 'edge'
+                      ? 'Convertir con Edge'
+                      : 'Convertir con Piper',
                 ),
               ),
               if (_converting)
@@ -568,28 +644,125 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     }
   }
 
-  Future<void> _convert(Book book, PiperModel model, double rate) async {
+  /// Probes the phrase with the selected engine.
+  Future<void> _previewAny() {
+    final settings = ref.read(settingsProvider).value;
+    if (settings?.ttsEngine == 'edge') {
+      return _previewEdge(settings?.edgeVoiceId ?? defaultEdgeVoiceId);
+    }
+    final model = ref.read(selectedPiperModelProvider);
+    if (model == null) {
+      return Future.value();
+    }
+    return _preview(model, settings?.piperRate ?? -10);
+  }
+
+  Future<void> _previewEdge(String voiceId) async {
+    final text = _previewController.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+    final rate = ref.read(settingsProvider).value?.edgeRate ?? 0;
+    final percent = rate.round();
+    setState(() {
+      _previewing = true;
+      _previewMessage = null;
+      _error = null;
+    });
+    try {
+      final bytes = BytesBuilder(copy: false);
+      await for (final event in EdgeTtsClient().synthesize(
+        text: text,
+        voice: voiceId,
+        rate: '${percent >= 0 ? '+' : ''}$percent%',
+      )) {
+        if (event is EdgeAudioEvent) {
+          bytes.add(event.data);
+        }
+      }
+      final data = bytes.takeBytes();
+      if (data.isEmpty) {
+        throw const EdgeNoAudioException();
+      }
+      final temp = await getTemporaryDirectory();
+      final file = File(p.join(temp.path, 'vibebook-edge-preview.mp3'));
+      await file.writeAsBytes(data, flush: true);
+      final player = _previewPlayer ??= AudioPlayer();
+      await player.stop();
+      await player.play(DeviceFileSource(file.path));
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _previewMessage =
+              'Muestra lista · ${(data.length / 1024).round()} KB · online';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _error = 'No se pudo consultar Edge: $error';
+        });
+      }
+    }
+  }
+
+  /// Chooses the engine and runs the conversion with it.
+  Future<void> _convertCurrent(
+    Book book,
+    String engine,
+    PiperModel? model,
+    double rate,
+  ) async {
+    if (engine == 'edge') {
+      final voiceId =
+          ref.read(settingsProvider).value?.edgeVoiceId ?? defaultEdgeVoiceId;
+      await _runConversion(
+        book,
+        synthesizer: EdgeSynthesizer(client: EdgeTtsClient(), voiceId: voiceId),
+        extra: const {},
+        rate: rate,
+        preparing: 'Consultando el servicio de Edge…',
+      );
+      return;
+    }
+    if (model == null) {
+      return;
+    }
     if (!model.isValid) {
       setState(() => _error = 'El modelo Piper no está completo.');
       return;
     }
+    final espeak = await ensurePiperEspeakData();
+    await _runConversion(
+      book,
+      synthesizer: PiperSynthesizer(model: model, espeakDataPath: espeak),
+      extra: {'tts_model': model.id, 'tts_model_path': model.directory},
+      rate: rate,
+      preparing: 'Preparando espeak-ng…',
+    );
+  }
+
+  Future<void> _runConversion(
+    Book book, {
+    required ChapterSynthesizer synthesizer,
+    required Map<String, String> extra,
+    required double rate,
+    required String preparing,
+  }) async {
     setState(() {
       _converting = true;
       _cancelRequested = false;
       _progress = 0;
-      _progressMessage = 'Preparando espeak-ng…';
+      _progressMessage = preparing;
       _error = null;
       _exportMessage = null;
     });
     try {
-      final espeak = await ensurePiperEspeakData();
       final updated = await const TtsConversionService().convert(
         book,
-        synthesizer: PiperSynthesizer(model: model, espeakDataPath: espeak),
-        manifestExtra: {
-          'tts_model': model.id,
-          'tts_model_path': model.directory,
-        },
+        synthesizer: synthesizer,
+        manifestExtra: extra,
         speed: 1 + rate / 100,
         isCancelled: () => _cancelRequested,
         onProgress: (progress) {

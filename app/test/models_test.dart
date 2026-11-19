@@ -88,4 +88,27 @@ void main() {
     expect(updated.ambienceVolume, 0.7);
     expect(updated.ambienceEnabled, isTrue);
   });
+
+  test('los ajustes de motor TTS tienen defaults y viajan por JSON', () {
+    // Un JSON viejo, sin los campos nuevos, carga con los defaults.
+    final legacy = AppSettings.fromJson({'themeMode': 'dark'});
+    expect(legacy.ttsEngine, 'piper');
+    expect(legacy.edgeVoiceId, 'es-MX-JorgeNeural');
+    expect(legacy.edgeRate, 0);
+
+    final edge = legacy.copyWith(
+      ttsEngine: 'edge',
+      edgeVoiceId: 'es-ES-ElviraNeural',
+      edgeRate: -10,
+    );
+    expect(edge.ttsEngine, 'edge');
+    expect(edge.edgeVoiceId, 'es-ES-ElviraNeural');
+    expect(edge.edgeRate, -10);
+
+    final restored = AppSettings.fromJson(edge.toJson());
+    expect(restored.ttsEngine, 'edge');
+    expect(restored.edgeVoiceId, 'es-ES-ElviraNeural');
+    expect(restored.edgeRate, -10);
+    expect(restored.piperModelId, legacy.piperModelId);
+  });
 }

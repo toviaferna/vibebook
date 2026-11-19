@@ -98,6 +98,21 @@ class SettingsController extends AsyncNotifier<AppSettings> {
     await ref.read(settingsRepositoryProvider).save(next);
   }
 
+  Future<void> updateTtsEngine({
+    String? engine,
+    String? edgeVoice,
+    double? edgeRate,
+  }) async {
+    final current = state.value ?? const AppSettings();
+    final next = current.copyWith(
+      ttsEngine: engine,
+      edgeVoiceId: edgeVoice,
+      edgeRate: edgeRate,
+    );
+    state = AsyncData(next);
+    await ref.read(settingsRepositoryProvider).save(next);
+  }
+
   Future<void> rememberBook(String bookId, int chapterIndex) async {
     final current = state.value ?? const AppSettings();
     final next = current.copyWith(

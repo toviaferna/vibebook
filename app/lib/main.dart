@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'app/app.dart';
 import 'dev/ambient_m4b_smoke.dart';
 import 'dev/convert_smoke.dart';
+import 'dev/edge_tts_smoke.dart';
 import 'dev/m4b_smoke.dart';
 import 'dev/tts_smoke.dart';
 
@@ -23,6 +24,10 @@ Future<void> main(List<String> args) async {
   }
   if (args.contains('--ambient-m4b-smoke')) {
     await runAmbientM4bSmoke(args);
+    return;
+  }
+  if (args.contains('--edge-tts-smoke')) {
+    await runEdgeTtsSmoke(args);
     return;
   }
   runApp(const ProviderScope(child: VibebookApp()));
