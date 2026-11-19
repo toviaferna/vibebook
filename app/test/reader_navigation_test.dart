@@ -231,4 +231,38 @@ void main() {
       isEmpty,
     );
   });
+
+  testWidgets('cambia entre los modos Texto, Libro y Original', (tester) async {
+    final book = _bookIn(_tempDir('reader-modes-'));
+    await pumpReader(
+      tester,
+      book: book,
+      factory: () => ReaderTransports(
+        voice: FakeAudioTransport(),
+        ambience: FakeAudioTransport(),
+      ),
+    );
+
+    expect(find.text('Hola mundo'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Modo de lectura'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Libro').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Hola mundo'), findsOneWidget);
+    expect(find.textContaining('Página 1 de'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Modo de lectura'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Original').last);
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+    expect(
+      find.textContaining('No se pudo leer el XHTML original'),
+      findsOneWidget,
+    );
+  });
 }

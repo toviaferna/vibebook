@@ -141,6 +141,63 @@ class LibraryRepository {
     return book;
   }
 
+  /// Replaces the book cover and updates the manifest atomically.
+  Future<Book> setCover(
+    String id,
+    Uint8List bytes, {
+    String extension = 'jpg',
+  }) async {
+    if (id.isEmpty || p.basename(id) != id) {
+      throw ArgumentError.value(id, 'id', 'Identificador de libro inválido.');
+    }
+    if (bytes.isEmpty) {
+      throw const FormatException('La portada está vacía.');
+    }
+    final root = await resolveLibraryPath();
+    final directory = Directory(p.join(root, id));
+    final manifestFile = File(p.join(directory.path, 'manifest.json'));
+    if (!await manifestFile.exists()) {
+      throw StateError('No encontré el libro en la biblioteca.');
+    }
+    final safeExtension =
+        const {
+          'jpg',
+          'jpeg',
+          'png',
+          'webp',
+          'gif',
+        }.contains(extension.toLowerCase())
+        ? extension.toLowerCase()
+        : 'jpg';
+    final name = 'cover.$safeExtension';
+    final coverFile = File(p.join(directory.path, name));
+    final temporary = File('${coverFile.path}.part');
+    await temporary.writeAsBytes(bytes, flush: true);
+    if (await coverFile.exists()) {
+      await coverFile.delete();
+    }
+    await temporary.rename(coverFile.path);
+    final manifest =
+        jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+    manifest['cover'] = name;
+    manifest['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    final manifestTemporary = File('${manifestFile.path}.part');
+    await manifestTemporary.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(manifest),
+      flush: true,
+    );
+    if (await manifestFile.exists()) {
+      await manifestFile.delete();
+    }
+    await manifestTemporary.rename(manifestFile.path);
+    return Book.fromJsonString(
+      await manifestFile.readAsString(),
+      id: id,
+      manifestPath: manifestFile.path,
+      directoryPath: directory.path,
+    );
+  }
+
   Future<Book> importEpub(String sourcePath) async {
     final source = File(sourcePath);
     if (!await source.exists()) {

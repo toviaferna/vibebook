@@ -6,6 +6,7 @@ import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/models.dart';
+import 'cover_search_dialog.dart';
 
 class BookDetailPage extends ConsumerWidget {
   const BookDetailPage({super.key, required this.bookId});
@@ -156,9 +157,25 @@ class _BookDetailView extends ConsumerWidget {
           onSelected: (value) {
             if (value == 'delete') {
               _confirmDelete(context, ref, book);
+            } else if (value == 'cover') {
+              showDialog<void>(
+                context: context,
+                builder: (context) => CoverSearchDialog(book: book),
+              );
             }
           },
           itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'cover',
+              height: 44,
+              child: Row(
+                children: [
+                  Icon(Icons.image_search, size: 18),
+                  SizedBox(width: 10),
+                  Text('Buscar portada'),
+                ],
+              ),
+            ),
             PopupMenuItem(
               value: 'delete',
               height: 44,

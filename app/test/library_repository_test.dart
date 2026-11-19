@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -45,5 +46,39 @@ void main() {
     expect(await repository.get(book.id), isNull);
     expect(await repository.scan(), isEmpty);
     expect(await Directory(p.join(temp.path, book.id)).exists(), isFalse);
+  });
+
+  test('reemplaza la portada y actualiza el manifiesto', () async {
+    final temp = await Directory.systemTemp.createTemp('vibebook-cover-test-');
+    addTearDown(() async {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    });
+    final repository = LibraryRepository(
+      ingestor: const EpubIngestor(),
+      libraryPath: temp.path,
+    );
+    final book = await repository.importEpub('test/fixtures/sample.epub');
+    final updated = await repository.setCover(
+      book.id,
+      Uint8List.fromList([1, 2, 3, 4]),
+      extension: 'png',
+    );
+    expect(updated.cover, 'cover.png');
+    final cover = File(p.join(book.directoryPath!, 'cover.png'));
+    expect(cover.existsSync(), isTrue);
+    expect(await cover.readAsBytes(), [1, 2, 3, 4]);
+    final manifest = await File(p.join(book.directoryPath!, 'manifest.json'))
+        .readAsString();
+    expect(manifest, contains('cover.png'));
+    expect(
+      () => repository.setCover('../escape', Uint8List.fromList([1])),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => repository.setCover(book.id, Uint8List(0)),
+      throwsA(isA<FormatException>()),
+    );
   });
 }
