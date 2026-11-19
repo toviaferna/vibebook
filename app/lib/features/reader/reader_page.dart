@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +15,8 @@ import '../../domain/ambience.dart';
 import '../../domain/bookmarks.dart';
 import '../../domain/models.dart';
 import '../../domain/timing.dart';
+import 'audio_transport.dart';
+import 'reader_playback.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({super.key, required this.bookId});
@@ -28,28 +29,21 @@ class ReaderPage extends ConsumerStatefulWidget {
 
 class _ReaderPageState extends ConsumerState<ReaderPage> {
   final _scrollController = ScrollController();
-  final _player = AudioPlayer();
-  final _ambiencePlayer = AudioPlayer();
-  StreamSubscription<PlayerState>? _playerStateSubscription;
+  ReaderPlaybackController? _playback;
+  StreamSubscription<AudioTransportState>? _playingSubscription;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration>? _durationSubscription;
   int? _chapterIndex;
-  int? _loadedChapterIndex;
   int? _timingAttempted;
   int? _pendingSeekMs;
   int? _currentChapterIndex;
   int _lastSavedSecond = -1;
   ChapterTiming? _timing;
   String? _bookDirectory;
-  String? _ambienceLoadedPreset;
   String? _ambienceChapterPreset;
   bool _ambiencePlanSuppressed = false;
-  bool _ambiencePending = false;
-  String? _pendingAmbienceChapterPreset;
-  double _ambienceVolume = 0;
   bool _restored = false;
   bool _ambienceSynced = false;
-  bool _ambienceStarting = false;
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -57,16 +51,21 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   void initState() {
     super.initState();
-    _playerStateSubscription = _player.onPlayerStateChanged.listen((state) {
+    final transports = ref.read(readerTransportsFactoryProvider)();
+    _playback = ReaderPlaybackController(
+      transports: transports,
+      ambienceResolver: (preset) =>
+          const AmbienceLibrary().ensurePreset(preset),
+    );
+    _playingSubscription = _playback!.onVoiceStateChanged.listen((state) {
       if (mounted) {
-        setState(() => _isPlaying = state == PlayerState.playing);
-        _updateAmbienceVolume();
-        if (state == PlayerState.completed) {
+        setState(() => _isPlaying = state == AudioTransportState.playing);
+        if (state == AudioTransportState.completed) {
           unawaited(_autoAdvanceIfNeeded());
         }
       }
     });
-    _positionSubscription = _player.onPositionChanged.listen((position) {
+    _positionSubscription = _playback!.onPositionChanged.listen((position) {
       if (mounted) {
         setState(() => _position = position);
         if (position.inSeconds > 0 &&
@@ -77,7 +76,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         }
       }
     });
-    _durationSubscription = _player.onDurationChanged.listen((duration) {
+    _durationSubscription = _playback!.onDurationChanged.listen((duration) {
       if (mounted) {
         setState(() => _duration = duration);
       }
@@ -87,11 +86,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   void dispose() {
     unawaited(_saveReadingState());
-    _playerStateSubscription?.cancel();
+    _playingSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
-    _player.dispose();
-    _ambiencePlayer.dispose();
+    unawaited(_playback?.dispose());
     _scrollController.dispose();
     super.dispose();
   }
@@ -149,11 +147,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           _ambienceChapterPreset = chapterPreset;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              _syncAmbience(settings, chapterPreset: chapterPreset);
+              _syncAmbienceFrom(settings, chapterPreset: chapterPreset);
             }
           });
         }
-        if (chapter.audio != null && _loadedChapterIndex != chapter.index) {
+        if (chapter.audio != null &&
+            _playback?.loadedChapterIndex != chapter.index) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               _loadAudio(book, chapter);
@@ -182,194 +181,213 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
           data: buildBibliotecaTheme(dark: palette.name == 'night'),
           child: Builder(
             builder: (context) {
-              return Scaffold(
-                backgroundColor: palette.paper,
-                appBar: AppBar(
+              return PopScope<Object?>(
+                canPop: false,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (!didPop) {
+                    unawaited(_leaveReader());
+                  }
+                },
+                child: Scaffold(
                   backgroundColor: palette.paper,
-                  foregroundColor: palette.ink,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  leading: IconButton(
-                    tooltip: 'Volver al libro',
-                    onPressed: () => context.push('/books/${book.id}'),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        book.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: palette.ink,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        chapter.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: palette.inkFaint, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    IconButton(
-                      tooltip: 'Ambiente',
-                      onPressed: () => _showAmbience(context, palette),
-                      icon: Icon(
-                        settings?.ambienceEnabled == true
-                            ? Icons.forest
-                            : Icons.forest_outlined,
-                        color: settings?.ambienceEnabled == true
-                            ? palette.accent
-                            : palette.inkSoft,
-                      ),
+                  appBar: AppBar(
+                    backgroundColor: palette.paper,
+                    foregroundColor: palette.ink,
+                    elevation: 0,
+                    scrolledUnderElevation: 0,
+                    leading: IconButton(
+                      tooltip: 'Volver al libro',
+                      onPressed: () => unawaited(_leaveReader()),
+                      icon: const Icon(Icons.arrow_back),
                     ),
-                    IconButton(
-                      tooltip: 'Marcadores',
-                      onPressed: () => _showBookmarks(context, book, palette),
-                      icon: Icon(
-                        Icons.bookmarks_outlined,
-                        color: palette.inkSoft,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Índice',
-                      onPressed: () =>
-                          _showToc(context, book, palette, chapter.index),
-                      icon: Icon(Icons.list, color: palette.inkSoft),
-                    ),
-                    PopupMenuButton<String>(
-                      tooltip: 'Más opciones',
-                      onSelected: (value) {
-                        if (value == 'search') {
-                          _showSearch(book);
-                        } else if (value == 'typography') {
-                          _showSettings(context, preferences, palette);
-                        }
-                      },
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(
-                          value: 'search',
-                          height: 44,
-                          child: Row(
-                            children: [
-                              Icon(Icons.search, size: 18),
-                              SizedBox(width: 10),
-                              Text('Buscar en el libro'),
-                            ],
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          book.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        PopupMenuItem(
-                          value: 'typography',
-                          height: 44,
-                          child: Row(
-                            children: [
-                              Icon(Icons.text_fields, size: 18),
-                              SizedBox(width: 10),
-                              Text('Ajustes de lectura'),
-                            ],
+                        Text(
+                          chapter.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: palette.inkFaint,
+                            fontSize: 11,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                body: Column(
-                  children: [
-                    Expanded(
-                      child: Scrollbar(
-                        controller: _scrollController,
-                        child: SingleChildScrollView(
+                    actions: [
+                      IconButton(
+                        tooltip: 'Ambiente',
+                        onPressed: () => _showAmbience(context, palette),
+                        icon: Icon(
+                          settings?.ambienceEnabled == true
+                              ? Icons.forest
+                              : Icons.forest_outlined,
+                          color: settings?.ambienceEnabled == true
+                              ? palette.accent
+                              : palette.inkSoft,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Marcadores',
+                        onPressed: () => _showBookmarks(context, book, palette),
+                        icon: Icon(
+                          Icons.bookmarks_outlined,
+                          color: palette.inkSoft,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Índice',
+                        onPressed: () =>
+                            _showToc(context, book, palette, chapter.index),
+                        icon: Icon(Icons.list, color: palette.inkSoft),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Más opciones',
+                        onSelected: (value) {
+                          if (value == 'search') {
+                            _showSearch(book);
+                          } else if (value == 'typography') {
+                            _showSettings(context, preferences, palette);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'search',
+                            height: 44,
+                            child: Row(
+                              children: [
+                                Icon(Icons.search, size: 18),
+                                SizedBox(width: 10),
+                                Text('Buscar en el libro'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'typography',
+                            height: 44,
+                            child: Row(
+                              children: [
+                                Icon(Icons.text_fields, size: 18),
+                                SizedBox(width: 10),
+                                Text('Ajustes de lectura'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  body: Column(
+                    children: [
+                      Expanded(
+                        child: Scrollbar(
                           controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 720),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    chapter.title,
-                                    style: TextStyle(
-                                      fontFamily: 'serif',
-                                      fontSize: preferences.fontSize + 12,
-                                      height: 1.15,
-                                      fontWeight: FontWeight.w600,
-                                      color: palette.ink,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: 44,
-                                    height: 2,
-                                    color: palette.accent,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  for (final image in book.images.where(
-                                    (image) =>
-                                        image.chapterIndex == chapter.index,
-                                  ))
-                                    _ReaderImage(
-                                      book: book,
-                                      image: image,
-                                      palette: palette,
-                                    ),
-                                  for (final segment in chapter.segments)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 18,
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 720,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      chapter.title,
+                                      style: TextStyle(
+                                        fontFamily: 'serif',
+                                        fontSize: preferences.fontSize + 12,
+                                        height: 1.15,
+                                        fontWeight: FontWeight.w600,
+                                        color: palette.ink,
                                       ),
-                                      child: Text.rich(
-                                        _segmentSpan(
-                                          segment,
-                                          palette: palette,
-                                          preferences: preferences,
-                                          positionMs: _position.inMilliseconds,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      width: 44,
+                                      height: 2,
+                                      color: palette.accent,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    for (final image in book.images.where(
+                                      (image) =>
+                                          image.chapterIndex == chapter.index,
+                                    ))
+                                      _ReaderImage(
+                                        book: book,
+                                        image: image,
+                                        palette: palette,
+                                      ),
+                                    for (final segment in chapter.segments)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 18,
+                                        ),
+                                        child: Text.rich(
+                                          _segmentSpan(
+                                            segment,
+                                            palette: palette,
+                                            preferences: preferences,
+                                            positionMs:
+                                                _position.inMilliseconds,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  if (chapter.segments.isEmpty)
-                                    Text(
-                                      'Este capítulo no tiene texto legible.',
-                                      style: TextStyle(color: palette.inkSoft),
-                                    ),
-                                ],
+                                    if (chapter.segments.isEmpty)
+                                      Text(
+                                        'Este capítulo no tiene texto legible.',
+                                        style: TextStyle(
+                                          color: palette.inkSoft,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    _ReaderFooter(
-                      palette: palette,
-                      chapter: chapter,
-                      book: book,
-                      hasAudio: chapter.audio != null,
-                      isPlaying: _isPlaying,
-                      position: _position,
-                      duration: _duration,
-                      onPlayPause: chapter.audio == null ? null : _togglePlay,
-                      onSeekBack: chapter.audio == null
-                          ? null
-                          : () => _seek(Duration(seconds: -15)),
-                      onSeekForward: chapter.audio == null
-                          ? null
-                          : () => _seek(const Duration(seconds: 15)),
-                      onConvert: chapter.audio == null
-                          ? () => context.push('/books/${book.id}/studio')
-                          : null,
-                      onPrevious: chapter.index > book.chapters.first.index
-                          ? () => _goToChapter(book, chapter.index - 1)
-                          : null,
-                      onNext: chapter.index < book.chapters.last.index
-                          ? () => _goToChapter(book, chapter.index + 1)
-                          : null,
-                    ),
-                  ],
+                      _ReaderFooter(
+                        palette: palette,
+                        chapter: chapter,
+                        book: book,
+                        hasAudio: chapter.audio != null,
+                        isPlaying: _isPlaying,
+                        position: _position,
+                        duration: _duration,
+                        onPlayPause: chapter.audio == null
+                            ? null
+                            : () => unawaited(_togglePlay()),
+                        onSeekBack: chapter.audio == null
+                            ? null
+                            : () => unawaited(_seek(Duration(seconds: -15))),
+                        onSeekForward: chapter.audio == null
+                            ? null
+                            : () =>
+                                  unawaited(_seek(const Duration(seconds: 15))),
+                        onConvert: chapter.audio == null
+                            ? () => context.push('/books/${book.id}/studio')
+                            : null,
+                        onPrevious: chapter.index > book.chapters.first.index
+                            ? () => _goToChapter(book, chapter.index - 1)
+                            : null,
+                        onNext: chapter.index < book.chapters.last.index
+                            ? () => _goToChapter(book, chapter.index + 1)
+                            : null,
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -386,34 +404,26 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   Future<void> _loadAudio(Book book, Chapter chapter) async {
+    final playback = _playback;
+    if (playback == null) {
+      return;
+    }
     final relative = chapter.audio;
     final directory = book.directoryPath;
     if (relative == null || directory == null) {
       return;
     }
     final path = p.join(directory, relative);
-    if (_loadedChapterIndex == chapter.index) {
-      return;
-    }
-    _loadedChapterIndex = chapter.index;
-    if (!File(path).existsSync()) {
-      return;
-    }
-    await _player.stop();
-    await _player.setSource(DeviceFileSource(path));
-    await _player.setReleaseMode(ReleaseMode.stop);
     final reader = ref.read(readerPreferencesProvider);
-    try {
-      await _player.setPlaybackRate(reader.playbackRate);
-      await _player.setVolume(reader.volume);
-    } catch (_) {
-      // Some platform players do not support rate changes; keep playback.
-    }
-    final pendingSeek = _pendingSeekMs;
-    if (pendingSeek != null) {
-      _pendingSeekMs = null;
-      await _player.seek(Duration(milliseconds: pendingSeek));
-    }
+    final startAtMs = _pendingSeekMs;
+    _pendingSeekMs = null;
+    await playback.loadChapter(
+      chapterIndex: chapter.index,
+      audioPath: File(path).existsSync() ? path : null,
+      startAtMs: startAtMs,
+      volume: reader.volume,
+      rate: reader.playbackRate,
+    );
     if (mounted) {
       setState(() {
         _position = Duration.zero;
@@ -434,14 +444,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         ? relative
         : p.join(directory, relative);
     final file = File(path);
-    if (!await file.exists()) {
+    if (!file.existsSync()) {
       if (mounted) {
         setState(() => _timing = null);
       }
       return;
     }
     try {
-      final timing = ChapterTiming.fromJsonString(await file.readAsString());
+      final timing = ChapterTiming.fromJsonString(file.readAsStringSync());
       if (mounted) {
         setState(() => _timing = timing);
       }
@@ -526,115 +536,46 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     return TextSpan(style: baseStyle, children: spans);
   }
 
-  Future<void> _togglePlay() async {
-    if (_isPlaying) {
-      await _player.pause();
-    } else {
-      await _player.resume();
+  /// Stops playback and only then leaves the reader. The old back button
+  /// pushed a new detail page on top, leaving this one (and its audio) alive.
+  Future<void> _leaveReader() async {
+    await _playback?.stopAll();
+    if (!mounted) {
+      return;
     }
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/books/${widget.bookId}');
+    }
+  }
+
+  Future<void> _togglePlay() async {
+    await _playback?.togglePlayPause();
   }
 
   Future<void> _seek(Duration delta) async {
-    final target = _position + delta;
-    final max = _duration;
-    final clamped = target < Duration.zero
-        ? Duration.zero
-        : (max > Duration.zero && target > max ? max : target);
-    await _player.seek(clamped);
+    await _playback?.seekBy(delta);
   }
 
-  Future<void> _syncAmbience(
-    AppSettings settings, {
-    String? chapterPreset,
-  }) async {
-    if (_ambienceStarting) {
-      _ambiencePending = true;
-      _pendingAmbienceChapterPreset = chapterPreset;
-      return;
-    }
-    if (!settings.ambienceEnabled) {
-      if (_ambienceLoadedPreset != null) {
-        await _fadeAmbienceTo(0);
-        await _ambiencePlayer.stop();
-      }
-      _ambienceLoadedPreset = null;
-      return;
-    }
+  void _syncAmbienceFrom(AppSettings settings, {String? chapterPreset}) {
     final preset = AmbiencePresetDetails.byId(
-      chapterPreset ?? settings.ambiencePreset,
+      _ambiencePlanSuppressed ? null : chapterPreset ?? settings.ambiencePreset,
     );
-    final volume =
-        (settings.ambienceVolume *
-                (_isPlaying ? settings.ambienceDucking : 1.0))
-            .clamp(0.0, 1.0)
-            .toDouble();
-    if (_ambienceLoadedPreset == preset.id) {
-      await _ambiencePlayer.setVolume(volume);
-      _ambienceVolume = volume;
-      return;
-    }
-    _ambienceStarting = true;
-    try {
-      if (_ambienceLoadedPreset != null) {
-        await _fadeAmbienceTo(0);
-        await _ambiencePlayer.stop();
-      }
-      final file = await const AmbienceLibrary().ensurePreset(preset);
-      await _ambiencePlayer.setReleaseMode(ReleaseMode.loop);
-      _ambienceVolume = 0;
-      await _ambiencePlayer.setVolume(0);
-      await _ambiencePlayer.play(DeviceFileSource(file.path));
-      await _fadeAmbienceTo(volume);
-      _ambienceLoadedPreset = preset.id;
-    } catch (_) {
-      _ambienceLoadedPreset = null;
-    } finally {
-      _ambienceStarting = false;
-      if (_ambiencePending && mounted) {
-        _ambiencePending = false;
-        final latest = ref.read(settingsProvider).value;
-        if (latest != null) {
-          unawaited(
-            _syncAmbience(latest, chapterPreset: _pendingAmbienceChapterPreset),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _fadeAmbienceTo(double target) async {
-    const steps = 8;
-    final start = _ambienceVolume;
-    for (var step = 1; step <= steps; step++) {
-      final value = (start + (target - start) * step / steps)
-          .clamp(0.0, 1.0)
-          .toDouble();
-      _ambienceVolume = value;
-      await _ambiencePlayer.setVolume(value);
-      await Future<void>.delayed(const Duration(milliseconds: 70));
-    }
+    unawaited(
+      _playback?.syncAmbience(
+        enabled: settings.ambienceEnabled,
+        preset: preset,
+        volume: settings.ambienceVolume,
+        ducking: settings.ambienceDucking,
+      ),
+    );
   }
 
   void _applyPlaybackPreferences() {
     final reader = ref.read(readerPreferencesProvider);
-    _player.setPlaybackRate(reader.playbackRate);
-    _player.setVolume(reader.volume);
-  }
-
-  void _updateAmbienceVolume() {
-    final settings = ref.read(settingsProvider).value;
-    if (settings == null ||
-        !settings.ambienceEnabled ||
-        _ambienceLoadedPreset == null) {
-      return;
-    }
-    final volume =
-        (settings.ambienceVolume *
-                (_isPlaying ? settings.ambienceDucking : 1.0))
-            .clamp(0.0, 1.0)
-            .toDouble();
-    _ambienceVolume = volume;
-    _ambiencePlayer.setVolume(volume);
+    _playback?.setVoiceRate(reader.playbackRate);
+    _playback?.setVoiceVolume(reader.volume);
   }
 
   Future<void> _showAmbience(
@@ -697,7 +638,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                       );
                   final updated = ref.read(settingsProvider).value;
                   if (updated != null) {
-                    await _syncAmbience(
+                    _syncAmbienceFrom(
                       updated,
                       chapterPreset: followingPlan ? planPresetId : null,
                     );
@@ -790,6 +731,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         onChanged: enabled
                             ? (value) {
                                 setModalState(() => volume = value);
+                                _playback?.setAmbienceVolumeLive(
+                                  volume: value,
+                                  ducking: ducking,
+                                );
                               }
                             : null,
                         onChangeEnd: enabled
@@ -809,6 +754,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                         onChanged: enabled
                             ? (value) {
                                 setModalState(() => ducking = value);
+                                _playback?.setAmbienceVolumeLive(
+                                  volume: volume,
+                                  ducking: value,
+                                );
                               }
                             : null,
                         onChangeEnd: enabled
@@ -833,6 +782,28 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                           ),
                         ],
                       ),
+                      if (_playback?.ambienceError != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${_playback!.ambienceError} Reintentá desde acá.',
+                                style: TextStyle(
+                                  color: palette.inkFaint,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: enabled
+                                  ? () => apply(enabledValue: true)
+                                  : null,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 );
@@ -857,12 +828,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     });
     _restored = true;
     _ambiencePlanSuppressed = false;
-    _player.stop();
     final chapter = book.chapters.firstWhere(
       (item) => item.index == index,
       orElse: () => book.chapters.first,
     );
-    _loadedChapterIndex = null;
     _pendingSeekMs = positionMs;
     _timing = null;
     _timingAttempted = null;
@@ -870,7 +839,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     unawaited(_saveReadingState());
     await _loadAudio(book, chapter);
     if (autoPlay && chapter.audio != null) {
-      await _player.resume();
+      await _playback?.startPlayback();
     }
     await _loadTiming(book, chapter);
     if (_scrollController.hasClients) {

@@ -101,7 +101,13 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       actions: [
         IconButton(
           tooltip: 'Volver al libro',
-          onPressed: () => context.push('/books/${book.id}'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/books/${book.id}');
+            }
+          },
           icon: const Icon(Icons.arrow_back),
         ),
       ],

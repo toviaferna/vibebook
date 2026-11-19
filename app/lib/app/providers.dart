@@ -11,6 +11,8 @@ import '../data/tts/piper_models.dart';
 import '../domain/ambience_plan.dart';
 import '../domain/bookmarks.dart';
 import '../domain/models.dart';
+import '../features/reader/audio_transport.dart';
+import '../features/reader/audioplayers_audio_transport.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository();
@@ -251,6 +253,19 @@ final themeModeProvider = Provider<ThemeMode>((ref) {
 
 final readerPreferencesProvider = Provider<ReaderPreferences>((ref) {
   return ref.watch(settingsProvider).value?.reader ?? const ReaderPreferences();
+});
+
+/// Builds a fresh pair of transports for each reader page.
+///
+/// The page disposes its own pair when it goes away, so a new page must never
+/// reuse dead players. Each call returns a new [ReaderTransports].
+final readerTransportsFactoryProvider = Provider<ReaderTransportsFactory>((
+  ref,
+) {
+  return () => ReaderTransports(
+    voice: AudioplayersAudioTransport(),
+    ambience: AudioplayersAudioTransport(),
+  );
 });
 
 enum ImportStatus { idle, working, done, error }

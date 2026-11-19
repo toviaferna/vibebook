@@ -57,8 +57,6 @@ class ReaderPlaybackController {
   StreamSubscription<Duration>? _voiceDurationSubscription;
   StreamSubscription<AudioTransportState>? _ambienceStateSubscription;
 
-  final _playingChanged = StreamController<bool>.broadcast();
-
   AudioTransportState _voiceState = AudioTransportState.stopped;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -78,11 +76,14 @@ class ReaderPlaybackController {
   int _ambienceGeneration = 0;
   String? _ambienceError;
   Future<void> _ambienceQueue = Future<void>.value();
+  Timer? _fadeTimer;
+  Completer<void>? _fadeGate;
 
   // ------------------------------------------------------------- voice state
 
-  /// Emits whenever the voice starts or stops sounding.
-  Stream<bool> get onPlayingChanged => _playingChanged.stream;
+  /// Raw voice state stream; the page uses it for the play button and the
+  /// end-of-chapter auto-advance.
+  Stream<AudioTransportState> get onVoiceStateChanged => _voice.onStateChanged;
 
   Stream<Duration> get onPositionChanged => _voice.onPositionChanged;
 
@@ -150,6 +151,16 @@ class ReaderPlaybackController {
     } catch (_) {
       // Transport hiccups surface through the state stream.
     }
+  }
+
+  /// Starts the voice regardless of the tracked state. Auto-advance uses it
+  /// right after loading the next chapter, when the "stopped" event of the
+  /// previous load may still be in flight.
+  Future<void> startPlayback() async {
+    if (_disposed) return;
+    try {
+      await _voice.play();
+    } catch (_) {}
   }
 
   Future<void> seekBy(Duration delta) async {
@@ -320,6 +331,9 @@ class ReaderPlaybackController {
   Future<void> _fadeTo(double target, int generation) async {
     final steps = fadeSteps <= 0 ? 1 : fadeSteps;
     final start = _ambienceVolume;
+    if (start == target) {
+      return;
+    }
     for (var step = 1; step <= steps; step++) {
       if (_staleAmbience(generation)) return;
       final value = (start + (target - start) * step / steps)
@@ -331,7 +345,24 @@ class ReaderPlaybackController {
       } catch (_) {
         return;
       }
-      await Future<void>.delayed(fadeStep);
+      final gate = Completer<void>();
+      _fadeGate = gate;
+      _fadeTimer = Timer(fadeStep, gate.complete);
+      await gate.future;
+      _fadeGate = null;
+      _fadeTimer = null;
+    }
+  }
+
+  /// Cancels the pending fade step so an in-flight fade aborts immediately
+  /// instead of making [stopAll] or [dispose] queue behind it.
+  void _releaseFadeGate() {
+    _fadeTimer?.cancel();
+    _fadeTimer = null;
+    final gate = _fadeGate;
+    _fadeGate = null;
+    if (gate != null && !gate.isCompleted) {
+      gate.complete();
     }
   }
 
@@ -352,7 +383,6 @@ class ReaderPlaybackController {
   void _handleVoiceState(AudioTransportState state) {
     if (_disposed) return;
     _voiceState = state;
-    _playingChanged.add(state == AudioTransportState.playing);
     // Ducking depends on the voice: keep the bed in sync.
     if (_ambienceExpected) {
       _enqueueAmbience(_applyAmbienceVolume);
@@ -368,6 +398,7 @@ class ReaderPlaybackController {
     _ambienceError = null;
     _ambienceFailures = 0;
     _ambienceGeneration++;
+    _releaseFadeGate();
     final voiceStop = _quiet(() => _voice.stop());
     final ambienceStop = _enqueueAndWait(() async {
       _ambiencePresetId = null;
@@ -399,12 +430,12 @@ class ReaderPlaybackController {
     _ambienceExpected = false;
     _ambiencePreset = null;
     _ambienceGeneration++;
+    _releaseFadeGate();
     _loadGeneration++;
     unawaited(_voiceStateSubscription?.cancel());
     unawaited(_voicePositionSubscription?.cancel());
     unawaited(_voiceDurationSubscription?.cancel());
     unawaited(_ambienceStateSubscription?.cancel());
-    unawaited(_playingChanged.close());
     final voice = _voice;
     final ambience = _ambience;
     return () async {

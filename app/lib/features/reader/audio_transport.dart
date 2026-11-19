@@ -29,3 +29,7 @@ class ReaderTransports {
   final AudioTransport voice;
   final AudioTransport ambience;
 }
+
+/// Builds the transports for one reader page. Each call must return a fresh
+/// pair: the page disposes whatever it gets.
+typedef ReaderTransportsFactory = ReaderTransports Function();

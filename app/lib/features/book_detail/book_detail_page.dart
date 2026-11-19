@@ -142,7 +142,13 @@ class _BookDetailView extends ConsumerWidget {
       actions: [
         IconButton(
           tooltip: 'Volver a la biblioteca',
-          onPressed: () => context.go('/'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
           icon: const Icon(Icons.arrow_back),
         ),
         PopupMenuButton<String>(
