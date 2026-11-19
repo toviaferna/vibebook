@@ -35,8 +35,9 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 28 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
-  WAV, ambiente, plan por capítulo, bookmarks y widget.
+- **Tests**: 43 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+  WAV, ambiente, plan por capítulo, reproducción, navegación del lector,
+  catálogo de voces, bookmarks y widget.
 
 ## Requisitos
 
@@ -83,10 +84,32 @@ La carpeta de modelos se cambia desde **Ajustes → Voz** o desde el Estudio.
 `espeak-ng-data` no hace falta en la carpeta del modelo: `piper-phonemize`
 trae sus propios datos.
 
-Voces incluidas en el catálogo:
+Voces incluidas en el catálogo (todas en español):
 
-- Davefx (español de España, CC0).
-- Ald (español de México, Unlicense).
+- Davefx (España, masculina media, CC0).
+- Sharvard (España, masculina media, CC-BY 3.0; el modelo trae 2 oradores).
+- Carlfm (España, masculina liviana x_low de 16 kHz, dominio público).
+- GLaDOS (España, robótica, sin licencia declarada).
+- Ald (México, masculina media, Unlicense).
+- Claude (México, masculina alta, Apache-2.0).
+- Daniela (Argentina, femenina alta, CC-BY-SA 4.0).
+
+Las licencias indicadas son las del dataset de entrenamiento; el enlace de
+cada voz en el catálogo apunta a su model card.
+
+### Voces externas y crear la propia
+
+Cualquier voz Piper compatible se puede usar sin tocar la app: descargá el
+`.onnx` + `tokens.txt` + `.onnx.json` (por ejemplo de
+`rhasspy/piper-voices`), ponelos en una subcarpeta de la carpeta de modelos
+y la app la detecta al escanear. El `.onnx.json` importa: define el sample
+rate, la voz de espeak y los parámetros de inferencia.
+
+Crear una voz propia es posible pero no es clonación: hay que entrenar un
+modelo VITS con un dataset propio (horas de audio limpio + transcripciones)
+con `piper_train` y exportarlo a ONNX. Requiere GPU o mucha paciencia en
+CPU. Para "mi propia voz" sin entrenar, los motores online (Edge, Azure,
+ElevenLabs) son el camino realista; Piper queda para voces ya entrenadas.
 
 ## Verificación
 
