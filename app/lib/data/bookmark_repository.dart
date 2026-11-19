@@ -74,4 +74,30 @@ class BookmarkRepository {
     await save(bookDirectory, next);
     return next;
   }
+
+  Future<BookmarkData> addReadingBookmark(
+    String bookDirectory,
+    ReadingBookmark bookmark,
+  ) async {
+    final current = await load(bookDirectory);
+    final next = current.copyWith(
+      readingBookmarks: [...current.readingBookmarks, bookmark],
+    );
+    await save(bookDirectory, next);
+    return next;
+  }
+
+  Future<BookmarkData> removeReadingBookmark(
+    String bookDirectory,
+    String id,
+  ) async {
+    final current = await load(bookDirectory);
+    final next = current.copyWith(
+      readingBookmarks: current.readingBookmarks
+          .where((bookmark) => bookmark.id != id)
+          .toList(growable: false),
+    );
+    await save(bookDirectory, next);
+    return next;
+  }
 }

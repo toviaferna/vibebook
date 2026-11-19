@@ -153,6 +153,18 @@ class ReaderPlaybackController {
     }
   }
 
+  /// Pauses the voice if it is playing. Used by the sleep timer.
+  Future<void> pause() async {
+    if (_disposed) return;
+    try {
+      if (_voiceState == AudioTransportState.playing) {
+        await _voice.pause();
+      }
+    } catch (_) {
+      // Transport hiccups surface through the state stream.
+    }
+  }
+
   /// Starts the voice regardless of the tracked state. Auto-advance uses it
   /// right after loading the next chapter, when the "stopped" event of the
   /// previous load may still be in flight.

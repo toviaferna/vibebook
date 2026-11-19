@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -16,7 +17,11 @@ import '../../domain/bookmarks.dart';
 import '../../domain/models.dart';
 import '../../domain/timing.dart';
 import 'audio_transport.dart';
+import 'book_reader.dart';
+import 'original_reader.dart';
 import 'reader_playback.dart';
+import 'reader_search.dart';
+import 'reader_view_mode.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({super.key, required this.bookId});
@@ -47,6 +52,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   bool _isPlaying = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
+  Timer? _sleepTimer;
+  DateTime? _sleepDeadline;
+  int? _sleepMinutes;
+  bool _immersive = false;
+  int _readingCharOffset = 0;
 
   @override
   void initState() {
@@ -86,11 +96,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   @override
   void dispose() {
     unawaited(_saveReadingState());
+    _sleepTimer?.cancel();
     _playingSubscription?.cancel();
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     unawaited(_playback?.dispose());
     _scrollController.dispose();
+    if (_immersive) {
+      unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
+    }
     super.dispose();
   }
 
@@ -102,6 +116,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
     final settings = ref.watch(settingsProvider).value;
     final preferences = settings?.reader ?? const ReaderPreferences();
     final palette = ReaderPalette.byName(preferences.palette);
+    final viewMode = ReaderViewMode.fromName(preferences.viewMode);
     return bookAsync.when(
       data: (book) {
         if (book == null) {
@@ -137,6 +152,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         );
         _bookDirectory = book.directoryPath;
         _currentChapterIndex = chapter.index;
+        final activeTiming = _timing?.segmentAt(_position.inMilliseconds);
+        final activeSegmentId = activeTiming?.id;
+        if (activeSegmentId != null) {
+          final activeSegment = chapter.segments.firstWhereOrNull(
+            (segment) => segment.id == activeSegmentId,
+          );
+          if (activeSegment != null) {
+            final offset = chapter.text.indexOf(activeSegment.text);
+            if (offset >= 0) {
+              _readingCharOffset = offset;
+            }
+          }
+        }
         final chapterPlan = ambiencePlanAsync.value?.forChapter(chapter.index);
         final chapterPreset = _ambiencePlanSuppressed
             ? null
@@ -179,218 +207,393 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         }
         return Theme(
           data: buildBibliotecaTheme(dark: palette.name == 'night'),
-          child: Builder(
-            builder: (context) {
-              return PopScope<Object?>(
-                canPop: false,
-                onPopInvokedWithResult: (didPop, result) {
-                  if (!didPop) {
-                    unawaited(_leaveReader());
-                  }
-                },
-                child: Scaffold(
-                  backgroundColor: palette.paper,
-                  appBar: AppBar(
+          child: Focus(
+            autofocus: true,
+            onKeyEvent: _onKeyEvent,
+            child: Builder(
+              builder: (context) {
+                return PopScope<Object?>(
+                  canPop: false,
+                  onPopInvokedWithResult: (didPop, result) {
+                    if (!didPop) {
+                      unawaited(_leaveReader());
+                    }
+                  },
+                  child: Scaffold(
                     backgroundColor: palette.paper,
-                    foregroundColor: palette.ink,
-                    elevation: 0,
-                    scrolledUnderElevation: 0,
-                    leading: IconButton(
-                      tooltip: 'Volver al libro',
-                      onPressed: () => unawaited(_leaveReader()),
-                      icon: const Icon(Icons.arrow_back),
-                    ),
-                    title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          book.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: palette.ink,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          chapter.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: palette.inkFaint,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      IconButton(
-                        tooltip: 'Ambiente',
-                        onPressed: () => _showAmbience(context, palette),
-                        icon: Icon(
-                          settings?.ambienceEnabled == true
-                              ? Icons.forest
-                              : Icons.forest_outlined,
-                          color: settings?.ambienceEnabled == true
-                              ? palette.accent
-                              : palette.inkSoft,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Marcadores',
-                        onPressed: () => _showBookmarks(context, book, palette),
-                        icon: Icon(
-                          Icons.bookmarks_outlined,
-                          color: palette.inkSoft,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Índice',
-                        onPressed: () =>
-                            _showToc(context, book, palette, chapter.index),
-                        icon: Icon(Icons.list, color: palette.inkSoft),
-                      ),
-                      PopupMenuButton<String>(
-                        tooltip: 'Más opciones',
-                        onSelected: (value) {
-                          if (value == 'search') {
-                            _showSearch(book);
-                          } else if (value == 'typography') {
-                            _showSettings(context, preferences, palette);
-                          }
-                        },
-                        itemBuilder: (context) => const [
-                          PopupMenuItem(
-                            value: 'search',
-                            height: 44,
-                            child: Row(
-                              children: [
-                                Icon(Icons.search, size: 18),
-                                SizedBox(width: 10),
-                                Text('Buscar en el libro'),
-                              ],
+                    appBar: _immersive
+                        ? null
+                        : AppBar(
+                            backgroundColor: palette.paper,
+                            foregroundColor: palette.ink,
+                            elevation: 0,
+                            scrolledUnderElevation: 0,
+                            leading: IconButton(
+                              tooltip: 'Volver al libro',
+                              onPressed: () => unawaited(_leaveReader()),
+                              icon: const Icon(Icons.arrow_back),
                             ),
-                          ),
-                          PopupMenuItem(
-                            value: 'typography',
-                            height: 44,
-                            child: Row(
+                            title: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.text_fields, size: 18),
-                                SizedBox(width: 10),
-                                Text('Ajustes de lectura'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  body: Column(
-                    children: [
-                      Expanded(
-                        child: Scrollbar(
-                          controller: _scrollController,
-                          child: SingleChildScrollView(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
-                            child: Center(
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 720,
+                                Text(
+                                  book.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: palette.ink,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      chapter.title,
-                                      style: TextStyle(
-                                        fontFamily: 'serif',
-                                        fontSize: preferences.fontSize + 12,
-                                        height: 1.15,
-                                        fontWeight: FontWeight.w600,
-                                        color: palette.ink,
+                                Text(
+                                  chapter.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: palette.inkFaint,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              IconButton(
+                                tooltip: 'Ambiente',
+                                onPressed: () =>
+                                    _showAmbience(context, palette),
+                                icon: Icon(
+                                  settings?.ambienceEnabled == true
+                                      ? Icons.forest
+                                      : Icons.forest_outlined,
+                                  color: settings?.ambienceEnabled == true
+                                      ? palette.accent
+                                      : palette.inkSoft,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Marcadores',
+                                onPressed: () => _showBookmarks(
+                                  context,
+                                  book,
+                                  chapter,
+                                  palette,
+                                ),
+                                icon: Icon(
+                                  Icons.bookmarks_outlined,
+                                  color: palette.inkSoft,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Índice',
+                                onPressed: () => _showToc(
+                                  context,
+                                  book,
+                                  palette,
+                                  chapter.index,
+                                ),
+                                icon: Icon(Icons.list, color: palette.inkSoft),
+                              ),
+                              PopupMenuButton<ReaderViewMode>(
+                                tooltip: 'Modo de lectura',
+                                icon: Icon(
+                                  _modeIcon(viewMode),
+                                  color: palette.inkSoft,
+                                ),
+                                onSelected: (mode) {
+                                  ref
+                                      .read(settingsProvider.notifier)
+                                      .updateReader(
+                                        preferences.copyWith(
+                                          viewMode: mode.name,
+                                        ),
+                                      );
+                                },
+                                itemBuilder: (context) => [
+                                  for (final mode in ReaderViewMode.values)
+                                    CheckedPopupMenuItem(
+                                      value: mode,
+                                      checked: viewMode == mode,
+                                      child: Text(mode.label),
+                                    ),
+                                ],
+                              ),
+                              PopupMenuButton<int>(
+                                tooltip: _sleepTooltip(),
+                                icon: Icon(
+                                  _sleepMinutes == null
+                                      ? Icons.bedtime_outlined
+                                      : Icons.bedtime,
+                                  color: _sleepMinutes == null
+                                      ? palette.inkSoft
+                                      : palette.accent,
+                                ),
+                                onSelected: _setSleepTimer,
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 0,
+                                    child: Text('Sin temporizador'),
+                                  ),
+                                  for (final minutes in const [
+                                    5,
+                                    15,
+                                    30,
+                                    45,
+                                    60,
+                                  ])
+                                    PopupMenuItem(
+                                      value: minutes,
+                                      child: Text('$minutes minutos'),
+                                    ),
+                                ],
+                              ),
+                              PopupMenuButton<String>(
+                                tooltip: 'Más opciones',
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'search':
+                                      _showSearch(book);
+                                    case 'typography':
+                                      _showSettings(
+                                        context,
+                                        preferences,
+                                        palette,
+                                      );
+                                    case 'bookmark_page':
+                                      unawaited(
+                                        _addReadingBookmark(book, chapter),
+                                      );
+                                    case 'fullscreen':
+                                      _toggleImmersive();
+                                    case 'shortcuts':
+                                      _showShortcuts(context);
+                                  }
+                                },
+                                itemBuilder: (context) => const [
+                                  PopupMenuItem(
+                                    value: 'search',
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.search, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Buscar en el libro'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'bookmark_page',
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.bookmark_add_outlined,
+                                          size: 18,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Text('Marcar esta página'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'typography',
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.text_fields, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Ajustes de lectura'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'fullscreen',
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.fullscreen, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Pantalla completa'),
+                                      ],
+                                    ),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'shortcuts',
+                                    height: 44,
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.keyboard_outlined, size: 18),
+                                        SizedBox(width: 10),
+                                        Text('Atajos de teclado'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                    body: Stack(
+                      children: [
+                        Column(
+                          children: [
+                            Expanded(
+                              child: switch (viewMode) {
+                                ReaderViewMode.text => Scrollbar(
+                                  controller: _scrollController,
+                                  child: SingleChildScrollView(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.fromLTRB(
+                                      24,
+                                      24,
+                                      24,
+                                      48,
+                                    ),
+                                    child: Center(
+                                      child: ConstrainedBox(
+                                        constraints: const BoxConstraints(
+                                          maxWidth: 720,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              chapter.title,
+                                              style: TextStyle(
+                                                fontFamily: 'serif',
+                                                fontSize:
+                                                    preferences.fontSize + 12,
+                                                height: 1.15,
+                                                fontWeight: FontWeight.w600,
+                                                color: palette.ink,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              width: 44,
+                                              height: 2,
+                                              color: palette.accent,
+                                            ),
+                                            const SizedBox(height: 24),
+                                            for (final image
+                                                in book.images.where(
+                                                  (image) =>
+                                                      image.chapterIndex ==
+                                                      chapter.index,
+                                                ))
+                                              _ReaderImage(
+                                                book: book,
+                                                image: image,
+                                                palette: palette,
+                                              ),
+                                            for (final segment
+                                                in chapter.segments)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 18,
+                                                ),
+                                                child: Text.rich(
+                                                  _segmentSpan(
+                                                    segment,
+                                                    palette: palette,
+                                                    preferences: preferences,
+                                                    positionMs: _position
+                                                        .inMilliseconds,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (chapter.segments.isEmpty)
+                                              Text(
+                                                'Este capítulo no tiene texto legible.',
+                                                style: TextStyle(
+                                                  color: palette.inkSoft,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      width: 44,
-                                      height: 2,
-                                      color: palette.accent,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    for (final image in book.images.where(
-                                      (image) =>
-                                          image.chapterIndex == chapter.index,
-                                    ))
-                                      _ReaderImage(
-                                        book: book,
-                                        image: image,
-                                        palette: palette,
+                                  ),
+                                ),
+                                ReaderViewMode.book => BookReader(
+                                  book: book,
+                                  chapter: chapter,
+                                  palette: palette,
+                                  preferences: preferences,
+                                  activeSegmentId: activeSegmentId,
+                                ),
+                                ReaderViewMode.original => OriginalReader(
+                                  book: book,
+                                  chapter: chapter,
+                                  palette: palette,
+                                  preferences: preferences,
+                                  onChapterLink: (index) =>
+                                      unawaited(_goToChapter(book, index)),
+                                ),
+                              },
+                            ),
+                            if (!_immersive)
+                              _ReaderFooter(
+                                palette: palette,
+                                chapter: chapter,
+                                book: book,
+                                hasAudio: chapter.audio != null,
+                                isPlaying: _isPlaying,
+                                position: _position,
+                                duration: _duration,
+                                onPlayPause: chapter.audio == null
+                                    ? null
+                                    : () => unawaited(_togglePlay()),
+                                onSeekBack: chapter.audio == null
+                                    ? null
+                                    : () => unawaited(
+                                        _seek(Duration(seconds: -15)),
                                       ),
-                                    for (final segment in chapter.segments)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 18,
-                                        ),
-                                        child: Text.rich(
-                                          _segmentSpan(
-                                            segment,
-                                            palette: palette,
-                                            preferences: preferences,
-                                            positionMs:
-                                                _position.inMilliseconds,
-                                          ),
-                                        ),
+                                onSeekForward: chapter.audio == null
+                                    ? null
+                                    : () => unawaited(
+                                        _seek(const Duration(seconds: 15)),
                                       ),
-                                    if (chapter.segments.isEmpty)
-                                      Text(
-                                        'Este capítulo no tiene texto legible.',
-                                        style: TextStyle(
-                                          color: palette.inkSoft,
-                                        ),
-                                      ),
-                                  ],
+                                onConvert: chapter.audio == null
+                                    ? () => context.push(
+                                        '/books/${book.id}/studio',
+                                      )
+                                    : null,
+                                onPrevious:
+                                    chapter.index > book.chapters.first.index
+                                    ? () =>
+                                          _goToChapter(book, chapter.index - 1)
+                                    : null,
+                                onNext: chapter.index < book.chapters.last.index
+                                    ? () =>
+                                          _goToChapter(book, chapter.index + 1)
+                                    : null,
+                              ),
+                          ],
+                        ),
+                        if (_immersive)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Material(
+                              color: palette.paper.withValues(alpha: 0.9),
+                              shape: const CircleBorder(),
+                              child: IconButton(
+                                tooltip: 'Salir de pantalla completa',
+                                onPressed: _toggleImmersive,
+                                icon: Icon(
+                                  Icons.fullscreen_exit,
+                                  color: palette.ink,
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      _ReaderFooter(
-                        palette: palette,
-                        chapter: chapter,
-                        book: book,
-                        hasAudio: chapter.audio != null,
-                        isPlaying: _isPlaying,
-                        position: _position,
-                        duration: _duration,
-                        onPlayPause: chapter.audio == null
-                            ? null
-                            : () => unawaited(_togglePlay()),
-                        onSeekBack: chapter.audio == null
-                            ? null
-                            : () => unawaited(_seek(Duration(seconds: -15))),
-                        onSeekForward: chapter.audio == null
-                            ? null
-                            : () =>
-                                  unawaited(_seek(const Duration(seconds: 15))),
-                        onConvert: chapter.audio == null
-                            ? () => context.push('/books/${book.id}/studio')
-                            : null,
-                        onPrevious: chapter.index > book.chapters.first.index
-                            ? () => _goToChapter(book, chapter.index - 1)
-                            : null,
-                        onNext: chapter.index < book.chapters.last.index
-                            ? () => _goToChapter(book, chapter.index + 1)
-                            : null,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         );
       },
@@ -401,6 +604,243 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
         body: Center(child: Text('$error')),
       ),
     );
+  }
+
+  IconData _modeIcon(ReaderViewMode mode) {
+    return switch (mode) {
+      ReaderViewMode.text => Icons.notes,
+      ReaderViewMode.book => Icons.auto_stories,
+      ReaderViewMode.original => Icons.chrome_reader_mode,
+    };
+  }
+
+  String _sleepTooltip() {
+    final minutes = _sleepMinutes;
+    if (minutes == null) {
+      return 'Temporizador';
+    }
+    final deadline = _sleepDeadline;
+    final remaining = deadline == null
+        ? minutes
+        : deadline.difference(DateTime.now()).inMinutes;
+    return 'Se pausa en ~${remaining < 1 ? 1 : remaining} min';
+  }
+
+  void _setSleepTimer(int minutes) {
+    _sleepTimer?.cancel();
+    if (minutes <= 0) {
+      setState(() {
+        _sleepMinutes = null;
+        _sleepDeadline = null;
+      });
+      return;
+    }
+    final deadline = DateTime.now().add(Duration(minutes: minutes));
+    setState(() {
+      _sleepMinutes = minutes;
+      _sleepDeadline = deadline;
+    });
+    _sleepTimer = Timer(Duration(minutes: minutes), () async {
+      await _playback?.pause();
+      if (mounted) {
+        setState(() {
+          _sleepMinutes = null;
+          _sleepDeadline = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Temporizador: reproducción pausada.')),
+        );
+      }
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Se pausará en $minutes minutos.')));
+  }
+
+  void _toggleImmersive() {
+    setState(() => _immersive = !_immersive);
+    if (Platform.isAndroid || Platform.isIOS) {
+      unawaited(
+        SystemChrome.setEnabledSystemUIMode(
+          _immersive ? SystemUiMode.immersiveSticky : SystemUiMode.edgeToEdge,
+        ),
+      );
+    }
+  }
+
+  void _changeSpeed(double delta) {
+    final settings = ref.read(settingsProvider).value;
+    if (settings == null) {
+      return;
+    }
+    final next = (settings.reader.playbackRate + delta).clamp(0.5, 2.5);
+    ref
+        .read(settingsProvider.notifier)
+        .updateReader(settings.reader.copyWith(playbackRate: next));
+    _playback?.setVoiceRate(next);
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.space) {
+      unawaited(_togglePlay());
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      unawaited(_seek(const Duration(seconds: -15)));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      unawaited(_seek(const Duration(seconds: 15)));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyJ || key == LogicalKeyboardKey.keyK) {
+      final book = ref.read(bookProvider(widget.bookId)).value;
+      final current = _currentChapterIndex;
+      if (book != null && current != null) {
+        final index = key == LogicalKeyboardKey.keyJ
+            ? current - 1
+            : current + 1;
+        if (book.chapters.any((chapter) => chapter.index == index)) {
+          unawaited(_goToChapter(book, index));
+        }
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.equal ||
+        key == LogicalKeyboardKey.add ||
+        key == LogicalKeyboardKey.numpadAdd) {
+      _changeSpeed(0.25);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.minus ||
+        key == LogicalKeyboardKey.numpadSubtract) {
+      _changeSpeed(-0.25);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyT) {
+      final book = ref.read(bookProvider(widget.bookId)).value;
+      final settings = ref.read(settingsProvider).value;
+      if (book != null) {
+        final palette = ReaderPalette.byName(
+          settings?.reader.palette ?? 'paper',
+        );
+        unawaited(
+          _showToc(
+            context,
+            book,
+            palette,
+            _currentChapterIndex ?? settings?.lastChapterIndex ?? 1,
+          ),
+        );
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyF) {
+      _toggleImmersive();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.slash &&
+        HardwareKeyboard.instance.isShiftPressed) {
+      _showShortcuts(context);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      if (_immersive) {
+        _toggleImmersive();
+      } else {
+        unawaited(_leaveReader());
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _showShortcuts(BuildContext context) {
+    const rows = [
+      ('Espacio', 'Reproducir o pausar'),
+      ('← / →', 'Retroceder o adelantar 15 s'),
+      ('J / K', 'Capítulo anterior o siguiente'),
+      ('+ / -', 'Cambiar velocidad'),
+      ('T', 'Abrir el índice'),
+      ('F', 'Pantalla completa'),
+      ('?', 'Esta ayuda'),
+      ('Esc', 'Salir del lector'),
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leer sin soltar el teclado'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final row in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 92,
+                        child: Text(
+                          row.$1,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Text(row.$2)),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addReadingBookmark(Book book, Chapter chapter) async {
+    final directory = book.directoryPath;
+    if (directory == null) {
+      return;
+    }
+    final bookmark = ReadingBookmark(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      chapterIndex: chapter.index,
+      charOffset: _readingCharOffset,
+      pageIndex: 0,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+    );
+    await ref
+        .read(bookmarkRepositoryProvider)
+        .addReadingBookmark(directory, bookmark);
+    ref.invalidate(bookmarkDataProvider(book.id));
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Página marcada.')));
+    }
+  }
+
+  Future<void> _removeReadingBookmark(String id) async {
+    final directory = _bookDirectory;
+    if (directory == null) {
+      return;
+    }
+    await ref
+        .read(bookmarkRepositoryProvider)
+        .removeReadingBookmark(directory, id);
+    ref.invalidate(bookmarkDataProvider(widget.bookId));
   }
 
   Future<void> _loadAudio(Book book, Chapter chapter) async {
@@ -936,12 +1376,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   }
 
   void _showSearch(Book book) {
-    showSearch<void>(
+    showSearch<ReaderSearchHit>(
       context: context,
-      delegate: _BookSearchDelegate(
+      delegate: BookSearchDelegate(
         book: book,
-        onSelect: (chapterIndex) {
-          unawaited(_goToChapter(book, chapterIndex));
+        palette: ReaderPalette.byName(
+          ref.read(settingsProvider).value?.reader.palette ?? 'paper',
+        ),
+        onSelect: (hit) {
+          unawaited(_goToChapter(book, hit.chapterIndex));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Encontrado en ${hit.chapterTitle}.')),
+            );
+          }
         },
       ),
     );
@@ -950,6 +1398,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
   Future<void> _showBookmarks(
     BuildContext context,
     Book book,
+    Chapter chapter,
     ReaderPalette palette,
   ) async {
     await showModalBottomSheet<void>(
@@ -1036,6 +1485,72 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
                               bookmark.chapterIndex,
                               positionMs: bookmark.positionMs,
                             );
+                          },
+                        ),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Marcadores de lectura',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: palette.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Guardá la página actual para volver después.',
+                      style: TextStyle(color: palette.inkSoft, fontSize: 12),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _addReadingBookmark(book, chapter),
+                        icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                        label: const Text('Marcar esta página'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (data.readingBookmarks.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        child: Text(
+                          'Todavía no hay marcadores de lectura.',
+                          style: TextStyle(color: palette.inkSoft),
+                        ),
+                      )
+                    else
+                      for (final bookmark in data.readingBookmarks.reversed)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            Icons.auto_stories_outlined,
+                            color: palette.accent,
+                          ),
+                          title: Text(
+                            'Capítulo ${bookmark.chapterIndex}',
+                            style: TextStyle(color: palette.ink),
+                          ),
+                          subtitle: Text(
+                            bookmark.note ?? 'Página ${bookmark.pageIndex + 1}',
+                            style: TextStyle(
+                              color: palette.inkFaint,
+                              fontSize: 11,
+                            ),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Eliminar marcador de lectura',
+                            onPressed: () =>
+                                _removeReadingBookmark(bookmark.id),
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: palette.inkFaint,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _goToChapter(book, bookmark.chapterIndex);
                           },
                         ),
                   ],
@@ -1258,122 +1773,6 @@ class _ReaderPageState extends ConsumerState<ReaderPage> {
               },
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class _SearchHit {
-  const _SearchHit({
-    required this.chapterIndex,
-    required this.chapterTitle,
-    required this.snippet,
-  });
-
-  final int chapterIndex;
-  final String chapterTitle;
-  final String snippet;
-}
-
-class _BookSearchDelegate extends SearchDelegate<void> {
-  _BookSearchDelegate({required this.book, required this.onSelect})
-    : super(searchFieldLabel: 'Buscar en el libro');
-
-  final Book book;
-  final ValueChanged<int> onSelect;
-
-  @override
-  List<Widget>? buildActions(BuildContext context) {
-    return [
-      IconButton(
-        tooltip: 'Limpiar',
-        onPressed: () => query = '',
-        icon: const Icon(Icons.clear),
-      ),
-    ];
-  }
-
-  @override
-  Widget? buildLeading(BuildContext context) {
-    return IconButton(
-      tooltip: 'Volver',
-      onPressed: () => close(context, null),
-      icon: const Icon(Icons.arrow_back),
-    );
-  }
-
-  @override
-  Widget buildResults(BuildContext context) => _results(context);
-
-  @override
-  Widget buildSuggestions(BuildContext context) => _results(context);
-
-  Widget _results(BuildContext context) {
-    final normalized = query.trim().toLowerCase();
-    if (normalized.length < 2) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('Escribí al menos dos letras para buscar en el libro.'),
-        ),
-      );
-    }
-    final hits = <_SearchHit>[];
-    outer:
-    for (final chapter in book.chapters) {
-      for (final segment in chapter.segments) {
-        final text = segment.text;
-        final index = text.toLowerCase().indexOf(normalized);
-        if (index < 0) {
-          continue;
-        }
-        final start = (index - 36).clamp(0, text.length);
-        final end = (index + normalized.length + 72).clamp(0, text.length);
-        var snippet = text.substring(start, end).trim();
-        if (start > 0) {
-          snippet = '… $snippet';
-        }
-        if (end < text.length) {
-          snippet = '$snippet …';
-        }
-        hits.add(
-          _SearchHit(
-            chapterIndex: chapter.index,
-            chapterTitle: chapter.title,
-            snippet: snippet,
-          ),
-        );
-        if (hits.length >= 60) {
-          break outer;
-        }
-      }
-    }
-    if (hits.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text('No encontré «${query.trim()}» en este libro.'),
-        ),
-      );
-    }
-    return ListView.separated(
-      itemCount: hits.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final hit = hits[index];
-        return ListTile(
-          leading: CircleAvatar(radius: 16, child: Text('${hit.chapterIndex}')),
-          title: Text(hit.chapterTitle),
-          subtitle: Text(
-            hit.snippet,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onTap: () {
-            close(context, null);
-            onSelect(hit.chapterIndex);
-          },
         );
       },
     );

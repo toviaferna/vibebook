@@ -347,6 +347,8 @@ class ReaderPreferences {
     this.fontFamily = 'Literata',
     this.karaoke = true,
     this.autoAdvance = true,
+    this.viewMode = 'text',
+    this.pageTurn = true,
     this.playbackRate = 1.0,
     this.volume = 1.0,
   });
@@ -356,6 +358,10 @@ class ReaderPreferences {
   final String fontFamily;
   final bool karaoke;
   final bool autoAdvance;
+
+  /// `text`, `book` or `original`.
+  final String viewMode;
+  final bool pageTurn;
   final double playbackRate;
   final double volume;
 
@@ -365,6 +371,8 @@ class ReaderPreferences {
     String? fontFamily,
     bool? karaoke,
     bool? autoAdvance,
+    String? viewMode,
+    bool? pageTurn,
     double? playbackRate,
     double? volume,
   }) {
@@ -374,6 +382,8 @@ class ReaderPreferences {
       fontFamily: fontFamily ?? this.fontFamily,
       karaoke: karaoke ?? this.karaoke,
       autoAdvance: autoAdvance ?? this.autoAdvance,
+      viewMode: viewMode ?? this.viewMode,
+      pageTurn: pageTurn ?? this.pageTurn,
       playbackRate: playbackRate ?? this.playbackRate,
       volume: volume ?? this.volume,
     );
@@ -385,6 +395,8 @@ class ReaderPreferences {
     'fontFamily': fontFamily,
     'karaoke': karaoke,
     'autoAdvance': autoAdvance,
+    'viewMode': viewMode,
+    'pageTurn': pageTurn,
     'playbackRate': playbackRate,
     'volume': volume,
   };
@@ -396,6 +408,8 @@ class ReaderPreferences {
       fontFamily: json['fontFamily'] as String? ?? 'Literata',
       karaoke: json['karaoke'] as bool? ?? true,
       autoAdvance: json['autoAdvance'] as bool? ?? true,
+      viewMode: json['viewMode'] as String? ?? 'text',
+      pageTurn: json['pageTurn'] as bool? ?? true,
       playbackRate: (json['playbackRate'] as num?)?.toDouble() ?? 1.0,
       volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
     );
