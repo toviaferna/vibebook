@@ -1,16 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ffmpeg_kit_flutter_new_audio/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_audio/return_code.dart';
 import 'package:path/path.dart' as p;
-import 'package:piper_phonemize/piper_phonemize.dart';
 
 import '../../domain/models.dart';
-import 'piper_models.dart';
+import 'chapter_synthesizer.dart';
 import 'timing_builder.dart';
-import 'tts_chapter_worker.dart';
 import 'wav_writer.dart';
 
 class TtsConversionProgress {
@@ -31,14 +28,14 @@ class TtsConversionCancelled implements Exception {
   const TtsConversionCancelled();
 }
 
-/// Converts every chapter with a local Piper voice.
+/// Converts every chapter with the configured [ChapterSynthesizer].
 class TtsConversionService {
   const TtsConversionService();
 
   Future<Book> convert(
     Book book, {
-    required PiperModel model,
-    required String espeakDataPath,
+    required ChapterSynthesizer synthesizer,
+    Map<String, String> manifestExtra = const {},
     double speed = 1.0,
     int? maxChapters,
     bool compressAudio = true,
@@ -48,9 +45,6 @@ class TtsConversionService {
     final directory = book.directoryPath;
     if (directory == null) {
       throw StateError('El libro no tiene una carpeta de biblioteca.');
-    }
-    if (!model.isValid) {
-      throw StateError('El modelo Piper no está completo.');
     }
     final manifestFile = File(p.join(directory, 'manifest.json'));
     final manifest =
@@ -73,10 +67,9 @@ class TtsConversionService {
     await temporaryDirectory.create(recursive: true);
 
     manifest['status'] = 'converting';
-    manifest['engine'] = 'piper';
-    manifest['voice'] = model.id;
-    manifest['tts_model'] = model.id;
-    manifest['tts_model_path'] = model.directory;
+    manifest['engine'] = synthesizer.engineId;
+    manifest['voice'] = synthesizer.voiceId;
+    manifest.addAll(manifestExtra);
     manifest['rate'] = '${((speed - 1) * 100).round()}%';
     manifest['updated_at'] = _now();
     await _writeManifest(manifestFile, manifest);
@@ -103,30 +96,20 @@ class TtsConversionService {
       final segmentTexts = {
         for (final segment in chapter.segments) segment.id: segment.text,
       };
-      final payload = <String, dynamic>{
-        'model': {
-          'model': model.modelPath,
-          'tokens': model.tokensPath,
-          'voice': model.espeakVoice,
-          'noise_scale': model.noiseScale,
-          'noise_w': model.noiseScaleW,
-          'length_scale': model.lengthScale,
-        },
-        'espeak_data_path': espeakDataPath,
-        'speed': speed,
-        'segments': [
-          for (final segment in chapter.segments)
-            {
-              'id': segment.id,
-              'text': segment.text,
-              'pause_after_ms': segment.boundary == 'paragraph' ? 190 : 90,
-            },
-        ],
-      };
-      final result = await renderChapterInBackground(payload);
-      final samples = result['samples'] as Float32List;
-      final sampleRate =
-          (result['sample_rate'] as num?)?.toInt() ?? model.sampleRate;
+      final ChapterSynthesis synthesis;
+      try {
+        synthesis = await synthesizer.synthesize(
+          chapter,
+          speed: speed,
+          isCancelled: () => isCancelled?.call() ?? false,
+        );
+      } on SynthesisCancelled {
+        manifest['status'] = 'imported';
+        await _writeManifest(manifestFile, manifest);
+        throw const TtsConversionCancelled();
+      }
+      final samples = synthesis.samples;
+      final sampleRate = synthesis.sampleRate;
       if (samples.isEmpty) {
         throw StateError(
           'No se generó audio para el capítulo ${chapter.index}.',
@@ -162,8 +145,10 @@ class TtsConversionService {
       final timing = timingBuilder.build(
         chapterIndex: chapter.index,
         segmentTexts: segmentTexts,
-        spans: (result['spans'] as List<dynamic>).cast<Map<String, dynamic>>(),
+        spans: synthesis.spans,
         durationMs: durationMs,
+        wordTimings: synthesis.wordTimings,
+        precision: synthesis.wordTimings.isEmpty ? 'estimated' : 'native_word',
       );
       final timingName = 'chapter_$padded.json';
       final timingFile = File(p.join(timingDirectory.path, timingName));
@@ -188,7 +173,9 @@ class TtsConversionService {
         ..['audio'] = audioRelative
         ..['timing'] = 'timings/$timingName'
         ..['duration_ms'] = durationMs
-        ..['tts_precision'] = 'estimated';
+        ..['tts_precision'] = synthesis.wordTimings.isEmpty
+            ? 'estimated'
+            : 'native_word';
       totalDuration += durationMs;
       completed += 1;
       manifest['duration_ms'] = totalDuration;
@@ -212,8 +199,8 @@ class TtsConversionService {
         ? 'ready'
         : 'converting';
     manifest['duration_ms'] = totalDuration;
-    manifest['engine'] = 'piper';
-    manifest['voice'] = model.id;
+    manifest['engine'] = synthesizer.engineId;
+    manifest['voice'] = synthesizer.voiceId;
     manifest['updated_at'] = _now();
     await _writeManifest(manifestFile, manifest);
     await _deleteIfEmpty(temporaryDirectory);
@@ -276,5 +263,3 @@ class TtsConversionService {
 
   String _now() => DateTime.now().toUtc().toIso8601String();
 }
-
-Future<String> ensurePiperEspeakData() => extractEspeakNgData();

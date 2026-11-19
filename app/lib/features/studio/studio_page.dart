@@ -17,6 +17,7 @@ import '../../data/ambience/ambience_analyzer.dart';
 import '../../data/ambience/ambience_library.dart';
 import '../../data/ambience/ambience_plan_repository.dart';
 import '../../data/m4b_exporter.dart';
+import '../../data/tts/chapter_synthesizer.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_conversion.dart';
@@ -568,6 +569,10 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   }
 
   Future<void> _convert(Book book, PiperModel model, double rate) async {
+    if (!model.isValid) {
+      setState(() => _error = 'El modelo Piper no está completo.');
+      return;
+    }
     setState(() {
       _converting = true;
       _cancelRequested = false;
@@ -580,8 +585,11 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       final espeak = await ensurePiperEspeakData();
       final updated = await const TtsConversionService().convert(
         book,
-        model: model,
-        espeakDataPath: espeak,
+        synthesizer: PiperSynthesizer(model: model, espeakDataPath: espeak),
+        manifestExtra: {
+          'tts_model': model.id,
+          'tts_model_path': model.directory,
+        },
         speed: 1 + rate / 100,
         isCancelled: () => _cancelRequested,
         onProgress: (progress) {

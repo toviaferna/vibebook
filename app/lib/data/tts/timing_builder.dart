@@ -9,7 +9,27 @@ class TimingBuilder {
     required Map<String, String> segmentTexts,
     required List<Map<String, dynamic>> spans,
     required int durationMs,
+    List<Map<String, dynamic>>? wordTimings,
+    String precision = 'estimated',
   }) {
+    final realWords = <String, List<WordTiming>>{};
+    if (wordTimings != null) {
+      for (final entry in wordTimings) {
+        final id = entry['id'] as String? ?? '';
+        final words = entry['words'];
+        if (words is List && words.isNotEmpty) {
+          realWords[id] = [
+            for (final word in words)
+              if (word is Map<String, dynamic>)
+                WordTiming(
+                  text: word['text'] as String? ?? '',
+                  startMs: (word['start_ms'] as num?)?.toInt() ?? 0,
+                  endMs: (word['end_ms'] as num?)?.toInt() ?? 0,
+                ),
+          ];
+        }
+      }
+    }
     final segments = <SegmentTiming>[];
     for (final span in spans) {
       final id = span['id'] as String? ?? '';
@@ -21,15 +41,15 @@ class TimingBuilder {
           id: id,
           startMs: startMs,
           endMs: endMs,
-          precision: 'estimated',
-          words: _words(text, startMs, endMs),
+          precision: precision,
+          words: realWords[id] ?? _words(text, startMs, endMs),
         ),
       );
     }
     return ChapterTiming(
       chapterIndex: chapterIndex,
       durationMs: durationMs,
-      precision: 'estimated',
+      precision: precision,
       segments: segments,
     );
   }

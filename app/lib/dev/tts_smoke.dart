@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
+import '../data/tts/chapter_synthesizer.dart' show ensurePiperEspeakData;
 import '../data/tts/piper_models.dart';
 import '../data/tts/tts_chapter_worker.dart';
-import '../data/tts/tts_conversion.dart' show ensurePiperEspeakData;
 import '../data/tts/wav_writer.dart';
 
 /// Headless end-to-end check for the local Piper pipeline.

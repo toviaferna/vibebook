@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../data/epub_ingestor.dart';
 import '../data/library_repository.dart';
+import '../data/tts/chapter_synthesizer.dart';
 import '../data/tts/piper_models.dart';
 import '../data/tts/tts_conversion.dart';
 import '../domain/timing.dart';
@@ -63,8 +64,8 @@ Future<void> runConvertSmoke(List<String> args) async {
     final espeak = await ensurePiperEspeakData();
     final converted = await const TtsConversionService().convert(
       imported,
-      model: model,
-      espeakDataPath: espeak,
+      synthesizer: PiperSynthesizer(model: model, espeakDataPath: espeak),
+      manifestExtra: {'tts_model': model.id, 'tts_model_path': model.directory},
       maxChapters: maxChapters ?? 1,
       compressAudio: true,
     );

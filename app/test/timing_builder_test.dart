@@ -47,4 +47,63 @@ void main() {
     expect(timing.segments.first.words, isEmpty);
     expect(timing.segments.last.words, isEmpty);
   });
+
+  test('usa palabras reales cuando el motor las reporta', () {
+    const builder = TimingBuilder();
+    final timing = builder.build(
+      chapterIndex: 2,
+      segmentTexts: const {'a': 'Hola mundo cruel'},
+      spans: const [
+        {'id': 'a', 'start_ms': 500, 'end_ms': 2000},
+      ],
+      durationMs: 2500,
+      wordTimings: const [
+        {
+          'id': 'a',
+          'words': [
+            {'text': 'Hola', 'start_ms': 500, 'end_ms': 900},
+            {'text': 'mundo', 'start_ms': 900, 'end_ms': 1500},
+            {'text': 'cruel', 'start_ms': 1500, 'end_ms': 2000},
+          ],
+        },
+      ],
+      precision: 'native_word',
+    );
+
+    expect(timing.precision, 'native_word');
+    final segment = timing.segments.single;
+    expect(segment.precision, 'native_word');
+    expect(segment.words, hasLength(3));
+    expect(segment.words.first.text, 'Hola');
+    expect(segment.words.first.startMs, 500);
+    expect(segment.words.last.text, 'cruel');
+    expect(segment.words.last.endMs, 2000);
+  });
+
+  test('sin palabras reales para un segmento cae en la estimación', () {
+    const builder = TimingBuilder();
+    final timing = builder.build(
+      chapterIndex: 2,
+      segmentTexts: const {'a': 'Hola mundo', 'b': 'Otra frase'},
+      spans: const [
+        {'id': 'a', 'start_ms': 0, 'end_ms': 1000},
+        {'id': 'b', 'start_ms': 1000, 'end_ms': 2000},
+      ],
+      durationMs: 2000,
+      wordTimings: const [
+        {
+          'id': 'a',
+          'words': [
+            {'text': 'Hola', 'start_ms': 0, 'end_ms': 400},
+          ],
+        },
+        // El segmento b no tiene palabras: se estima.
+      ],
+      precision: 'native_word',
+    );
+
+    expect(timing.segments.first.words, hasLength(1));
+    expect(timing.segments.last.words, isNotEmpty);
+    expect(timing.segments.last.words.first.text, 'Otra');
+  });
 }
