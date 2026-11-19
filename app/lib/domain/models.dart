@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../data/tts/tts_engines.dart';
+
 /// A single spoken segment of a chapter.
 class Segment {
   const Segment({
@@ -408,9 +410,13 @@ class AppSettings {
     this.piperModelId,
     this.piperRate = -10,
     this.ttsEngine = 'piper',
+    this.ttsVoiceId = 'es_MX-ald-medium',
+    this.ttsStyle = 'neutral',
+    this.ttsRate = -10,
     this.edgeVoiceId = 'es-MX-JorgeNeural',
     this.edgeRate = 0,
     this.edgeFavorites = const [],
+    this.voiceFavorites = const [],
     this.ambienceEnabled = false,
     this.ambiencePreset = 'rain',
     this.ambienceVolume = 0.35,
@@ -426,11 +432,19 @@ class AppSettings {
   final String? piperModelId;
   final double piperRate;
 
-  /// Active conversion engine: `piper` (local) or `edge` (online).
+  /// Active conversion engine: `piper`, `edge`, `azure`, `gemini`,
+  /// `elevenlabs`, `kokoro` or `espeak`.
   final String ttsEngine;
+
+  /// Voice for the active engine. Piper keeps `piperModelId` in sync, Edge
+  /// keeps `edgeVoiceId`; cloud engines use this field directly.
+  final String ttsVoiceId;
+  final String ttsStyle;
+  final double ttsRate;
   final String edgeVoiceId;
   final double edgeRate;
   final List<String> edgeFavorites;
+  final List<String> voiceFavorites;
   final bool ambienceEnabled;
   final String ambiencePreset;
   final double ambienceVolume;
@@ -446,9 +460,13 @@ class AppSettings {
     String? piperModelId,
     double? piperRate,
     String? ttsEngine,
+    String? ttsVoiceId,
+    String? ttsStyle,
+    double? ttsRate,
     String? edgeVoiceId,
     double? edgeRate,
     List<String>? edgeFavorites,
+    List<String>? voiceFavorites,
     bool? ambienceEnabled,
     String? ambiencePreset,
     double? ambienceVolume,
@@ -468,9 +486,13 @@ class AppSettings {
           : (piperModelId ?? this.piperModelId),
       piperRate: piperRate ?? this.piperRate,
       ttsEngine: ttsEngine ?? this.ttsEngine,
+      ttsVoiceId: ttsVoiceId ?? this.ttsVoiceId,
+      ttsStyle: ttsStyle ?? this.ttsStyle,
+      ttsRate: ttsRate ?? this.ttsRate,
       edgeVoiceId: edgeVoiceId ?? this.edgeVoiceId,
       edgeRate: edgeRate ?? this.edgeRate,
       edgeFavorites: edgeFavorites ?? this.edgeFavorites,
+      voiceFavorites: voiceFavorites ?? this.voiceFavorites,
       ambienceEnabled: ambienceEnabled ?? this.ambienceEnabled,
       ambiencePreset: ambiencePreset ?? this.ambiencePreset,
       ambienceVolume: ambienceVolume ?? this.ambienceVolume,
@@ -488,9 +510,13 @@ class AppSettings {
     'piperModelId': piperModelId,
     'piperRate': piperRate,
     'ttsEngine': ttsEngine,
+    'ttsVoiceId': ttsVoiceId,
+    'ttsStyle': ttsStyle,
+    'ttsRate': ttsRate,
     'edgeVoiceId': edgeVoiceId,
     'edgeRate': edgeRate,
     'edgeFavorites': edgeFavorites,
+    'voiceFavorites': voiceFavorites,
     'ambienceEnabled': ambienceEnabled,
     'ambiencePreset': ambiencePreset,
     'ambienceVolume': ambienceVolume,
@@ -501,18 +527,44 @@ class AppSettings {
   };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
+    final engine = json['ttsEngine'] as String? ?? 'piper';
+    final piperRate = (json['piperRate'] as num?)?.toDouble() ?? -10;
+    final edgeRate = (json['edgeRate'] as num?)?.toDouble() ?? 0;
+    final voice =
+        json['ttsVoiceId'] as String? ??
+        switch (engine) {
+          'piper' => json['piperModelId'] as String? ?? 'es_MX-ald-medium',
+          'edge' => json['edgeVoiceId'] as String? ?? 'es-MX-JorgeNeural',
+          'azure' => 'es-MX-JorgeNeural',
+          'gemini' => 'Kore',
+          'elevenlabs' => 'pNInz6obpgDQGcFmaJgB',
+          'kokoro' => 'ef_dora',
+          'espeak' => 'es-419',
+          _ => 'es-MX-JorgeNeural',
+        };
     return AppSettings(
       themeMode: json['themeMode'] as String? ?? 'system',
       libraryPath: json['libraryPath'] as String?,
       modelsPath: json['modelsPath'] as String?,
       piperModelId: json['piperModelId'] as String?,
-      piperRate: (json['piperRate'] as num?)?.toDouble() ?? -10,
-      ttsEngine: json['ttsEngine'] as String? ?? 'piper',
+      piperRate: piperRate,
+      ttsEngine: engine,
+      ttsVoiceId: voice,
+      ttsStyle: json['ttsStyle'] as String? ?? 'neutral',
+      ttsRate:
+          (json['ttsRate'] as num?)?.toDouble() ??
+          (engine == 'edge' ? edgeRate : piperRate),
       edgeVoiceId: json['edgeVoiceId'] as String? ?? 'es-MX-JorgeNeural',
-      edgeRate: (json['edgeRate'] as num?)?.toDouble() ?? 0,
-      edgeFavorites: (json['edgeFavorites'] as List?)
-          ?.whereType<String>()
-          .toList(growable: false) ??
+      edgeRate: edgeRate,
+      edgeFavorites:
+          (json['edgeFavorites'] as List?)?.whereType<String>().toList(
+            growable: false,
+          ) ??
+          const [],
+      voiceFavorites:
+          (json['voiceFavorites'] as List? ?? json['edgeFavorites'] as List?)
+              ?.whereType<String>()
+              .toList(growable: false) ??
           const [],
       ambienceEnabled: json['ambienceEnabled'] as bool? ?? false,
       ambiencePreset: json['ambiencePreset'] as String? ?? 'rain',
@@ -524,6 +576,34 @@ class AppSettings {
       lastBookId: json['lastBookId'] as String?,
       lastChapterIndex: (json['lastChapterIndex'] as num?)?.toInt() ?? 1,
     );
+  }
+
+  /// The selected voice for [engine], falling back to that engine's default
+  /// when the stored voice belongs to another engine.
+  String voiceForEngine(String engine) {
+    if (engine == 'edge') {
+      return edgeVoiceId;
+    }
+    if (engine == 'piper') {
+      return piperModelId ?? ttsVoiceId;
+    }
+    if (ttsEngine == engine) {
+      final known = ttsVoiceById(ttsVoiceId);
+      if (known == null || known.engine == engine) {
+        return ttsVoiceId;
+      }
+    }
+    return defaultTtsVoice(engine);
+  }
+
+  double rateForEngine(String engine) {
+    if (engine == 'edge') {
+      return edgeRate;
+    }
+    if (engine == 'piper') {
+      return piperRate;
+    }
+    return ttsRate;
   }
 }
 

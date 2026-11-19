@@ -18,16 +18,23 @@ import '../../data/ambience/ambience_library.dart';
 import '../../data/ambience/ambience_plan_repository.dart';
 import '../../data/m4b_exporter.dart';
 import '../../data/tts/chapter_synthesizer.dart';
+import '../../data/tts/cloud/azure_tts.dart';
+import '../../data/tts/cloud/cloud_synthesizer.dart';
+import '../../data/tts/cloud/cloud_tts.dart';
+import '../../data/tts/cloud/elevenlabs_tts.dart';
+import '../../data/tts/cloud/gemini_tts.dart';
 import '../../data/tts/edge/edge_client.dart';
 import '../../data/tts/edge/edge_synthesizer.dart';
 import '../../data/tts/edge/edge_voices.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_conversion.dart';
+import '../../data/tts/tts_engines.dart';
 import '../../data/tts/wav_writer.dart';
 import '../../domain/ambience.dart';
 import '../../domain/ambience_plan.dart';
 import '../../domain/models.dart';
+import '../../domain/providers.dart';
 import 'voice_download_dialog.dart';
 
 class StudioPage extends ConsumerStatefulWidget {
@@ -94,9 +101,16 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final models = ref.watch(piperModelsProvider);
     final selected = ref.watch(selectedPiperModelProvider);
     final engine = settings?.ttsEngine ?? 'piper';
-    final rate = engine == 'edge'
-        ? (settings?.edgeRate ?? 0)
-        : (settings?.piperRate ?? -10);
+    final spec = ttsEngine(engine);
+    final providerStatuses =
+        ref.watch(providerStatusesProvider).value ?? const <ProviderStatus>[];
+    final cloudReady =
+        !spec.requiresKey ||
+        providerStatuses.any(
+          (status) => status.id == engine && status.configured,
+        );
+    final rate = settings?.rateForEngine(engine) ?? -10;
+    final voice = settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
     final modelsRoot = ref.watch(modelsRootProvider);
     final savedAmbiencePlan = ref.watch(ambiencePlanProvider(book.id)).value;
     final ambiencePlan = _ambiencePlan ?? savedAmbiencePlan;
@@ -176,18 +190,10 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 BibliotecaSelect<String>(
                   label: 'Motor',
                   value: engine,
-                  options: const [
-                    BibliotecaSelectOption(
-                      value: 'piper',
-                      label: 'Piper (local)',
-                      description: 'Sin cuenta ni nube. La síntesis corre acá.',
-                    ),
-                    BibliotecaSelectOption(
-                      value: 'edge',
-                      label: 'Edge (online, experimental)',
-                      description: 'Voces neuronales de Microsoft vía red.',
-                    ),
-                  ],
+                  options: _engineOptions(
+                    providerStatuses,
+                    hasPiper: models.value?.isNotEmpty == true,
+                  ),
                   onChanged: _converting
                       ? null
                       : (value) => ref
@@ -251,7 +257,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     'sirve sin conexión.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                ] else ...[
+                ] else if (engine == 'piper') ...[
                   models.when(
                     data: (items) {
                       if (items.isEmpty) {
@@ -317,6 +323,94 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     error: (error, stackTrace) =>
                         Text('No se pudieron leer los modelos: $error'),
                   ),
+                ] else if (_isCloud(engine)) ...[
+                  if (!cloudReady)
+                    _CloudMissing(
+                      engine: engine,
+                      onOpenSettings: () => context.push('/settings'),
+                    )
+                  else ...[
+                    _CloudVoicePicker(
+                      voices: ttsVoicesFor(engine),
+                      selected: voice,
+                      favorites: settings?.voiceFavorites ?? const [],
+                      previewing: _previewingVoiceId,
+                      bookLanguage: book.language,
+                      onSelect: _converting
+                          ? null
+                          : (voiceId) => ref
+                                .read(settingsProvider.notifier)
+                                .updateTtsEngine(voice: voiceId),
+                      onToggleFavorite: _converting
+                          ? null
+                          : (voiceId) {
+                              final current =
+                                  settings?.voiceFavorites ?? const <String>[];
+                              final next = current.contains(voiceId)
+                                  ? current
+                                        .where((id) => id != voiceId)
+                                        .toList(growable: false)
+                                  : [...current, voiceId];
+                              ref
+                                  .read(settingsProvider.notifier)
+                                  .updateTtsEngine(favorites: next);
+                            },
+                      onPreview: _converting || _previewing
+                          ? null
+                          : (voiceId) => _previewCloud(engine, voiceId),
+                    ),
+                    if (spec.supportsStyles) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Estilo de lectura',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final style in _stylesFor(engine))
+                            ChoiceChip(
+                              label: Text(_styleLabel(style)),
+                              selected:
+                                  (settings?.ttsStyle ?? 'neutral') == style,
+                              onSelected: _converting
+                                  ? null
+                                  : (_) => ref
+                                        .read(settingsProvider.notifier)
+                                        .updateTtsEngine(style: style),
+                            ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final preset in _speedPresets)
+                          ChoiceChip(
+                            label: Text('${preset.label} (${preset.rate}%)'),
+                            selected: (rate - preset.rate).abs() < 0.01,
+                            onSelected: _converting
+                                ? null
+                                : (_) => ref
+                                      .read(settingsProvider.notifier)
+                                      .updateTtsEngine(rate: preset.rate),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Online: el texto se envía al proveedor y el servicio '
+                      'puede fallar, limitarse o cambiar sin aviso. No sirve '
+                      'sin conexión.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ] else ...[
+                  _UnavailableEngine(spec: spec),
                 ],
                 const SizedBox(height: 16),
                 TextField(
@@ -372,17 +466,9 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                       label: '${rate.round()}%',
                       onChanged: _converting
                           ? null
-                          : (value) {
-                              if (engine == 'edge') {
-                                ref
-                                    .read(settingsProvider.notifier)
-                                    .updateTtsEngine(edgeRate: value);
-                              } else {
-                                ref
-                                    .read(settingsProvider.notifier)
-                                    .setPiperRate(value);
-                              }
-                            },
+                          : (value) => ref
+                                .read(settingsProvider.notifier)
+                                .updateTtsEngine(rate: value),
                     ),
                   ),
                   SizedBox(
@@ -506,6 +592,8 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 onPressed:
                     _converting ||
                         _exporting ||
+                        !spec.implemented ||
+                        !cloudReady ||
                         (engine == 'piper' && selected == null)
                     ? null
                     : () => _convertCurrent(book, engine, selected, rate),
@@ -513,9 +601,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 label: Text(
                   _converting
                       ? 'Convirtiendo…'
-                      : engine == 'edge'
-                      ? 'Convertir con Edge'
-                      : 'Convertir con Piper',
+                      : 'Convertir con ${_engineShortName(engine)}',
                 ),
               ),
               if (_converting)
@@ -568,6 +654,167 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         ],
       ),
     );
+  }
+
+  static bool _isCloud(String engine) {
+    return engine == 'azure' || engine == 'gemini' || engine == 'elevenlabs';
+  }
+
+  List<BibliotecaSelectOption<String>> _engineOptions(
+    List<ProviderStatus> statuses, {
+    required bool hasPiper,
+  }) {
+    return [
+      for (final engine in ttsEngines)
+        BibliotecaSelectOption(
+          value: engine.id,
+          label: engine.label,
+          description: _engineDescription(engine, statuses, hasPiper),
+        ),
+    ];
+  }
+
+  String _engineDescription(
+    TtsEngineSpec engine,
+    List<ProviderStatus> statuses,
+    bool hasPiper,
+  ) {
+    if (!engine.implemented) {
+      return engine.description;
+    }
+    if (engine.id == 'piper') {
+      return hasPiper
+          ? 'Modelos locales detectados.'
+          : 'No hay modelos instalados todavía.';
+    }
+    if (engine.id == 'edge') {
+      return 'Online, sin clave.';
+    }
+    if (engine.requiresKey) {
+      var configured = false;
+      for (final status in statuses) {
+        if (status.id == engine.id) {
+          configured = status.configured;
+          break;
+        }
+      }
+      return configured
+          ? 'Clave configurada.'
+          : 'Falta configurar la clave en Ajustes.';
+    }
+    return engine.description;
+  }
+
+  List<String> _stylesFor(String engine) {
+    if (engine == 'azure') {
+      return const [
+        'neutral',
+        'chat',
+        'cheerful',
+        'excited',
+        'sad',
+        'whispering',
+      ];
+    }
+    return cloudStyles;
+  }
+
+  String _styleLabel(String style) {
+    return switch (style) {
+      'neutral' => 'Claro',
+      'chat' => 'Cálido',
+      'cheerful' => 'Alegre',
+      'excited' => 'Emocionado',
+      'sad' => 'Melancólico',
+      'whispering' => 'Susurro',
+      'epic' => 'Épico',
+      'suspense' => 'Suspenso',
+      _ => style,
+    };
+  }
+
+  String _engineShortName(String engine) {
+    return switch (engine) {
+      'piper' => 'Piper',
+      'edge' => 'Edge',
+      'azure' => 'Azure',
+      'gemini' => 'Gemini',
+      'elevenlabs' => 'ElevenLabs',
+      'kokoro' => 'Kokoro',
+      'espeak' => 'eSpeak',
+      _ => engine,
+    };
+  }
+
+  Future<CloudTtsClient?> _cloudClient(String engine) async {
+    final store = ref.read(providerKeyStoreProvider);
+    final key = await store.key(engine);
+    if (key == null) {
+      return null;
+    }
+    return switch (engine) {
+      'azure' => AzureTtsClient(
+        apiKey: key,
+        region: await store.region(engine) ?? '',
+      ),
+      'gemini' => GeminiTtsClient(apiKey: key),
+      'elevenlabs' => ElevenLabsTtsClient(apiKey: key),
+      _ => null,
+    };
+  }
+
+  Future<void> _previewCloud(String engine, String voiceId) async {
+    final text = _previewController.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+    setState(() {
+      _previewing = true;
+      _previewingVoiceId = voiceId;
+      _previewMessage = null;
+      _error = null;
+    });
+    try {
+      final client = await _cloudClient(engine);
+      if (client == null) {
+        throw CloudTtsException(
+          'Falta la clave de ${_engineShortName(engine)}. Configurala en '
+          'Ajustes → Proveedores en la nube.',
+        );
+      }
+      final style = ref.read(settingsProvider).value?.ttsStyle ?? 'neutral';
+      final audio = await client.synthesize(
+        text: text,
+        voice: voiceId,
+        style: style,
+      );
+      final temp = await getTemporaryDirectory();
+      final file = File(
+        p.join(temp.path, 'vibebook-cloud-preview.${audio.extension}'),
+      );
+      await file.writeAsBytes(audio.bytes, flush: true);
+      final player = _previewPlayer ??= AudioPlayer();
+      await player.stop();
+      await player.play(DeviceFileSource(file.path));
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _previewingVoiceId = null;
+          _previewMessage =
+              'Muestra de ${ttsVoiceById(voiceId)?.name ?? voiceId} lista · '
+              '${(audio.bytes.length / 1024).round()} KB · '
+              '${_engineShortName(engine)}';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _previewingVoiceId = null;
+          _error = 'No se pudo consultar ${_engineShortName(engine)}: $error';
+        });
+      }
+    }
   }
 
   Future<void> _analyzeAmbience(Book book) async {
@@ -679,8 +926,15 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   /// Probes the phrase with the selected engine.
   Future<void> _previewAny() {
     final settings = ref.read(settingsProvider).value;
-    if (settings?.ttsEngine == 'edge') {
+    final engine = settings?.ttsEngine ?? 'piper';
+    if (engine == 'edge') {
       return _previewEdge(settings?.edgeVoiceId ?? defaultEdgeVoiceId);
+    }
+    if (_isCloud(engine)) {
+      return _previewCloud(
+        engine,
+        settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine),
+      );
     }
     final model = ref.read(selectedPiperModelProvider);
     if (model == null) {
@@ -761,6 +1015,40 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         rate: rate,
         preparing: 'Consultando el servicio de Edge…',
       );
+      return;
+    }
+    if (_isCloud(engine)) {
+      final client = await _cloudClient(engine);
+      if (client == null) {
+        setState(() {
+          _error =
+              'Falta la clave de ${_engineShortName(engine)}. Configurala en '
+              'Ajustes → Proveedores en la nube.';
+        });
+        return;
+      }
+      final settings = ref.read(settingsProvider).value;
+      final voice = settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
+      final style = settings?.ttsStyle ?? 'neutral';
+      await _runConversion(
+        book,
+        synthesizer: CloudChapterSynthesizer(
+          client: client,
+          voice: voice,
+          engine: engine,
+          style: style,
+        ),
+        extra: {'tts_style': style},
+        rate: rate,
+        preparing: 'Preparando ${_engineShortName(engine)}…',
+      );
+      return;
+    }
+    if (engine != 'piper') {
+      setState(() {
+        _error =
+            '${_engineShortName(engine)} no está disponible en esta versión.';
+      });
       return;
     }
     if (model == null) {
@@ -1235,6 +1523,258 @@ class _EdgeVoicePicker extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CloudVoicePicker extends StatelessWidget {
+  const _CloudVoicePicker({
+    required this.voices,
+    required this.selected,
+    required this.favorites,
+    required this.previewing,
+    required this.bookLanguage,
+    this.onSelect,
+    this.onToggleFavorite,
+    this.onPreview,
+  });
+
+  final List<TtsVoice> voices;
+  final String selected;
+  final List<String> favorites;
+  final String? previewing;
+  final String bookLanguage;
+  final ValueChanged<String>? onSelect;
+  final ValueChanged<String>? onToggleFavorite;
+  final ValueChanged<String>? onPreview;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    final ordered = [...voices]
+      ..sort((left, right) {
+        final leftFavorite = favorites.contains(left.id) ? 0 : 1;
+        final rightFavorite = favorites.contains(right.id) ? 0 : 1;
+        final byFavorite = leftFavorite.compareTo(rightFavorite);
+        if (byFavorite != 0) {
+          return byFavorite;
+        }
+        return left.name.compareTo(right.name);
+      });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 560 ? 2 : 3;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final voice in ordered)
+              _voiceCard(context, voice, colors, columns),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _voiceCard(
+    BuildContext context,
+    TtsVoice voice,
+    BibliotecaColors colors,
+    int columns,
+  ) {
+    final active = voice.id == selected;
+    final favorite = favorites.contains(voice.id);
+    final previewingThis = previewing == voice.id;
+    final width = (MediaQuery.sizeOf(context).width - 120) / columns - 10;
+    final mismatch = voiceLanguageMismatch(voice, bookLanguage);
+    return SizedBox(
+      width: width.clamp(160.0, 320.0),
+      child: Material(
+        color: active ? colors.accentSoft : colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        child: InkWell(
+          borderRadius: BibliotecaRadii.md,
+          onTap: onSelect == null ? null : () => onSelect!(voice.id),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+            decoration: BoxDecoration(
+              borderRadius: BibliotecaRadii.md,
+              border: Border.all(
+                color: active ? colors.accent : colors.line,
+                width: active ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        voice.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: active ? colors.ink : colors.inkSoft,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (onToggleFavorite != null)
+                      IconButton(
+                        tooltip: favorite
+                            ? 'Quitar de favoritas'
+                            : 'Marcar como favorita',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => onToggleFavorite!(voice.id),
+                        icon: Icon(
+                          favorite ? Icons.star : Icons.star_border,
+                          size: 18,
+                          color: favorite ? colors.brass : colors.inkFaint,
+                        ),
+                      ),
+                    if (onPreview != null)
+                      IconButton(
+                        tooltip: 'Escuchar ${voice.name}',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: previewingThis
+                            ? null
+                            : () => onPreview!(voice.id),
+                        icon: previewingThis
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                Icons.play_arrow,
+                                size: 20,
+                                color: colors.accent,
+                              ),
+                      ),
+                  ],
+                ),
+                Text(
+                  voice.detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+                if (mismatch) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Idioma del libro: $bookLanguage',
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: colors.warning),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CloudMissing extends StatelessWidget {
+  const _CloudMissing({required this.engine, required this.onOpenSettings});
+
+  final String engine;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    final name = switch (engine) {
+      'azure' => 'Azure Speech',
+      'gemini' => 'Gemini TTS',
+      'elevenlabs' => 'ElevenLabs',
+      _ => engine,
+    };
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        border: Border(left: BorderSide(color: colors.warning, width: 2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.key_off_outlined, color: colors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$name todav�a no tiene una clave configurada.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Peg� la clave en Ajustes ? Proveedores en la nube. '
+                  'La clave se guarda en este equipo y no se muestra de nuevo.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: onOpenSettings,
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  label: const Text('Abrir Ajustes'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnavailableEngine extends StatelessWidget {
+  const _UnavailableEngine({required this.spec});
+
+  final TtsEngineSpec spec;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        border: Border(left: BorderSide(color: colors.brass, width: 2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, color: colors.brass),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${spec.label} todav�a no est� disponible en esta versi�n.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${spec.description} Mientras tanto, us� Piper, Edge o un '
+                  'motor cloud configurado. La limitaci�n es visible a '
+                  'prop�sito: no se degrada en silencio.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

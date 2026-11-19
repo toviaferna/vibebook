@@ -5,17 +5,28 @@ import '../data/ambience/ambience_plan_repository.dart';
 import '../data/bookmark_repository.dart';
 import '../data/epub_ingestor.dart';
 import '../data/library_repository.dart';
+import '../data/providers/provider_key_store.dart';
 import '../data/settings_repository.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
+import '../data/tts/tts_engines.dart';
 import '../domain/ambience_plan.dart';
 import '../domain/bookmarks.dart';
 import '../domain/models.dart';
+import '../domain/providers.dart';
 import '../features/reader/audio_transport.dart';
 import '../features/reader/audioplayers_audio_transport.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return SettingsRepository();
+});
+
+final providerKeyStoreProvider = Provider<ProviderKeyStore>((ref) {
+  return ProviderKeyStore();
+});
+
+final providerStatusesProvider = FutureProvider<List<ProviderStatus>>((ref) {
+  return ref.watch(providerKeyStoreProvider).list();
 });
 
 final epubIngestorProvider = Provider<EpubIngestor>((ref) {
@@ -69,14 +80,20 @@ class SettingsController extends AsyncNotifier<AppSettings> {
 
   Future<void> selectPiperModel(String modelId) async {
     final current = state.value ?? const AppSettings();
-    final next = current.copyWith(piperModelId: modelId);
+    final next = current.copyWith(
+      piperModelId: modelId,
+      ttsVoiceId: current.ttsEngine == 'piper' ? modelId : current.ttsVoiceId,
+    );
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);
   }
 
   Future<void> setPiperRate(double rate) async {
     final current = state.value ?? const AppSettings();
-    final next = current.copyWith(piperRate: rate);
+    final next = current.copyWith(
+      piperRate: rate,
+      ttsRate: current.ttsEngine == 'piper' ? rate : current.ttsRate,
+    );
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);
   }
@@ -100,16 +117,44 @@ class SettingsController extends AsyncNotifier<AppSettings> {
 
   Future<void> updateTtsEngine({
     String? engine,
+    String? voice,
+    String? style,
+    double? rate,
     String? edgeVoice,
     double? edgeRate,
     List<String>? edgeFavorites,
+    List<String>? favorites,
   }) async {
     final current = state.value ?? const AppSettings();
+    final target = engine ?? current.ttsEngine;
+    var nextVoice = voice ?? edgeVoice;
+    if (nextVoice == null && engine != null && engine != current.ttsEngine) {
+      nextVoice = defaultTtsVoice(target);
+    }
+    final nextRate = rate ?? edgeRate;
+    final spec = ttsEngine(target);
+    final nextStyle = !spec.supportsStyles
+        ? 'neutral'
+        : (style ?? current.ttsStyle);
     final next = current.copyWith(
-      ttsEngine: engine,
-      edgeVoiceId: edgeVoice,
-      edgeRate: edgeRate,
+      ttsEngine: target,
+      ttsVoiceId: nextVoice,
+      ttsStyle: nextStyle,
+      ttsRate: nextRate,
+      edgeVoiceId: target == 'edge'
+          ? (nextVoice ?? current.edgeVoiceId)
+          : current.edgeVoiceId,
+      edgeRate: target == 'edge'
+          ? (nextRate ?? current.edgeRate)
+          : current.edgeRate,
+      piperModelId: target == 'piper'
+          ? (nextVoice ?? current.piperModelId)
+          : current.piperModelId,
+      piperRate: target == 'piper'
+          ? (nextRate ?? current.piperRate)
+          : current.piperRate,
       edgeFavorites: edgeFavorites,
+      voiceFavorites: favorites,
     );
     state = AsyncData(next);
     await ref.read(settingsRepositoryProvider).save(next);
