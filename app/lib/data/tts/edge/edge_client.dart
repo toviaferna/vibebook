@@ -4,9 +4,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
-
 import 'edge_connection.dart';
+import 'edge_drm.dart';
 
 /// Events emitted while Edge synthesizes a chunk of text.
 sealed class EdgeTtsEvent {}
@@ -42,9 +41,11 @@ class EdgeNoAudioException implements Exception {
 
 /// Dart client for Microsoft Edge's Read Aloud synthesis service.
 ///
-/// The protocol is ported from the MIT-licensed Python `edge-tts` client
-/// (https://github.com/rany2/edge-tts). The service is unofficial: it may
-/// rate-limit, reject requests or disappear without notice.
+/// The protocol is ported from the GPLv3-licensed Python `edge-tts` client
+/// (https://github.com/rany2/edge-tts), including its reverse-engineered
+/// Sec-MS-GEC v2 token (see [EdgeDrm]); GPLv3 is compatible with this
+/// project's AGPL-3.0. The service is unofficial: it may rate-limit, reject
+/// requests or disappear without notice.
 class EdgeTtsClient {
   EdgeTtsClient({
     EdgeConnectionFactory? connectionFactory,
@@ -52,27 +53,25 @@ class EdgeTtsClient {
     DateTime Function()? clock,
     Future<Duration?> Function()? clockProbe,
   }) : _connect = connectionFactory ?? connectWebSocket,
-       _clock = clock ?? DateTime.now,
+       _drm = EdgeDrm(clock: clock),
        _probeClock = clockProbe ?? _probeServiceClock;
 
-  static const trustedClientToken = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+  static const trustedClientToken = EdgeDrm.trustedClientToken;
   static const chromiumVersion = '143.0.3650.75';
   static const audioFormat = 'audio-24khz-48kbitrate-mono-mp3';
+
+  static String get secMsGecVersion => '2-$chromiumVersion';
 
   static const _baseUrl =
       'speech.platform.bing.com/consumer/speech/synthesize/readaloud';
   static const _wssUrl = 'wss://$_baseUrl/edge/v1';
   static const _voicesUrl = 'https://$_baseUrl/voices/list';
-  static const _winEpochMs = 11644473600000;
-  static const _fiveMinutesIn100Ns = 5 * 60 * 10000000;
   static const _maxChunkBytes = 4096;
 
   final EdgeConnectionFactory _connect;
-  final DateTime Function() _clock;
+  final EdgeDrm _drm;
   final Future<Duration?> Function() _probeClock;
   final Duration requestDelay;
-
-  Duration _clockSkew = Duration.zero;
 
   /// The service restarts word offsets on every request, so later chunks of a
   /// long text need the elapsed audio plus this small pad to stay in sync.
@@ -168,16 +167,18 @@ class EdgeTtsClient {
   }
 
   Future<EdgeConnection> _connectWithRetry() async {
+    final muid = _drm.muid();
     try {
-      return await _connect(_buildUri(), _wssHeaders);
+      return await _connect(_buildUri(), _wssHeaders(muid));
     } catch (_) {
       // A rejection here usually means clock skew: the Sec-MS-GEC token is
-      // time-based. Sync the clock from the service and try once more.
+      // time-based. Sync the clock from the service and try once more with a
+      // fresh token.
       final skew = await _probeClock();
       if (skew != null) {
-        _clockSkew = skew;
+        _drm.adjustClockSkew(skew.inSeconds.toDouble());
       }
-      return _connect(_buildUri(), _wssHeaders);
+      return _connect(_buildUri(), _wssHeaders(_drm.muid()));
     }
   }
 
@@ -187,7 +188,7 @@ class EdgeTtsClient {
     try {
       final uri = Uri.parse(
         '$_voicesUrl?trustedclienttoken=$trustedClientToken'
-        '&Sec-MS-GEC=1-$chromiumVersion',
+        '&Sec-MS-GEC-Version=$secMsGecVersion',
       );
       final request = await client.headUrl(uri);
       request.headers.set('User-Agent', userAgent);
@@ -206,39 +207,32 @@ class EdgeTtsClient {
     }
   }
 
-  static Map<String, String> get _wssHeaders => {
+  /// Handshake headers, including the fresh MUID cookie the service expects.
+  static Map<String, String> _wssHeaders(String muid) => {
     'Pragma': 'no-cache',
     'Cache-Control': 'no-cache',
     'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold',
-    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Encoding': 'gzip, deflate, br, zstd',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cookie': 'muid=$muid;',
     'User-Agent': userAgent,
   };
 
   /// Identifies this client as a recent Chromium/Edge build.
   static String get userAgent =>
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/$chromiumVersion Safari/537.36 '
-      'Edg/$chromiumVersion';
+      '(KHTML, like Gecko) Chrome/$chromiumMajorVersion.0.0.0 Safari/537.36 '
+      'Edg/$chromiumMajorVersion.0.0.0';
+
+  static String get chromiumMajorVersion => chromiumVersion.split('.').first;
 
   Uri _buildUri() {
     return Uri.parse(
       '$_wssUrl?TrustedClientToken=$trustedClientToken'
       '&ConnectionId=${_uuidHex()}'
-      '&Sec-MS-GEC=${_secMsGec()}'
-      '&Sec-MS-GEC-Version=1-$chromiumVersion',
+      '&Sec-MS-GEC=${_drm.secMsGec()}'
+      '&Sec-MS-GEC-Version=$secMsGecVersion',
     );
-  }
-
-  /// Sec-MS-GEC: SHA-256 of the trusted token plus the Windows file time
-  /// rounded down to five minutes.
-  String _secMsGec() {
-    final now = _clock().toUtc().add(_clockSkew);
-    final ticks = (now.millisecondsSinceEpoch + _winEpochMs) * 10000;
-    final rounded = ticks - (ticks % _fiveMinutesIn100Ns);
-    return sha256
-        .convert(utf8.encode('$trustedClientToken$rounded'))
-        .toString()
-        .toUpperCase();
   }
 
   String _configMessage() {
@@ -433,12 +427,16 @@ class EdgeTtsClient {
 
   /// Javascript-style timestamp, as the service expects it.
   String _timestamp() {
-    final now = _clock().toUtc();
-    final day = _days[now.weekday - 1];
-    final month = _months[now.month - 1];
+    final now = _drm.unixTimestamp();
+    final dateTime = DateTime.fromMillisecondsSinceEpoch(
+      (now * 1000).round(),
+      isUtc: true,
+    );
+    final day = _days[dateTime.weekday - 1];
+    final month = _months[dateTime.month - 1];
     String two(int value) => value.toString().padLeft(2, '0');
-    return '$day $month ${two(now.day)} ${now.year} '
-        '${two(now.hour)}:${two(now.minute)}:${two(now.second)} '
+    return '$day $month ${two(dateTime.day)} ${dateTime.year} '
+        '${two(dateTime.hour)}:${two(dateTime.minute)}:${two(dateTime.second)} '
         'GMT+0000 (Coordinated Universal Time)';
   }
 }

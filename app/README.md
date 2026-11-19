@@ -38,9 +38,10 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 55 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Tests**: 59 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector,
-  catálogo de voces, cliente y sintetizador Edge, bookmarks y widget.
+  catálogo de voces, DRM/token Edge, cliente y sintetizador Edge, bookmarks y
+  widget.
 
 ## Requisitos
 
@@ -131,6 +132,9 @@ vibebook_app --tts-smoke <model-dir> <out.wav> <out.json>
 # Una frase -> WAV (Edge, online y manual; no entra a CI)
 vibebook_app --edge-tts-smoke <es-ES-ElviraNeural> <out.wav> <out.json>
 
+# EPUB -> biblioteca -> audio/timings reales con Edge (online, manual)
+vibebook_app --edge-convert-smoke <book.epub> <library-dir> <voice> <out.json> [chapters]
+
 # EPUB -> biblioteca -> audio/timings reales
 vibebook_app --convert-smoke <model-dir> <book.epub> <library-dir> <out.json> [chapters]
 
@@ -148,6 +152,9 @@ Tauri/Python).
 Resultados medidos en Windows durante esta iteración:
 
 - Piper: 8,9 s de audio en ~1,1 s de síntesis.
+- Edge (online, real): 7,3 s de audio con 21 límites de palabra en una frase.
+- Edge completo (online, real): EPUB de 1 capítulo / 80 párrafos → 21:31 de
+  audio con karaoke `native_word` en ~3,4 min.
 - Libro real de 1 capítulo (21.579 caracteres, 20:25 de audio): conversión
   completa en ~167 s.
 - M4B de ese capítulo: 9,8 MB; con ambiente mezclado: 10,2 MB.
