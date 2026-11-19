@@ -4,14 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/ambience/ambience_plan_repository.dart';
 import '../data/bookmark_repository.dart';
 import '../data/epub_ingestor.dart';
+import '../data/jobs/job_repository.dart';
+import '../data/jobs/job_runner.dart';
 import '../data/library_repository.dart';
 import '../data/providers/provider_key_store.dart';
 import '../data/settings_repository.dart';
+import '../data/tts/chapter_synthesizer.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
 import '../data/tts/tts_engines.dart';
 import '../domain/ambience_plan.dart';
 import '../domain/bookmarks.dart';
+import '../domain/jobs.dart';
 import '../domain/models.dart';
 import '../domain/providers.dart';
 import '../features/reader/audio_transport.dart';
@@ -212,6 +216,90 @@ class LibraryController extends AsyncNotifier<List<Book>> {
 final bookProvider = FutureProvider.family<Book?, String>((ref, id) {
   return ref.watch(libraryRepositoryProvider).get(id);
 });
+
+final jobRepositoryProvider = Provider<JobRepository>((ref) {
+  final library = ref.watch(libraryRepositoryProvider);
+  return JobRepository(rootResolver: library.resolveLibraryPath);
+});
+
+final jobControllerProvider = NotifierProvider<JobController, JobState>(
+  JobController.new,
+);
+
+class JobController extends Notifier<JobState> {
+  JobRunner? _runner;
+
+  @override
+  JobState build() {
+    Future.microtask(_load);
+    return const JobState();
+  }
+
+  Future<void> _load() async {
+    final jobs = await ref.read(jobRepositoryProvider).markInterrupted();
+    state = state.copyWith(history: jobs);
+  }
+
+  Future<ConversionJob?> start({
+    required Book book,
+    required ChapterSynthesizer synthesizer,
+    required String engine,
+    required String voice,
+    required String style,
+    required double rate,
+    Map<String, String> extra = const {},
+    bool resume = true,
+    int? maxChapters,
+  }) async {
+    if (state.running) {
+      return null;
+    }
+    final runner = JobRunner(repository: ref.read(jobRepositoryProvider));
+    _runner = runner;
+    final result = await runner.start(
+      book: book,
+      synthesizer: synthesizer,
+      engine: engine,
+      voice: voice,
+      style: style,
+      rate: rate,
+      extra: extra,
+      resume: resume,
+      maxChapters: maxChapters,
+      onUpdate: (job) {
+        state = JobState(
+          running: job.isRunning,
+          active: job,
+          history: _upsert(state.history, job),
+        );
+      },
+    );
+    ref.invalidate(bookProvider(book.id));
+    ref.invalidate(libraryProvider);
+    state = JobState(
+      running: false,
+      active: result,
+      history: _upsert(state.history, result),
+    );
+    _runner = null;
+    return result;
+  }
+
+  void cancel() {
+    _runner?.cancel();
+  }
+
+  List<ConversionJob> _upsert(List<ConversionJob> jobs, ConversionJob job) {
+    final next = [...jobs];
+    final index = next.indexWhere((item) => item.id == job.id);
+    if (index >= 0) {
+      next[index] = job;
+    } else {
+      next.add(job);
+    }
+    return next;
+  }
+}
 
 final bookmarkRepositoryProvider = Provider<BookmarkRepository>((ref) {
   return const BookmarkRepository();

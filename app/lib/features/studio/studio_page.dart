@@ -28,11 +28,11 @@ import '../../data/tts/edge/edge_synthesizer.dart';
 import '../../data/tts/edge/edge_voices.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/tts_chapter_worker.dart';
-import '../../data/tts/tts_conversion.dart';
 import '../../data/tts/tts_engines.dart';
 import '../../data/tts/wav_writer.dart';
 import '../../domain/ambience.dart';
 import '../../domain/ambience_plan.dart';
+import '../../domain/jobs.dart';
 import '../../domain/models.dart';
 import '../../domain/providers.dart';
 import 'voice_download_dialog.dart';
@@ -52,7 +52,6 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   );
   AudioPlayer? _previewPlayer;
   bool _converting = false;
-  bool _cancelRequested = false;
   bool _exporting = false;
   bool _previewing = false;
   String? _previewingVoiceId;
@@ -63,9 +62,35 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   String? _error;
   String? _exportMessage;
   String? _previewMessage;
+  ProviderSubscription<JobState>? _jobSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobSubscription = ref.listenManual<JobState>(jobControllerProvider, (
+      previous,
+      next,
+    ) {
+      final job = next.latestFor(widget.bookId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _converting = job?.isRunning == true;
+        if (job != null) {
+          _progress = job.fraction;
+          _progressMessage = job.message ?? _progressMessage;
+          if (job.status == 'failed') {
+            _error = job.error;
+          }
+        }
+      });
+    });
+  }
 
   @override
   void dispose() {
+    _jobSubscription?.close();
     _previewController.dispose();
     _previewPlayer?.dispose();
     super.dispose();
@@ -111,6 +136,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         );
     final rate = settings?.rateForEngine(engine) ?? -10;
     final voice = settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
+    final job = ref.watch(jobControllerProvider).latestFor(book.id);
     final modelsRoot = ref.watch(modelsRootProvider);
     final savedAmbiencePlan = ref.watch(ambiencePlanProvider(book.id)).value;
     final ambiencePlan = _ambiencePlan ?? savedAmbiencePlan;
@@ -577,11 +603,40 @@ class _StudioPageState extends ConsumerState<StudioPage> {
               child: Text(_error!),
             ),
           ],
-          if (_converting) ...[
+          if (_converting || (job != null && job.isTerminal)) ...[
             const SizedBox(height: 18),
-            LinearProgressIndicator(value: _progress == 0 ? null : _progress),
-            const SizedBox(height: 8),
-            Text(_progressMessage ?? 'Preparando la síntesis…'),
+            if (_converting)
+              LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+            if (_converting) ...[
+              const SizedBox(height: 8),
+              Text(_progressMessage ?? 'Preparando la síntesis…'),
+            ],
+            if (!_converting && job != null) ...[
+              Text(
+                job.message ??
+                    (job.status == 'completed'
+                        ? 'Audio listo.'
+                        : 'La conversión se detuvo.'),
+              ),
+              if (job.error != null) ...[
+                const SizedBox(height: 4),
+                Text(job.error!, style: Theme.of(context).textTheme.bodySmall),
+              ],
+              if (job.canResume) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _convertCurrent(
+                    book,
+                    job.engine,
+                    selected,
+                    job.rate,
+                    resume: true,
+                  ),
+                  icon: const Icon(Icons.play_arrow, size: 18),
+                  label: const Text('Reanudar conversión'),
+                ),
+              ],
+            ],
           ],
           const SizedBox(height: 22),
           Wrap(
@@ -606,7 +661,9 @@ class _StudioPageState extends ConsumerState<StudioPage> {
               ),
               if (_converting)
                 OutlinedButton.icon(
-                  onPressed: () => setState(() => _cancelRequested = true),
+                  onPressed: () {
+                    ref.read(jobControllerProvider.notifier).cancel();
+                  },
                   icon: const Icon(Icons.stop, size: 18),
                   label: const Text('Detener al final del capítulo'),
                 ),
@@ -1003,8 +1060,9 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     Book book,
     String engine,
     PiperModel? model,
-    double rate,
-  ) async {
+    double rate, {
+    bool resume = false,
+  }) async {
     if (engine == 'edge') {
       final voiceId =
           ref.read(settingsProvider).value?.edgeVoiceId ?? defaultEdgeVoiceId;
@@ -1013,6 +1071,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         synthesizer: EdgeSynthesizer(client: EdgeTtsClient(), voiceId: voiceId),
         extra: const {},
         rate: rate,
+        resume: resume,
         preparing: 'Consultando el servicio de Edge…',
       );
       return;
@@ -1040,6 +1099,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         ),
         extra: {'tts_style': style},
         rate: rate,
+        resume: resume,
         preparing: 'Preparando ${_engineShortName(engine)}…',
       );
       return;
@@ -1064,6 +1124,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       synthesizer: PiperSynthesizer(model: model, espeakDataPath: espeak),
       extra: {'tts_model': model.id, 'tts_model_path': model.directory},
       rate: rate,
+      resume: resume,
       preparing: 'Preparando espeak-ng…',
     );
   }
@@ -1074,54 +1135,43 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     required Map<String, String> extra,
     required double rate,
     required String preparing,
+    bool resume = false,
   }) async {
     setState(() {
       _converting = true;
-      _cancelRequested = false;
       _progress = 0;
       _progressMessage = preparing;
       _error = null;
       _exportMessage = null;
     });
     try {
-      final updated = await const TtsConversionService().convert(
-        book,
-        synthesizer: synthesizer,
-        manifestExtra: extra,
-        speed: 1 + rate / 100,
-        isCancelled: () => _cancelRequested,
-        onProgress: (progress) {
-          if (mounted) {
-            setState(() {
-              _progress = progress.fraction;
-              _progressMessage =
-                  '${progress.message} (${progress.chapterIndex}/${progress.chapterTotal})';
-            });
-          }
-        },
-      );
-      ref.invalidate(bookProvider(book.id));
-      ref.invalidate(libraryProvider);
-      if (mounted) {
-        setState(() {
-          _converting = false;
-          _progress = 1;
-          _progressMessage = 'Audio listo.';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Audio listo para ${updated.title}.')),
-        );
+      final job = await ref
+          .read(jobControllerProvider.notifier)
+          .start(
+            book: book,
+            synthesizer: synthesizer,
+            engine: synthesizer.engineId,
+            voice: synthesizer.voiceId,
+            style: ref.read(settingsProvider).value?.ttsStyle ?? 'neutral',
+            rate: rate,
+            extra: extra,
+            resume: resume,
+          );
+      if (!mounted) {
+        return;
       }
-    } on TtsConversionCancelled {
-      if (mounted) {
-        setState(() {
-          _converting = false;
-          _progress = 0;
-          _progressMessage =
-              'Conversión detenida. Los capítulos terminados se conservaron.';
-        });
-        ref.invalidate(bookProvider(book.id));
-        ref.invalidate(libraryProvider);
+      setState(() {
+        _converting = false;
+        _progress = job?.fraction ?? 0;
+        _progressMessage = job?.message ?? preparing;
+        if (job?.status == 'failed') {
+          _error = job?.error;
+        }
+      });
+      if (job?.status == 'completed') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Audio listo para ${book.title}.')),
+        );
       }
     } catch (error) {
       if (mounted) {

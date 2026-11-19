@@ -39,6 +39,8 @@ class TtsConversionService {
     double speed = 1.0,
     int? maxChapters,
     bool compressAudio = true,
+    bool resume = false,
+    String? style,
     bool Function()? isCancelled,
     void Function(TtsConversionProgress progress)? onProgress,
   }) async {
@@ -67,8 +69,15 @@ class TtsConversionService {
     await temporaryDirectory.create(recursive: true);
 
     manifest['status'] = 'converting';
+    final previousEngine = manifest['engine'];
+    final previousVoice = manifest['voice'];
+    final previousStyle = manifest['style'];
+    final previousRate = manifest['rate'];
     manifest['engine'] = synthesizer.engineId;
     manifest['voice'] = synthesizer.voiceId;
+    if (style != null) {
+      manifest['style'] = style;
+    }
     manifest.addAll(manifestExtra);
     manifest['rate'] = '${((speed - 1) * 100).round()}%';
     manifest['updated_at'] = _now();
@@ -80,9 +89,49 @@ class TtsConversionService {
     var completed = 0;
     for (final chapter in chapters) {
       if (isCancelled?.call() ?? false) {
-        manifest['status'] = 'imported';
+        manifest['status'] = 'interrupted';
         await _writeManifest(manifestFile, manifest);
         throw const TtsConversionCancelled();
+      }
+      final chapterMap = _chapterMap(rawChapters, chapter.index);
+      if (chapterMap == null) {
+        throw StateError(
+          'El manifiesto no contiene el capítulo ${chapter.index}.',
+        );
+      }
+      if (resume &&
+          _canResume(
+            chapterMap: chapterMap,
+            manifest: {
+              'engine': previousEngine,
+              'voice': previousVoice,
+              'style': previousStyle,
+              'rate': previousRate,
+            },
+            directory: directory,
+            synthesizer: synthesizer,
+            speed: speed,
+            style: style,
+          )) {
+        final duration = (chapterMap['duration_ms'] as num?)?.toInt() ?? 0;
+        totalDuration += duration;
+        completed += 1;
+        manifest['duration_ms'] = totalDuration;
+        manifest['progress'] = {
+          'chapters_done': completed,
+          'chapters_total': chapters.length,
+          'updated_at': _now(),
+        };
+        await _writeManifest(manifestFile, manifest);
+        onProgress?.call(
+          TtsConversionProgress(
+            chapterIndex: chapter.index,
+            chapterTotal: chapters.length,
+            fraction: completed / chapters.length,
+            message: 'Capítulo ${chapter.index} ya estaba listo.',
+          ),
+        );
+        continue;
       }
       onProgress?.call(
         TtsConversionProgress(
@@ -104,7 +153,7 @@ class TtsConversionService {
           isCancelled: () => isCancelled?.call() ?? false,
         );
       } on SynthesisCancelled {
-        manifest['status'] = 'imported';
+        manifest['status'] = 'interrupted';
         await _writeManifest(manifestFile, manifest);
         throw const TtsConversionCancelled();
       }
@@ -157,18 +206,6 @@ class TtsConversionService {
         flush: true,
       );
 
-      Map<String, dynamic>? chapterMap;
-      for (final item in rawChapters) {
-        if (item is Map<String, dynamic> && item['index'] == chapter.index) {
-          chapterMap = item;
-          break;
-        }
-      }
-      if (chapterMap == null) {
-        throw StateError(
-          'El manifiesto no contiene el capítulo ${chapter.index}.',
-        );
-      }
       chapterMap
         ..['audio'] = audioRelative
         ..['timing'] = 'timings/$timingName'
@@ -257,6 +294,60 @@ class TtsConversionService {
     if (await directory.list().isEmpty) {
       await directory.delete();
     }
+  }
+
+  Map<String, dynamic>? _chapterMap(List<dynamic> rawChapters, int index) {
+    for (final item in rawChapters) {
+      if (item is Map<String, dynamic> && item['index'] == index) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  bool _canResume({
+    required Map<String, dynamic> chapterMap,
+    required Map<String, dynamic> manifest,
+    required String directory,
+    required ChapterSynthesizer synthesizer,
+    required double speed,
+    required String? style,
+  }) {
+    final audio = chapterMap['audio'];
+    final timing = chapterMap['timing'];
+    if (audio is! String || timing is! String) {
+      return false;
+    }
+    if (chapterMap['duration_ms'] is! num) {
+      return false;
+    }
+    if (!File(p.join(directory, audio)).existsSync()) {
+      return false;
+    }
+    if (!File(p.join(directory, timing)).existsSync()) {
+      return false;
+    }
+    if (manifest['engine'] != synthesizer.engineId ||
+        manifest['voice'] != synthesizer.voiceId) {
+      return false;
+    }
+    if (!_ratesMatch(manifest['rate'], speed)) {
+      return false;
+    }
+    if (style != null && manifest['style'] != style) {
+      return false;
+    }
+    return true;
+  }
+
+  bool _ratesMatch(Object? value, double speed) {
+    if (value is! String) {
+      return false;
+    }
+    final parsed = int.tryParse(
+      value.replaceAll('%', '').replaceAll('+', '').trim(),
+    );
+    return parsed == ((speed - 1) * 100).round();
   }
 
   String _quote(String value) => '"${value.replaceAll('"', r'\"')}"';
