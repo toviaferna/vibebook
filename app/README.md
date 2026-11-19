@@ -12,17 +12,27 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Importación EPUB**: validación, decodificación determinista
   UTF-8/Windows-1252, estructura/TOC, imágenes, portada, detección de idioma y
   manifiesto compatible con la app Python.
-- **Lector**: texto, índice, búsqueda dentro del libro, paletas
-  paper/sepia/night, tamaño de letra, ilustraciones, reproducción de audio por
-  capítulo con velocidad/volumen, y avance automático al terminar
-  (configurable).
+- **Lector**: tres modos (Texto, Libro paginado y Original), índice,
+  búsqueda dentro del libro, paletas paper/sepia/night, tamaño de letra,
+  ilustraciones, reproducción de audio por capítulo con velocidad/volumen,
+  temporizador de apagado, pantalla completa, atajos de teclado y avance
+  automático al terminar (configurable).
 - **Karaoke**: lee los timings por segmento y resalta la palabra activa. Los
-  timings nuevos se estiman a partir de la duración real de cada segmento.
+  timings nuevos se estiman a partir de la duración real de cada segmento;
+  Edge, ElevenLabs y Azure con SDK aportan timings nativos.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
   isolate aparte para no bloquear la interfaz.
 - **Motor Edge (online, experimental)**: voces neuronales de Microsoft vía el
   servicio Read Aloud, con karaoke por palabra real (`native_word`),
   reintentos y cooldowns. No oficial: el texto sale del equipo.
+- **Proveedores cloud**: Azure Speech, Google Gemini TTS y ElevenLabs con
+  claves locales (archivo 0600 en Unix, variables de entorno con prioridad),
+  prueba de conexión, estilos, velocidad y preview por voz.
+- **Trabajos persistentes**: cada conversión se guarda en
+  `<biblioteca>/.vibebook/jobs.json`; sobrevive a cerrar el Estudio o la app,
+  se puede cancelar y reanudar sin re-sintetizar los capítulos ya listos.
+- **Portadas**: extracción, búsqueda en Open Library/Google Books, preview y
+  reemplazo atómico del manifiesto.
 - **Voces**: catálogo con descarga e instalación de modelos Piper (España y
   México), instalación offline desde `.tar.bz2` y detección de modelos locales.
 - **Salida**: MP3 por capítulo (64 kbps mono) con fallback a WAV y exportación
@@ -31,17 +41,19 @@ release estable**; esta rama no crea tags ni publicaciones.
   noche, bosque), con loops de 90 s, reproducción en vivo con atenuación bajo
   la voz, exportación de **M4B ambientado** y un plan por capítulo basado en
   palabras clave del texto.
-- **Marcadores y posición**: se guardan en `bookmarks.json` junto al libro,
-  con salto al capítulo/segundo guardado y restauración al abrir el lector.
+- **Marcadores y posición**: audio y lectura se guardan en `bookmarks.json`
+  junto al libro, con salto al capítulo/segundo guardado y restauración al
+  abrir el lector.
 - **Ajustes**: tema, paleta, lectura, biblioteca, modelos, velocidad de voz,
-  ambiente y datos de versión.
+  ambiente, proveedores cloud y datos de versión.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 59 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
-  WAV, ambiente, plan por capítulo, reproducción, navegación del lector,
-  catálogo de voces, DRM/token Edge, cliente y sintetizador Edge, bookmarks y
-  widget.
+- **Tests**: 126 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+  WAV, ambiente, plan por capítulo, reproducción, navegación del lector, modos
+  Libro/Original, paginador, búsqueda, bookmarks de audio y lectura, catálogo
+  de voces, motores cloud, DRM/token Edge, cliente y sintetizador Edge,
+  proveedores, trabajos persistentes, portadas y widget.
 
 ## Requisitos
 
@@ -264,18 +276,22 @@ que la prueba y la aprobación explícita habiliten el cutover.
   usan el paisaje global.
 - Los bookmarks/posición usan un **JSON por libro**, no Drift. Es portable y
   suficiente para esta etapa, pero falta migrar la base de datos completa.
-- El lector es de **scroll continuo**: faltan el modo paginado/Libro y el modo
-  Original.
+- El modo **Original** renderiza XHTML sanitizado sin scripts; no reproduce
+  animaciones, fuentes incrustadas ni maquetación compleja del EPUB.
 - No hay **audio en segundo plano** con pantalla apagada ni controles de media
   session.
+- **Kokoro** y **eSpeak NG** todavía no están conectados en Flutter; la app
+  muestra la limitación y ofrece Piper/Edge/cloud.
+- **Reparar sincronización, re-segmentar y restaurar backups** están
+  identificados como pendientes; el Estudio reanuda capítulos ya convertidos.
+- **Plugins VEP** y **actualización automática** están pendientes.
+- La interfaz está en español; la traducción al inglés (i18n) está pendiente.
 - El instalador de Windows y los DMG de macOS son **sin firma**. No hay
   auto-update ni notarización.
 - **macOS** se compila sin firma en CI y genera `.dmg` arm64/x64, pero no se
   probó en una Mac real. Gatekeeper pide confirmación, igual que en Tauri.
 - **iOS** está descartado.
 - **Android** compila, pero no se probó en un dispositivo físico.
-- Los motores cloud (Edge, Gemini, ElevenLabs, Azure) no están conectados; la
-  app usa Piper local.
 - Web no está en el alcance de esta iteración (TTS nativo y FFmpegKit no
   aplican igual).
 - En Android, un APK universal/arm64 pesa ~183 MB por las librerías nativas.
