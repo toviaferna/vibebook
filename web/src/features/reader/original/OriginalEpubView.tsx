@@ -36,11 +36,9 @@ function originalTheme(
   font: "serif" | "sans" | "hyperlegible",
   size: number,
 ): Record<string, Record<string, string>> {
-  const root =
-    document.querySelector<HTMLElement>(".reader-shell") ?? document.body;
+  const root = document.querySelector<HTMLElement>(".reader-shell") ?? document.body;
   const styles = getComputedStyle(root);
-  const read = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
+  const read = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
   const paper = read("--paper", "#fbf7ef");
   const ink = read("--ink", "#211d19");
   const accent = read("--accent", "#7a2e2e");
@@ -246,13 +244,7 @@ export function OriginalEpubView({
     const firstDisplay = lastHref.current === undefined;
     lastHref.current = targetKey;
     const cfi = firstDisplay ? initialCfiRef.current : null;
-    void displayChapter(
-      bookRef.current,
-      renditionRef.current,
-      sourceHref,
-      sourceFragment,
-      cfi,
-    )
+    void displayChapter(bookRef.current, renditionRef.current, sourceHref, sourceFragment, cfi)
       .then(() => labelFrame(containerRef.current))
       .catch((displayError) => {
         setError(
@@ -268,10 +260,7 @@ export function OriginalEpubView({
     if (status !== "ready" || !renditionRef.current) {
       return;
     }
-    renditionRef.current.themes.registerRules(
-      "default",
-      originalTheme(palette, font, size),
-    );
+    renditionRef.current.themes.registerRules("default", originalTheme(palette, font, size));
     labelFrame(containerRef.current);
   }, [font, palette, size, status]);
 

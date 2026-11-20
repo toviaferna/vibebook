@@ -94,10 +94,7 @@ export function ReaderSettingsDialog({
               </select>
             </Field>
 
-            <Field
-              label={`Tamaño de texto · ${size}px`}
-              htmlFor="reader-size-dialog"
-            >
+            <Field label={`Tamaño de texto · ${size}px`} htmlFor="reader-size-dialog">
               <input
                 id="reader-size-dialog"
                 className="range"
