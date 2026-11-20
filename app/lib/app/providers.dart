@@ -12,6 +12,8 @@ import '../data/settings_repository.dart';
 import '../data/tts/chapter_synthesizer.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
+import '../data/tts/plugins/vep_client.dart';
+import '../data/tts/plugins/vep_repository.dart';
 import '../data/tts/tts_engines.dart';
 import '../domain/ambience_plan.dart';
 import '../domain/bookmarks.dart';
@@ -31,6 +33,16 @@ final providerKeyStoreProvider = Provider<ProviderKeyStore>((ref) {
 
 final providerStatusesProvider = FutureProvider<List<ProviderStatus>>((ref) {
   return ref.watch(providerKeyStoreProvider).list();
+});
+
+final vepClientProvider = Provider<VepClient>((ref) => VepClient());
+
+final vepPluginRepositoryProvider = Provider<VepPluginRepository>((ref) {
+  return VepPluginRepository(client: ref.watch(vepClientProvider));
+});
+
+final vepPluginsProvider = FutureProvider<List<VepPlugin>>((ref) {
+  return ref.watch(vepPluginRepositoryProvider).list();
 });
 
 final epubIngestorProvider = Provider<EpubIngestor>((ref) {

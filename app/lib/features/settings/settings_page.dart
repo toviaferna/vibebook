@@ -8,6 +8,7 @@ import '../../core/design/components.dart';
 import '../../core/design/form_controls.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/ambience.dart';
+import 'plugins_panel.dart';
 import 'providers_panel.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -250,6 +251,8 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SizedBox(height: 18),
             const ProvidersPanel(),
+            const SizedBox(height: 18),
+            const PluginsPanel(),
             const SizedBox(height: 18),
             BibliotecaSection(
               title: 'Ambiente',

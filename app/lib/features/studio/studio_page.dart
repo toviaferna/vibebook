@@ -27,6 +27,7 @@ import '../../data/tts/edge/edge_client.dart';
 import '../../data/tts/edge/edge_synthesizer.dart';
 import '../../data/tts/edge/edge_voices.dart';
 import '../../data/tts/piper_models.dart';
+import '../../data/tts/plugins/vep_client.dart';
 import '../../data/tts/tts_chapter_worker.dart';
 import '../../data/tts/tts_engines.dart';
 import '../../data/tts/wav_writer.dart';
@@ -126,16 +127,20 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final models = ref.watch(piperModelsProvider);
     final selected = ref.watch(selectedPiperModelProvider);
     final engine = settings?.ttsEngine ?? 'piper';
-    final spec = ttsEngine(engine);
+    final plugins = ref.watch(vepPluginsProvider).value ?? const <VepPlugin>[];
+    final plugin = _pluginFor(engine, plugins);
+    final spec = _engineSpec(engine, plugins);
     final providerStatuses =
         ref.watch(providerStatusesProvider).value ?? const <ProviderStatus>[];
     final cloudReady =
+        plugin != null ||
         !spec.requiresKey ||
         providerStatuses.any(
           (status) => status.id == engine && status.configured,
         );
+    final dynamicEngine = _isCloud(engine) || plugin != null;
     final rate = settings?.rateForEngine(engine) ?? -10;
-    final voice = settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
+    final voice = _voiceForEngine(engine, settings, plugins);
     final job = ref.watch(jobControllerProvider).latestFor(book.id);
     final modelsRoot = ref.watch(modelsRootProvider);
     final savedAmbiencePlan = ref.watch(ambiencePlanProvider(book.id)).value;
@@ -219,12 +224,21 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                   options: _engineOptions(
                     providerStatuses,
                     hasPiper: models.value?.isNotEmpty == true,
+                    plugins: plugins,
                   ),
                   onChanged: _converting
                       ? null
-                      : (value) => ref
-                            .read(settingsProvider.notifier)
-                            .updateTtsEngine(engine: value),
+                      : (value) {
+                          final target = _pluginFor(value, plugins);
+                          ref
+                              .read(settingsProvider.notifier)
+                              .updateTtsEngine(
+                                engine: value,
+                                voice: target?.voices.isNotEmpty == true
+                                    ? target!.voices.first.id
+                                    : null,
+                              );
+                        },
                 ),
                 const SizedBox(height: 14),
                 if (engine == 'edge') ...[
@@ -349,7 +363,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     error: (error, stackTrace) =>
                         Text('No se pudieron leer los modelos: $error'),
                   ),
-                ] else if (_isCloud(engine)) ...[
+                ] else if (dynamicEngine) ...[
                   if (!cloudReady)
                     _CloudMissing(
                       engine: engine,
@@ -357,7 +371,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     )
                   else ...[
                     _CloudVoicePicker(
-                      voices: ttsVoicesFor(engine),
+                      voices: _voicesFor(engine, plugins),
                       selected: voice,
                       favorites: settings?.voiceFavorites ?? const [],
                       previewing: _previewingVoiceId,
@@ -396,7 +410,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final style in _stylesFor(engine))
+                          for (final style in _stylesFor(engine, plugins))
                             ChoiceChip(
                               label: Text(_styleLabel(style)),
                               selected:
@@ -656,7 +670,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                 label: Text(
                   _converting
                       ? 'Convirtiendo…'
-                      : 'Convertir con ${_engineShortName(engine)}',
+                      : 'Convertir con ${_engineShortName(engine, plugins)}',
                 ),
               ),
               if (_converting)
@@ -717,9 +731,76 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     return engine == 'azure' || engine == 'gemini' || engine == 'elevenlabs';
   }
 
+  VepPlugin? _pluginFor(String engine, List<VepPlugin> plugins) {
+    for (final plugin in plugins) {
+      if (plugin.id == engine) {
+        return plugin;
+      }
+    }
+    return null;
+  }
+
+  TtsEngineSpec _engineSpec(String engine, List<VepPlugin> plugins) {
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin != null) {
+      return TtsEngineSpec(
+        id: plugin.id,
+        label: plugin.name,
+        description: '${plugin.license} · ${plugin.voices.length} voces · VEP',
+        requiresNetwork: true,
+        requiresKey: false,
+        supportsStyles:
+            plugin.styles.isNotEmpty ||
+            plugin.voices.any((voice) => voice.styles.isNotEmpty),
+        timing: plugin.timings,
+        audioSuffix: '.wav',
+        license: plugin.license,
+        sourceUrl: plugin.source,
+        maxChars: plugin.maxChars,
+      );
+    }
+    return ttsEngine(engine);
+  }
+
+  String _voiceForEngine(
+    String engine,
+    AppSettings? settings,
+    List<VepPlugin> plugins,
+  ) {
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin != null && plugin.voices.isNotEmpty) {
+      final stored = settings?.voiceForEngine(engine);
+      if (plugin.voices.any((voice) => voice.id == stored)) {
+        return stored!;
+      }
+      return plugin.voices.first.id;
+    }
+    return settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
+  }
+
+  List<TtsVoice> _voicesFor(String engine, List<VepPlugin> plugins) {
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin == null) {
+      return ttsVoicesFor(engine);
+    }
+    return [
+      for (final voice in plugin.voices)
+        TtsVoice(
+          id: voice.id,
+          name: voice.id,
+          locale: voice.locale,
+          gender: voice.gender,
+          engine: plugin.id,
+          detail: '${voice.locale} · ${voice.gender} · ${plugin.name}',
+          styles: voice.styles,
+        ),
+    ];
+  }
+
   List<BibliotecaSelectOption<String>> _engineOptions(
     List<ProviderStatus> statuses, {
     required bool hasPiper,
+    List<VepPlugin> plugins = const [],
   }) {
     return [
       for (final engine in ttsEngines)
@@ -727,6 +808,13 @@ class _StudioPageState extends ConsumerState<StudioPage> {
           value: engine.id,
           label: engine.label,
           description: _engineDescription(engine, statuses, hasPiper),
+        ),
+      for (final plugin in plugins)
+        BibliotecaSelectOption(
+          value: plugin.id,
+          label: plugin.name,
+          description:
+              'Plugin VEP · ${plugin.license} · ${plugin.voices.length} voces',
         ),
     ];
   }
@@ -762,7 +850,15 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     return engine.description;
   }
 
-  List<String> _stylesFor(String engine) {
+  List<String> _stylesFor(String engine, [List<VepPlugin> plugins = const []]) {
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin != null) {
+      final styles = <String>{'neutral', ...plugin.styles};
+      for (final voice in plugin.voices) {
+        styles.addAll(voice.styles);
+      }
+      return styles.toList(growable: false);
+    }
     if (engine == 'azure') {
       return const [
         'neutral',
@@ -790,7 +886,11 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     };
   }
 
-  String _engineShortName(String engine) {
+  String _engineShortName(String engine, [List<VepPlugin> plugins = const []]) {
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin != null) {
+      return plugin.name;
+    }
     return switch (engine) {
       'piper' => 'Piper',
       'edge' => 'Edge',
@@ -804,6 +904,18 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   }
 
   Future<CloudTtsClient?> _cloudClient(String engine) async {
+    final plugins = ref.read(vepPluginsProvider).value ?? const <VepPlugin>[];
+    final plugin = _pluginFor(engine, plugins);
+    if (plugin != null) {
+      final token = await ref
+          .read(vepPluginRepositoryProvider)
+          .token(plugin.id);
+      return VepTtsClient(
+        client: ref.read(vepClientProvider),
+        url: plugin.url,
+        token: token,
+      );
+    }
     final store = ref.read(providerKeyStoreProvider);
     final key = await store.key(engine);
     if (key == null) {
@@ -825,6 +937,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     if (text.isEmpty) {
       return;
     }
+    final plugins = ref.read(vepPluginsProvider).value ?? const <VepPlugin>[];
     setState(() {
       _previewing = true;
       _previewingVoiceId = voiceId;
@@ -835,7 +948,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       final client = await _cloudClient(engine);
       if (client == null) {
         throw CloudTtsException(
-          'Falta la clave de ${_engineShortName(engine)}. Configurala en '
+          'Falta la clave de ${_engineShortName(engine, plugins)}. Configurala en '
           'Ajustes → Proveedores en la nube.',
         );
       }
@@ -860,7 +973,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
           _previewMessage =
               'Muestra de ${ttsVoiceById(voiceId)?.name ?? voiceId} lista · '
               '${(audio.bytes.length / 1024).round()} KB · '
-              '${_engineShortName(engine)}';
+              '${_engineShortName(engine, plugins)}';
         });
       }
     } catch (error) {
@@ -868,7 +981,8 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         setState(() {
           _previewing = false;
           _previewingVoiceId = null;
-          _error = 'No se pudo consultar ${_engineShortName(engine)}: $error';
+          _error =
+              'No se pudo consultar ${_engineShortName(engine, plugins)}: $error';
         });
       }
     }
@@ -984,14 +1098,12 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   Future<void> _previewAny() {
     final settings = ref.read(settingsProvider).value;
     final engine = settings?.ttsEngine ?? 'piper';
+    final plugins = ref.read(vepPluginsProvider).value ?? const <VepPlugin>[];
     if (engine == 'edge') {
       return _previewEdge(settings?.edgeVoiceId ?? defaultEdgeVoiceId);
     }
-    if (_isCloud(engine)) {
-      return _previewCloud(
-        engine,
-        settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine),
-      );
+    if (_isCloud(engine) || _pluginFor(engine, plugins) != null) {
+      return _previewCloud(engine, _voiceForEngine(engine, settings, plugins));
     }
     final model = ref.read(selectedPiperModelProvider);
     if (model == null) {
@@ -1063,6 +1175,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     double rate, {
     bool resume = false,
   }) async {
+    final plugins = ref.read(vepPluginsProvider).value ?? const <VepPlugin>[];
     if (engine == 'edge') {
       final voiceId =
           ref.read(settingsProvider).value?.edgeVoiceId ?? defaultEdgeVoiceId;
@@ -1076,18 +1189,18 @@ class _StudioPageState extends ConsumerState<StudioPage> {
       );
       return;
     }
-    if (_isCloud(engine)) {
+    if (_isCloud(engine) || _pluginFor(engine, plugins) != null) {
       final client = await _cloudClient(engine);
       if (client == null) {
         setState(() {
           _error =
-              'Falta la clave de ${_engineShortName(engine)}. Configurala en '
-              'Ajustes → Proveedores en la nube.';
+              'Falta la clave de ${_engineShortName(engine, plugins)}. '
+              'Configurala en Ajustes → Proveedores en la nube.';
         });
         return;
       }
       final settings = ref.read(settingsProvider).value;
-      final voice = settings?.voiceForEngine(engine) ?? defaultTtsVoice(engine);
+      final voice = _voiceForEngine(engine, settings, plugins);
       final style = settings?.ttsStyle ?? 'neutral';
       await _runConversion(
         book,
@@ -1100,14 +1213,14 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         extra: {'tts_style': style},
         rate: rate,
         resume: resume,
-        preparing: 'Preparando ${_engineShortName(engine)}…',
+        preparing: 'Preparando ${_engineShortName(engine, plugins)}…',
       );
       return;
     }
     if (engine != 'piper') {
       setState(() {
         _error =
-            '${_engineShortName(engine)} no está disponible en esta versión.';
+            '${_engineShortName(engine, plugins)} no está disponible en esta versión.';
       });
       return;
     }
