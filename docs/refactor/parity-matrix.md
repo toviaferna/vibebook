@@ -31,7 +31,7 @@ la estable.
 | Audio en segundo plano/media session | Pendiente |
 | Reparar sync, re-segmentar, restaurar backups | Re-segmentación y backups implementados; reparar sync pendiente |
 | Plugins VEP | Implementado; cliente, panel y motores en el Estudio |
-| eSpeak | Pendiente |
+| eSpeak | Implementado cuando `espeak-ng` está instalado o `VIBEBOOK_ESPEAK_BIN` apunta al binario |
 | Kokoro español | Pendiente; se muestra la limitación |
 | i18n es/en | Pendiente |
 | Auto-update, firma/notarización | Pendiente |

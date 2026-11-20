@@ -10,6 +10,7 @@ import '../data/library_repository.dart';
 import '../data/providers/provider_key_store.dart';
 import '../data/settings_repository.dart';
 import '../data/tts/chapter_synthesizer.dart';
+import '../data/tts/espeak/espeak_synthesizer.dart';
 import '../data/tts/piper_downloader.dart';
 import '../data/tts/piper_models.dart';
 import '../data/tts/plugins/vep_client.dart';
@@ -34,6 +35,10 @@ final providerKeyStoreProvider = Provider<ProviderKeyStore>((ref) {
 
 final providerStatusesProvider = FutureProvider<List<ProviderStatus>>((ref) {
   return ref.watch(providerKeyStoreProvider).list();
+});
+
+final espeakBinaryProvider = FutureProvider<String?>((ref) {
+  return EspeakBinaryResolver().resolve();
 });
 
 final vepClientProvider = Provider<VepClient>((ref) => VepClient());

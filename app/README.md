@@ -22,6 +22,10 @@ release estable**; esta rama no crea tags ni publicaciones.
   Edge, ElevenLabs y Azure con SDK aportan timings nativos.
 - **TTS local real**: Piper mediante `sherpa-onnx` + `piper-phonemize`, en un
   isolate aparte para no bloquear la interfaz.
+- **eSpeak NG (local, opcional)**: usa el binario `espeak-ng` del sistema o la
+  ruta de `VIBEBOOK_ESPEAK_BIN`, sintetiza WAV por segmento, agrega pausas y
+  calcula los spans. Si el binario falta, el Estudio lo explica y permite
+  volver a detectarlo; el texto nunca sale del equipo.
 - **Motor Edge (online, experimental)**: voces neuronales de Microsoft vía el
   servicio Read Aloud, con karaoke por palabra real (`native_word`),
   reintentos y cooldowns. No oficial: el texto sale del equipo.
@@ -54,12 +58,12 @@ release estable**; esta rama no crea tags ni publicaciones.
   integradas en el Estudio.
 - **Reparación de segmentación**: compara el manifiesto con el EPUB fuente,
   crea backups, marca los capítulos cambiados y permite restaurar.
-- **Tests**: 141 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Tests**: 148 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector, modos
   Libro/Original, paginador, búsqueda, bookmarks de audio y lectura, catálogo
-  de voces, motores cloud, VEP, DRM/token Edge, cliente y sintetizador Edge,
-  proveedores, trabajos persistentes, portadas, re-segmentación, filtros de
-  biblioteca y widget.
+  de voces, motores cloud, eSpeak NG, VEP, DRM/token Edge, cliente y
+  sintetizador Edge, proveedores, trabajos persistentes, portadas,
+  re-segmentación, filtros de biblioteca y widget.
 
 ## Requisitos
 
@@ -286,8 +290,8 @@ que la prueba y la aprobación explícita habiliten el cutover.
   animaciones, fuentes incrustadas ni maquetación compleja del EPUB.
 - No hay **audio en segundo plano** con pantalla apagada ni controles de media
   session.
-- **Kokoro** y **eSpeak NG** todavía no están conectados en Flutter; la app
-  muestra la limitación y ofrece Piper/Edge/cloud.
+- **Kokoro** todavía no está conectado en Flutter; la app muestra la
+  limitación y ofrece Piper/eSpeak/Edge/cloud.
 - La re-segmentación marca los capítulos cambiados para re-síntesis; no reusa
   audio por segmento porque el pipeline Flutter guarda audio por capítulo.
 - **Actualización automática** y firma/notarización están pendientes.

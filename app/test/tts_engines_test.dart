@@ -17,6 +17,10 @@ void main() {
         'espeak',
       ]),
     );
+    expect(ttsEngine('piper').implemented, isTrue);
+    expect(ttsEngine('edge').implemented, isTrue);
+    expect(ttsEngine('espeak').implemented, isTrue);
+    expect(ttsEngine('kokoro').implemented, isFalse);
   });
 
   test('cada motor tiene una voz por defecto y voces cloud', () {

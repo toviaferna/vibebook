@@ -136,7 +136,9 @@ const ttsEngines = <TtsEngineSpec>[
   TtsEngineSpec(
     id: 'espeak',
     label: 'eSpeak NG (local)',
-    description: 'Fallback local pequeño y robótico. Requiere el binario.',
+    description:
+        'Fallback local pequeño y robótico. Usa el binario espeak-ng '
+        'instalado en el equipo; no envía texto a la nube.',
     requiresNetwork: false,
     requiresKey: false,
     supportsStyles: false,
@@ -144,7 +146,6 @@ const ttsEngines = <TtsEngineSpec>[
     audioSuffix: '.wav',
     license: 'GPL-3.0',
     sourceUrl: 'https://github.com/espeak-ng/espeak-ng',
-    implemented: false,
   ),
 ];
 

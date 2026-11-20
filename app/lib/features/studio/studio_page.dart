@@ -26,6 +26,7 @@ import '../../data/tts/cloud/gemini_tts.dart';
 import '../../data/tts/edge/edge_client.dart';
 import '../../data/tts/edge/edge_synthesizer.dart';
 import '../../data/tts/edge/edge_voices.dart';
+import '../../data/tts/espeak/espeak_synthesizer.dart';
 import '../../data/tts/piper_models.dart';
 import '../../data/tts/plugins/vep_client.dart';
 import '../../data/tts/tts_chapter_worker.dart';
@@ -132,12 +133,15 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     final spec = _engineSpec(engine, plugins);
     final providerStatuses =
         ref.watch(providerStatusesProvider).value ?? const <ProviderStatus>[];
+    final espeakBinary = ref.watch(espeakBinaryProvider);
+    final espeakReady = espeakBinary.value != null;
     final cloudReady =
         plugin != null ||
         !spec.requiresKey ||
         providerStatuses.any(
           (status) => status.id == engine && status.configured,
         );
+    final engineReady = engine == 'espeak' ? espeakReady : cloudReady;
     final dynamicEngine = _isCloud(engine) || plugin != null;
     final rate = settings?.rateForEngine(engine) ?? -10;
     final voice = _voiceForEngine(engine, settings, plugins);
@@ -225,6 +229,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     providerStatuses,
                     hasPiper: models.value?.isNotEmpty == true,
                     plugins: plugins,
+                    espeakReady: espeakReady,
                   ),
                   onChanged: _converting
                       ? null
@@ -363,6 +368,53 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     error: (error, stackTrace) =>
                         Text('No se pudieron leer los modelos: $error'),
                   ),
+                ] else if (engine == 'espeak') ...[
+                  if (!espeakReady)
+                    _EspeakMissing(
+                      loading: espeakBinary.isLoading,
+                      onRetry: () => ref.invalidate(espeakBinaryProvider),
+                    )
+                  else ...[
+                    _CloudVoicePicker(
+                      voices: ttsVoicesFor('espeak'),
+                      selected: voice,
+                      favorites: const [],
+                      previewing: _previewingVoiceId,
+                      bookLanguage: book.language,
+                      onSelect: _converting
+                          ? null
+                          : (voiceId) => ref
+                                .read(settingsProvider.notifier)
+                                .updateTtsEngine(voice: voiceId),
+                      onPreview: _converting || _previewing
+                          ? null
+                          : (voiceId) =>
+                                _previewEspeak(espeakBinary.value!, voiceId),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final preset in _speedPresets)
+                          ChoiceChip(
+                            label: Text('${preset.label} (${preset.rate}%)'),
+                            selected: (rate - preset.rate).abs() < 0.01,
+                            onSelected: _converting
+                                ? null
+                                : (_) => ref
+                                      .read(settingsProvider.notifier)
+                                      .updateTtsEngine(rate: preset.rate),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Local: usa el binario eSpeak NG instalado en el '
+                      'equipo. No envía el texto a ninguna nube.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ] else if (dynamicEngine) ...[
                   if (!cloudReady)
                     _CloudMissing(
@@ -662,7 +714,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
                     _converting ||
                         _exporting ||
                         !spec.implemented ||
-                        !cloudReady ||
+                        !engineReady ||
                         (engine == 'piper' && selected == null)
                     ? null
                     : () => _convertCurrent(book, engine, selected, rate),
@@ -800,6 +852,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
   List<BibliotecaSelectOption<String>> _engineOptions(
     List<ProviderStatus> statuses, {
     required bool hasPiper,
+    required bool espeakReady,
     List<VepPlugin> plugins = const [],
   }) {
     return [
@@ -807,7 +860,12 @@ class _StudioPageState extends ConsumerState<StudioPage> {
         BibliotecaSelectOption(
           value: engine.id,
           label: engine.label,
-          description: _engineDescription(engine, statuses, hasPiper),
+          description: _engineDescription(
+            engine,
+            statuses,
+            hasPiper,
+            espeakReady,
+          ),
         ),
       for (final plugin in plugins)
         BibliotecaSelectOption(
@@ -823,6 +881,7 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     TtsEngineSpec engine,
     List<ProviderStatus> statuses,
     bool hasPiper,
+    bool espeakReady,
   ) {
     if (!engine.implemented) {
       return engine.description;
@@ -834,6 +893,11 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     }
     if (engine.id == 'edge') {
       return 'Online, sin clave.';
+    }
+    if (engine.id == 'espeak') {
+      return espeakReady
+          ? 'Binario detectado en este equipo.'
+          : 'Falta espeak-ng en PATH.';
     }
     if (engine.requiresKey) {
       var configured = false;
@@ -988,6 +1052,66 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     }
   }
 
+  Future<void> _previewEspeak(String binary, String voiceId) async {
+    final text = _previewController.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+    final settings = ref.read(settingsProvider).value;
+    final rate = settings?.rateForEngine('espeak') ?? 0;
+    setState(() {
+      _previewing = true;
+      _previewingVoiceId = voiceId;
+      _previewMessage = null;
+      _error = null;
+    });
+    try {
+      final synthesis = await EspeakSynthesizer(binary: binary, voice: voiceId)
+          .synthesize(
+            Chapter(
+              index: 1,
+              title: 'Muestra',
+              segments: [
+                Segment(
+                  id: 'preview',
+                  chapterIndex: 1,
+                  paragraphIndex: 1,
+                  text: text,
+                ),
+              ],
+            ),
+            speed: 1 + rate / 100,
+            isCancelled: () => false,
+          );
+      final wav = const WavWriter().encode(
+        synthesis.samples,
+        synthesis.sampleRate,
+      );
+      final temp = await getTemporaryDirectory();
+      final file = File(p.join(temp.path, 'vibebook-espeak-preview.wav'));
+      await file.writeAsBytes(wav, flush: true);
+      final player = _previewPlayer ??= AudioPlayer();
+      await player.stop();
+      await player.play(DeviceFileSource(file.path));
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _previewingVoiceId = null;
+          _previewMessage =
+              'Muestra de eSpeak NG lista · ${(wav.length / 1024).round()} KB';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _previewing = false;
+          _previewingVoiceId = null;
+          _error = 'No se pudo consultar eSpeak NG: $error';
+        });
+      }
+    }
+  }
+
   Future<void> _analyzeAmbience(Book book) async {
     final directory = book.directoryPath;
     if (directory == null) {
@@ -1105,6 +1229,13 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     if (_isCloud(engine) || _pluginFor(engine, plugins) != null) {
       return _previewCloud(engine, _voiceForEngine(engine, settings, plugins));
     }
+    if (engine == 'espeak') {
+      final binary = ref.read(espeakBinaryProvider).value;
+      if (binary == null) {
+        return Future.value();
+      }
+      return _previewEspeak(binary, _voiceForEngine(engine, settings, plugins));
+    }
     final model = ref.read(selectedPiperModelProvider);
     if (model == null) {
       return Future.value();
@@ -1176,6 +1307,30 @@ class _StudioPageState extends ConsumerState<StudioPage> {
     bool resume = false,
   }) async {
     final plugins = ref.read(vepPluginsProvider).value ?? const <VepPlugin>[];
+    if (engine == 'espeak') {
+      final binary = await ref.read(espeakBinaryProvider.future);
+      if (binary == null) {
+        setState(() {
+          _error =
+              'eSpeak NG no está instalado. Instalá espeak-ng y agregalo al '
+              'PATH, o definí VIBEBOOK_ESPEAK_BIN.';
+        });
+        return;
+      }
+      final settings = ref.read(settingsProvider).value;
+      await _runConversion(
+        book,
+        synthesizer: EspeakSynthesizer(
+          binary: binary,
+          voice: _voiceForEngine(engine, settings, plugins),
+        ),
+        extra: const {},
+        rate: rate,
+        resume: resume,
+        preparing: 'Preparando eSpeak NG…',
+      );
+      return;
+    }
     if (engine == 'edge') {
       final voiceId =
           ref.read(settingsProvider).value?.edgeVoiceId ?? defaultEdgeVoiceId;
@@ -1889,6 +2044,60 @@ class _CloudMissing extends StatelessWidget {
                   onPressed: onOpenSettings,
                   icon: const Icon(Icons.settings_outlined, size: 18),
                   label: const Text('Abrir Ajustes'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EspeakMissing extends StatelessWidget {
+  const _EspeakMissing({required this.loading, required this.onRetry});
+
+  final bool loading;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        border: Border(left: BorderSide(color: colors.warning, width: 2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.terminal, color: colors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loading
+                      ? 'Buscando eSpeak NG…'
+                      : 'eSpeak NG no está instalado.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Instalá espeak-ng y agregalo al PATH, o definí '
+                  'VIBEBOOK_ESPEAK_BIN con la ruta al ejecutable. Después '
+                  'volvé a intentar. eSpeak sintetiza en este equipo: el '
+                  'texto no sale a ninguna nube.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: loading ? null : onRetry,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Volver a detectar'),
                 ),
               ],
             ),

@@ -3,8 +3,8 @@
 > **Status (2026-11-19):** Tasks 1–7 implemented and tested (cloud providers,
 > keys, jobs, reader Texto/Libro/Original, search, bookmarks, sleep timer,
 > shortcuts/fullscreen, covers, VEP plugins and re-segmentation with backups).
-> Remaining: Drift/FTS, background audio/media session, eSpeak/Kokoro, i18n,
-> Tauri SQLite state migration, auto-update/signing. The Windows build and 141
+> Remaining: Drift/FTS, background audio/media session, Kokoro, i18n,
+> Tauri SQLite state migration, auto-update/signing. The Windows build and 148
 > tests pass; no tag or release until the user tests and approves.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:executing-plans
@@ -258,7 +258,7 @@ dio, shared_preferences, file_selector, desktop_drop, path_provider.
 
 - [ ] Test VEP manifest parsing, HTTPS/loopback policy, token redaction, timeout.
 - [ ] UI: add URL/token, test, list voices, delete.
-- [ ] eSpeak: detect binary, expose voice, clear missing-binary message.
+- [x] eSpeak: detect binary, expose voice, clear missing-binary message.
 - [ ] Kokoro: spike with available ONNX runtime; if unavailable, show a
   user-visible "no disponible" card with Piper/cloud alternatives.
 
