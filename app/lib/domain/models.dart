@@ -221,6 +221,8 @@ class Book {
     this.m4b,
     this.manifestPath,
     this.directoryPath,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -242,6 +244,8 @@ class Book {
   final String? m4b;
   final String? manifestPath;
   final String? directoryPath;
+  final String? createdAt;
+  final String? updatedAt;
 
   bool get hasAudio => chapters.any((chapter) => chapter.audio != null);
 
@@ -303,6 +307,8 @@ class Book {
       m4b: json['m4b'] as String?,
       manifestPath: manifestPath,
       directoryPath: directoryPath,
+      createdAt: json['created_at'] as String?,
+      updatedAt: json['updated_at'] as String?,
     );
   }
 

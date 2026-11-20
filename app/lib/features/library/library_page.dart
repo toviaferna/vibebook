@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
+import 'library_view.dart';
 
 class LibraryPage extends ConsumerWidget {
   const LibraryPage({super.key});
@@ -14,6 +15,8 @@ class LibraryPage extends ConsumerWidget {
     final books = ref.watch(filteredBooksProvider);
     final library = ref.watch(libraryProvider);
     final query = ref.watch(searchQueryProvider);
+    final filter = ref.watch(libraryFilterProvider);
+    final sort = ref.watch(librarySortProvider);
     final colors = Theme.of(context).extension<BibliotecaColors>()!;
     return PageScaffold(
       eyebrow: 'Biblioteca',
@@ -58,29 +61,80 @@ class LibraryPage extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final entry in libraryFilters.entries)
+                ChoiceChip(
+                  label: Text(entry.value),
+                  selected: filter == entry.key,
+                  onSelected: (_) => ref
+                      .read(libraryFilterProvider.notifier)
+                      .setFilter(entry.key),
+                ),
+              const SizedBox(width: 8),
+              PopupMenuButton<String>(
+                tooltip: 'Ordenar la biblioteca',
+                onSelected: (value) =>
+                    ref.read(librarySortProvider.notifier).setSort(value),
+                itemBuilder: (context) => [
+                  for (final entry in librarySorts.entries)
+                    CheckedPopupMenuItem(
+                      value: entry.key,
+                      checked: sort == entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.sort, size: 18, color: colors.inkSoft),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Orden: ${librarySorts[sort]}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           books.when(
             data: (items) {
               if (items.isEmpty) {
+                final filtered = query.isNotEmpty || filter != 'all';
                 return EmptyState(
                   icon: Icons.menu_book_outlined,
-                  title: query.isEmpty
-                      ? 'Tu estante está vacío'
-                      : 'No encontré ese libro',
-                  message: query.isEmpty
+                  title: filtered
+                      ? 'No encontré libros'
+                      : 'Tu estante está vacío',
+                  message: !filtered
                       ? 'Importá un EPUB para empezar. La biblioteca se guarda en tu equipo.'
-                      : 'Probá con otro título, autor o idioma.',
-                  action: query.isEmpty
+                      : query.isNotEmpty
+                      ? 'Probá con otro título, autor o idioma.'
+                      : 'Probá con otro filtro.',
+                  action: !filtered
                       ? FilledButton.icon(
                           onPressed: () => context.go('/import'),
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text('Importar EPUB'),
                         )
-                      : OutlinedButton(
+                      : query.isNotEmpty
+                      ? OutlinedButton(
                           onPressed: () => ref
                               .read(searchQueryProvider.notifier)
                               .setQuery(''),
                           child: const Text('Limpiar búsqueda'),
+                        )
+                      : OutlinedButton(
+                          onPressed: () => ref
+                              .read(libraryFilterProvider.notifier)
+                              .setFilter('all'),
+                          child: const Text('Ver todos'),
                         ),
                 );
               }

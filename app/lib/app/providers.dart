@@ -20,6 +20,7 @@ import '../domain/bookmarks.dart';
 import '../domain/jobs.dart';
 import '../domain/models.dart';
 import '../domain/providers.dart';
+import '../features/library/library_view.dart';
 import '../features/reader/audio_transport.dart';
 import '../features/reader/audioplayers_audio_transport.dart';
 
@@ -356,20 +357,36 @@ class SearchQueryController extends Notifier<String> {
   void setQuery(String query) => state = query;
 }
 
+final libraryFilterProvider = NotifierProvider<LibraryFilterController, String>(
+  LibraryFilterController.new,
+);
+
+class LibraryFilterController extends Notifier<String> {
+  @override
+  String build() => 'all';
+
+  void setFilter(String filter) => state = filter;
+}
+
+final librarySortProvider = NotifierProvider<LibrarySortController, String>(
+  LibrarySortController.new,
+);
+
+class LibrarySortController extends Notifier<String> {
+  @override
+  String build() => 'recent';
+
+  void setSort(String sort) => state = sort;
+}
+
 final filteredBooksProvider = Provider<AsyncValue<List<Book>>>((ref) {
-  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+  final query = ref.watch(searchQueryProvider);
+  final filter = ref.watch(libraryFilterProvider);
+  final sort = ref.watch(librarySortProvider);
   final books = ref.watch(libraryProvider);
-  if (query.isEmpty) {
-    return books;
-  }
   return books.whenData(
-    (items) => items
-        .where((book) {
-          final haystack = '${book.title} ${book.author} ${book.language}'
-              .toLowerCase();
-          return haystack.contains(query);
-        })
-        .toList(growable: false),
+    (items) =>
+        applyLibraryView(items, query: query, filter: filter, sort: sort),
   );
 });
 
