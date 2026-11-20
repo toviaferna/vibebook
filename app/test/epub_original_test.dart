@@ -122,4 +122,15 @@ void main() {
     );
     expect(await EpubOriginal.chapterHtml(book, book.chapters.first), isNull);
   });
+
+  test('un href mal escapado no lanza', () async {
+    final book = writeBook();
+    const broken = Chapter(
+      index: 1,
+      title: 'Uno',
+      segments: [],
+      sourceHref: 'OEBPS/Text/ch%ZZ.xhtml',
+    );
+    expect(await EpubOriginal.chapterHtml(book, broken), isNull);
+  });
 }

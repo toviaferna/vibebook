@@ -142,7 +142,13 @@ class EpubOriginal {
   }
 
   static ArchiveFile? _findEntry(Archive archive, String href) {
-    final cleaned = Uri.decodeFull(href.split('#').first);
+    final raw = href.split('#').first;
+    String cleaned;
+    try {
+      cleaned = Uri.decodeFull(raw);
+    } on ArgumentError {
+      cleaned = raw;
+    }
     final normalized = p.posix.normalize(cleaned);
     final basename = p.posix.basename(normalized);
     ArchiveFile? fallback;

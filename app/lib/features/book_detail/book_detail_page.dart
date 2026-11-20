@@ -69,8 +69,18 @@ class _BookDetailView extends ConsumerWidget {
           children: [
             StatusPill(label: book.language.toUpperCase(), color: colors.audio),
             StatusPill(
-              label: book.status == 'ready' ? 'AUDIO LISTO' : 'SIN AUDIO',
-              color: book.status == 'ready' ? colors.brass : colors.inkFaint,
+              label: switch (book.status) {
+                'ready' => 'AUDIO LISTO',
+                'interrupted' => 'INTERRUMPIDO',
+                'converting' => 'CONVIRTIENDO',
+                'error' => 'ERROR',
+                _ => 'SIN AUDIO',
+              },
+              color: book.status == 'ready'
+                  ? colors.brass
+                  : book.status == 'interrupted'
+                  ? colors.warning
+                  : colors.inkFaint,
             ),
             if (book.durationMs != null)
               StatusPill(
@@ -127,7 +137,9 @@ class _BookDetailView extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Este libro todavía no tiene audio. Podés leerlo ahora o convertirlo en el Estudio.',
+                    book.status == 'interrupted'
+                        ? 'La conversión quedó a medias. Abrí el Estudio para reanudarla desde el último capítulo listo.'
+                        : 'Este libro todavía no tiene audio. Podés leerlo ahora o convertirlo en el Estudio.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
