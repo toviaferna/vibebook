@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
+import '../../domain/models.dart';
 import 'library_view.dart';
 
 class LibraryPage extends ConsumerWidget {
@@ -17,6 +18,18 @@ class LibraryPage extends ConsumerWidget {
     final query = ref.watch(searchQueryProvider);
     final filter = ref.watch(libraryFilterProvider);
     final sort = ref.watch(librarySortProvider);
+    final settings = ref.watch(settingsProvider).value;
+    Book? lastBook;
+    final lastId = settings?.lastBookId;
+    if (lastId != null) {
+      for (final book in library.value ?? const <Book>[]) {
+        if (book.id == lastId) {
+          lastBook = book;
+          break;
+        }
+      }
+    }
+    final lastChapter = settings?.lastChapterIndex ?? 1;
     final colors = Theme.of(context).extension<BibliotecaColors>()!;
     return PageScaffold(
       eyebrow: 'Biblioteca',
@@ -37,6 +50,16 @@ class LibraryPage extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (lastBook != null) ...[
+            _ContinueCard(
+              book: lastBook,
+              chapterIndex: lastChapter,
+              onOpen: () => context.push(
+                '/books/${lastBook!.id}/read?chapter=$lastChapter',
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
           Align(
             alignment: Alignment.centerLeft,
             child: ConstrainedBox(
@@ -190,6 +213,68 @@ class LibraryPage extends ConsumerWidget {
               message: '$error',
               onRetry: () => ref.read(libraryProvider.notifier).refresh(),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({
+    required this.book,
+    required this.chapterIndex,
+    required this.onOpen,
+  });
+
+  final Book book;
+  final int chapterIndex;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<BibliotecaColors>()!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BibliotecaRadii.md,
+        border: Border.all(color: colors.line),
+      ),
+      child: Row(
+        children: [
+          BookCover(book: book, width: 64),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Continuar',
+                  style: Theme.of(context).textTheme.labelSmall
+                      ?.copyWith(color: colors.brass, letterSpacing: 1.4),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  book.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  '${book.author} · Capítulo $chapterIndex',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          FilledButton.icon(
+            onPressed: onOpen,
+            icon: const Icon(Icons.play_arrow, size: 18),
+            label: const Text('Seguir'),
           ),
         ],
       ),
