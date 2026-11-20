@@ -7,6 +7,7 @@ import '../../core/design/components.dart';
 import '../../core/design/tokens.dart';
 import '../../domain/models.dart';
 import 'cover_search_dialog.dart';
+import 'resegment_dialog.dart';
 
 class BookDetailPage extends ConsumerWidget {
   const BookDetailPage({super.key, required this.bookId});
@@ -162,6 +163,11 @@ class _BookDetailView extends ConsumerWidget {
                 context: context,
                 builder: (context) => CoverSearchDialog(book: book),
               );
+            } else if (value == 'resegment') {
+              showDialog<void>(
+                context: context,
+                builder: (context) => ResegmentDialog(book: book),
+              );
             }
           },
           itemBuilder: (context) => const [
@@ -173,6 +179,17 @@ class _BookDetailView extends ConsumerWidget {
                   Icon(Icons.image_search, size: 18),
                   SizedBox(width: 10),
                   Text('Buscar portada'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'resegment',
+              height: 44,
+              child: Row(
+                children: [
+                  Icon(Icons.build_outlined, size: 18),
+                  SizedBox(width: 10),
+                  Text('Revisar segmentación'),
                 ],
               ),
             ),
