@@ -4,12 +4,67 @@ import { useEffect, useRef, useState } from "react";
 
 import { mediaUrl } from "../../../api/media";
 import type { ManifestChapter } from "../../../api/types";
+import type { ReaderPalette } from "../../../lib/theme";
 
 interface OriginalEpubViewProps {
   bookId: string;
   chapter: ManifestChapter;
+  palette: ReaderPalette;
+  font: "serif" | "sans" | "hyperlegible";
+  size: number;
   initialCfi?: string | null;
   onCfiChange?: (cfi: string) => void;
+}
+
+const FONT_STACKS = {
+  serif: 'Literata, Spectral, Georgia, "Times New Roman", serif',
+  sans: '"Public Sans", system-ui, -apple-system, sans-serif',
+  hyperlegible: '"Atkinson Hyperlegible", system-ui, sans-serif',
+} as const;
+
+function labelFrame(container: HTMLDivElement | null) {
+  const iframe = container?.querySelector("iframe");
+  if (iframe) {
+    iframe.title = "Contenido original del capítulo";
+    iframe.setAttribute("aria-label", "Contenido original del capítulo");
+  }
+}
+
+/** Reads the active reader palette from the shell and themes the EPUB iframe. */
+function originalTheme(
+  palette: ReaderPalette,
+  font: "serif" | "sans" | "hyperlegible",
+  size: number,
+): Record<string, Record<string, string>> {
+  const root = document.querySelector<HTMLElement>(".reader-shell") ?? document.body;
+  const styles = getComputedStyle(root);
+  const read = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
+  const paper = read("--paper", "#fbf7ef");
+  const ink = read("--ink", "#211d19");
+  const accent = read("--accent", "#7a2e2e");
+  return {
+    "html, body": {
+      background: `${paper} !important`,
+      color: `${ink} !important`,
+      "color-scheme": palette === "night" ? "dark" : "light",
+    },
+    body: {
+      "max-width": "72ch",
+      margin: "0 auto !important",
+      padding: "18px 22px 56px !important",
+      "box-sizing": "border-box",
+      "font-family": `${FONT_STACKS[font]} !important`,
+      "font-size": `${size}px !important`,
+      "line-height": "1.65 !important",
+    },
+    p: { margin: "0 0 1em !important", "text-align": "left !important" },
+    a: { color: `${accent} !important` },
+    "img, svg": {
+      "max-width": "100% !important",
+      height: "auto !important",
+    },
+    "pre, code": { "white-space": "pre-wrap !important" },
+  };
 }
 
 export function sanitize(contents: Contents) {
@@ -90,6 +145,9 @@ async function displayChapter(
 export function OriginalEpubView({
   bookId,
   chapter,
+  palette,
+  font,
+  size,
   initialCfi,
   onCfiChange,
 }: OriginalEpubViewProps) {
@@ -147,6 +205,7 @@ export function OriginalEpubView({
           return;
         }
         setStatus("ready");
+        window.requestAnimationFrame(() => labelFrame(containerRef.current));
       } catch (loadError) {
         if (!cancelled) {
           setError(loadError instanceof Error ? loadError.message : "No se pudo abrir el EPUB.");
@@ -185,21 +244,25 @@ export function OriginalEpubView({
     const firstDisplay = lastHref.current === undefined;
     lastHref.current = targetKey;
     const cfi = firstDisplay ? initialCfiRef.current : null;
-    void displayChapter(
-      bookRef.current,
-      renditionRef.current,
-      sourceHref,
-      sourceFragment,
-      cfi,
-    ).catch((displayError) => {
-      setError(
-        displayError instanceof Error
-          ? displayError.message
-          : "No se pudo mostrar este capítulo del EPUB.",
-      );
-      setStatus("error");
-    });
+    void displayChapter(bookRef.current, renditionRef.current, sourceHref, sourceFragment, cfi)
+      .then(() => labelFrame(containerRef.current))
+      .catch((displayError) => {
+        setError(
+          displayError instanceof Error
+            ? displayError.message
+            : "No se pudo mostrar este capítulo del EPUB.",
+        );
+        setStatus("error");
+      });
   }, [sourceFragment, sourceHref, status, targetKey]);
+
+  useEffect(() => {
+    if (status !== "ready" || !renditionRef.current) {
+      return;
+    }
+    renditionRef.current.themes.registerRules("default", originalTheme(palette, font, size));
+    labelFrame(containerRef.current);
+  }, [font, palette, size, status]);
 
   return (
     <section

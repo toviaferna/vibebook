@@ -1,5 +1,43 @@
 # Matriz de paridad funcional
 
+## Estado de la implementación Flutter (2026-11-18)
+
+Esta tabla resume qué parte de la matriz ya tiene una implementación
+verificable en `app/`. No implica cutover ni release: la app Tauri sigue siendo
+la estable.
+
+| Área | Estado Flutter |
+|---|---|
+| Biblioteca, búsqueda, detalle, borrado | Implementado; filtros por estado y orden; tests |
+| Importación EPUB, TOC, imágenes, portada, idioma | Implementado; tests de ingest |
+| Búsqueda de portada (Open Library/Google Books) | Implementado; tests y UI |
+| Lector de texto, paletas, tipografía, ilustraciones | Implementado |
+| Lector paginado/Libro y modo Original | Implementado; paginador y XHTML sanitizado con tests |
+| Audio por capítulo, karaoke, avance automático | Implementado; playback verificado en Windows |
+| Búsqueda dentro del libro | Implementado (todos los segmentos, sin acentos) |
+| Temporizador, pantalla completa y atajos | Implementado |
+| Bookmarks de audio y de lectura | Implementado con JSON por libro; tests |
+| TTS local Piper, descarga/instalación de voces | Implementado y verificado |
+| Timings estimados por segmento/palabra | Implementado; tests |
+| Motores cloud Azure/Gemini/ElevenLabs | Implementado; clientes, panel de claves, estilos y preview |
+| Jobs persistentes, cancelar y reanudar | Implementado con `.vibebook/jobs.json`; tests |
+| M4B con capítulos y M4B ambientado | Implementado; verificado con FFmpegKit |
+| Ambiente en vivo y export | Implementado; seis grabaciones CC0 y plan por capítulo |
+| Windows: instalador/ZIP, CI | Implementado; instalador sin firma |
+| Linux: build/CI | Implementado en CI |
+| macOS: DMG arm64/x64 sin firma | Implementado en CI, igual que Tauri |
+| Android: APK arm64, firma opcional | Implementado; sin dispositivo físico |
+| Drift, FTS5 | Pendiente (JSON por libro y jobs) |
+| Audio en segundo plano/media session | Pendiente |
+| Reparar sync, re-segmentar, restaurar backups | Re-segmentación y backups implementados; reparar sync pendiente |
+| Plugins VEP | Implementado; cliente, panel y motores en el Estudio |
+| eSpeak | Implementado cuando `espeak-ng` está instalado o `VIBEBOOK_ESPEAK_BIN` apunta al binario |
+| Kokoro español | Pendiente; se muestra la limitación |
+| i18n es/en | Pendiente |
+| Auto-update, firma/notarización | Pendiente |
+| Web | Fuera de alcance de esta iteración |
+| iOS | Descartado explícitamente |
+
 > Prioridad: **P0** = imprescindible para la primera beta Flutter; **P1** =
 > importante, puede llegar en una beta posterior; **P2** = deseable.
 > Estado objetivo: **Paridad**, **Condicional** (depende de plataforma/runtime),

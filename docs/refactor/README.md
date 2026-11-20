@@ -1,8 +1,16 @@
 # Refactorización Flutter: investigación y plan
 
-> **Estado:** investigación y planificación. No se modificó código de producto.
-> Fecha: 2026-11-17.
-> Rama: `docs/flutter-refactor-plan`.
+> **Estado (2026-11-20):** implementación avanzada en `app/`, PR #84. Ya
+> funcionan biblioteca con filtros y orden, importación EPUB, lector
+> Texto/Libro/Original, TTS Piper, Edge, Azure, Gemini, ElevenLabs, VEP y
+> eSpeak NG, karaoke, búsqueda, bookmarks de audio y lectura, temporizador,
+> ambiente, M4B normal/ambientado, jobs persistentes, portadas,
+> re-segmentación con backups e instaladores sin firma. Quedan pendientes audio
+> en segundo plano/media session, Kokoro, Drift/FTS5, migración del estado
+> SQLite de Tauri, i18n y auto-update/firma. **La app Tauri/Python sigue siendo
+> la release estable; no hubo cutover, tag ni release.**
+> Fecha de la investigación original: 2026-11-17.
+> Rama de implementación: `feat/flutter-app`.
 
 ## Resumen ejecutivo
 

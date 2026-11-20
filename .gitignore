@@ -24,9 +24,12 @@ htmlcov/
 *.log
 *.wav
 *.mp3
+!app/assets/ambience/*.mp3
 *.m4b
 *.m4a
 *.flac
 samples/*.epub
 samples/*.txt
 !samples/lector-de-prueba.epub
+# Local library checked out for manual testing
+.books/

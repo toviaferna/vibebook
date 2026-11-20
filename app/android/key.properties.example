@@ -1,0 +1,6 @@
+# Copiar a android/key.properties y completar con un keystore propio.
+# No commitear key.properties ni el archivo .jks.
+storePassword=change-me
+keyPassword=change-me
+keyAlias=vibebook
+storeFile=../keystore.jks

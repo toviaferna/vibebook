@@ -1,0 +1,195 @@
+name: Flutter
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/flutter.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/flutter.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: flutter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test --reporter expanded
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build windows --release --no-pub
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Build unsigned installer
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\vibebook.iss'
+      - name: Package portable zip
+        shell: pwsh
+        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath Vibebook-windows-portable.zip -Force
+      - name: Checksums
+        shell: pwsh
+        run: |
+          $files = @()
+          $files += Get-ChildItem "dist/Vibebook-Setup-*.exe"
+          $files += Get-Item "Vibebook-windows-portable.zip"
+          $lines = foreach ($file in $files) {
+            $hash = (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content checksums-windows.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-windows
+          path: |
+            app/build/windows/x64/runner/Release
+            app/Vibebook-windows-portable.zip
+            app/checksums-windows.txt
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-windows-installer
+          path: app/dist/Vibebook-Setup-*.exe
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+            libjson-glib-dev
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build linux --release --no-pub
+      - name: Package Linux bundle
+        run: tar -czf vibebook-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-linux-x64
+          path: app/vibebook-linux-x64.tar.gz
+          if-no-files-found: error
+
+  build-macos-arm64:
+    name: Build macOS arm64 DMG (unsigned)
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Use CocoaPods for macOS plugins
+        run: flutter config --no-enable-swift-package-manager
+      - run: flutter pub get
+      - run: flutter build macos --release --no-pub
+      - name: Create unsigned DMG
+        run: |
+          hdiutil create -volname "Vibebook" \
+            -srcfolder "build/macos/Build/Products/Release/Vibebook.app" \
+            -ov -format UDZO "Vibebook-macos-arm64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-macos-arm64-dmg
+          path: app/Vibebook-macos-arm64.dmg
+          if-no-files-found: error
+
+  build-macos-x64:
+    name: Build macOS x64 DMG (unsigned)
+    runs-on: macos-15-intel
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - name: Use CocoaPods for macOS plugins
+        run: flutter config --no-enable-swift-package-manager
+      - run: flutter pub get
+      - run: flutter build macos --release --no-pub
+      - name: Create unsigned DMG
+        run: |
+          hdiutil create -volname "Vibebook" \
+            -srcfolder "build/macos/Build/Products/Release/Vibebook.app" \
+            -ov -format UDZO "Vibebook-macos-x64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-macos-x64-dmg
+          path: app/Vibebook-macos-x64.dmg
+          if-no-files-found: error
+
+  build-android:
+    name: Build Android arm64
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.50.0"
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Accept Android licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+      - run: flutter build apk --release --target-platform android-arm64 --no-pub
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vibebook-android-arm64
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

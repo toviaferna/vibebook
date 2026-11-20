@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "rain",
+      "file": "rain.mp3",
+      "duration_ms": 90000,
+      "title": "Rain ambience",
+      "author": "SoundDesigner0101",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/765980/"
+    },
+    {
+      "id": "ocean",
+      "file": "ocean.mp3",
+      "duration_ms": 90000,
+      "title": "Ocean-waves-binaural.WAV",
+      "author": "L.Finck",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/636552/"
+    },
+    {
+      "id": "wind",
+      "file": "wind.mp3",
+      "duration_ms": 90000,
+      "title": "WINDVege_Macclesfield Forest, Morning, Medium Wind, Trees, Recording 4_JW Audio",
+      "author": "JW_Audio",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/819351/"
+    },
+    {
+      "id": "fire",
+      "file": "fire.mp3",
+      "duration_ms": 90000,
+      "title": "Fireplace crackling wood little flame.wav",
+      "author": "BonnyOrbit",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/484338/"
+    },
+    {
+      "id": "night",
+      "file": "night.mp3",
+      "duration_ms": 90000,
+      "title": "Crickets At Night - Raw sound",
+      "author": "Defelozedd94",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/522299/"
+    },
+    {
+      "id": "forest",
+      "file": "forest.mp3",
+      "duration_ms": 90000,
+      "title": "AMBRurl_Ambience Near Lake Forest, City Rumbling In The Background, Seagulls, Forest Birds_OlGer_(gs)",
+      "author": "gerainsan",
+      "license": "CC0 1.0",
+      "source": "https://freesound.org/s/733773/"
+    }
+  ]
+}
