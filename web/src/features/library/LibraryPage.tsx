@@ -1,4 +1,4 @@
-import { AlertTriangle, Plus, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -97,6 +97,16 @@ export function LibraryPage() {
             placeholder="Buscar por título o autor"
             aria-label="Buscar libros"
           />
+          {query ? (
+            <button
+              type="button"
+              className="search-clear"
+              aria-label="Limpiar búsqueda"
+              onClick={() => setQuery("")}
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          ) : null}
         </div>
         <div className="toolbar-actions">
           <label className="sr-only" htmlFor="sort-books">
