@@ -54,7 +54,7 @@ release estable**; esta rama no crea tags ni publicaciones.
   integradas en el Estudio.
 - **Reparación de segmentación**: compara el manifiesto con el EPUB fuente,
   crea backups, marca los capítulos cambiados y permite restaurar.
-- **Tests**: 137 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Tests**: 138 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector, modos
   Libro/Original, paginador, búsqueda, bookmarks de audio y lectura, catálogo
   de voces, motores cloud, VEP, DRM/token Edge, cliente y sintetizador Edge,
