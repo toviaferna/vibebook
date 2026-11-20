@@ -25,6 +25,31 @@
   color: var(--ink);
 }
 
+/* Dialogs render in a body portal, outside the reader shell. Applying the
+   reader palette to the body keeps them consistent with the page. */
+.reader-portal-theme {
+  --paper: var(--reader-paper);
+  --paper-deep: var(--reader-paper-deep);
+  --surface: var(--reader-surface);
+  --surface-raised: var(--reader-surface);
+  --ink: var(--reader-ink);
+  --ink-soft: var(--reader-ink-soft);
+  --ink-faint: var(--reader-ink-faint);
+  --line: var(--reader-line);
+  --line-strong: var(--reader-line-strong);
+  --accent: var(--reader-accent);
+  --accent-strong: var(--reader-accent-strong);
+  --accent-soft: var(--reader-accent-soft);
+  --brass: var(--reader-brass);
+  --audio: var(--reader-audio);
+  --highlight: var(--reader-highlight);
+  --highlight-word: var(--reader-highlight-word);
+  --focus: var(--reader-focus);
+  --on-accent: var(--reader-on-accent);
+  --shadow-soft: var(--reader-shadow-soft);
+  --shadow-player: var(--reader-shadow-player);
+}
+
 .reader-shell.reader-shell--no-audio {
   padding-bottom: var(--space-6);
 }
@@ -1093,8 +1118,8 @@
 
 .reader-follow.is-active {
   border-color: color-mix(in srgb, var(--audio) 30%, var(--line));
-  background: var(--audio-soft);
-  color: var(--audio);
+  background: color-mix(in srgb, var(--audio) 18%, var(--surface));
+  color: var(--ink);
 }
 
 .reader-progress {
@@ -1324,6 +1349,7 @@
 }
 
 .reader-search-box {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -1336,7 +1362,7 @@
 
 .reader-search-box .input {
   min-height: 42px;
-  padding-right: 0;
+  padding-right: 30px;
   padding-left: 0;
   border: 0;
   background: transparent;

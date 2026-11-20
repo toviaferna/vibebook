@@ -70,6 +70,16 @@ export function ReaderSearchDialog({
               placeholder="Palabra o frase"
               aria-label="Texto a buscar"
             />
+            {query ? (
+              <button
+                type="button"
+                className="search-clear"
+                aria-label="Limpiar búsqueda"
+                onClick={() => setQuery("")}
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            ) : null}
           </div>
 
           {tooShort ? (
