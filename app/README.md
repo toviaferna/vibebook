@@ -7,8 +7,8 @@ release estable**; esta rama no crea tags ni publicaciones.
 ## Estado actual
 
 - **Biblioteca local**: escanea `<library>/<slug>-<hash>/manifest.json`,
-  muestra portadas, búsqueda, detalle, estado de conversión y eliminación con
-  confirmación.
+  muestra portadas, búsqueda, filtros por estado, orden por recientes/título/
+  duración, detalle, estado de conversión y eliminación con confirmación.
 - **Importación EPUB**: validación, decodificación determinista
   UTF-8/Windows-1252, estructura/TOC, imágenes, portada, detección de idioma y
   manifiesto compatible con la app Python.
@@ -54,11 +54,12 @@ release estable**; esta rama no crea tags ni publicaciones.
   integradas en el Estudio.
 - **Reparación de segmentación**: compara el manifiesto con el EPUB fuente,
   crea backups, marca los capítulos cambiados y permite restaurar.
-- **Tests**: 138 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Tests**: 141 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector, modos
   Libro/Original, paginador, búsqueda, bookmarks de audio y lectura, catálogo
   de voces, motores cloud, VEP, DRM/token Edge, cliente y sintetizador Edge,
-  proveedores, trabajos persistentes, portadas, re-segmentación y widget.
+  proveedores, trabajos persistentes, portadas, re-segmentación, filtros de
+  biblioteca y widget.
 
 ## Requisitos
 

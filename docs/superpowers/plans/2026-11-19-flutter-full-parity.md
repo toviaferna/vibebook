@@ -4,7 +4,7 @@
 > keys, jobs, reader Texto/Libro/Original, search, bookmarks, sleep timer,
 > shortcuts/fullscreen, covers, VEP plugins and re-segmentation with backups).
 > Remaining: Drift/FTS, background audio/media session, eSpeak/Kokoro, i18n,
-> Tauri SQLite state migration, auto-update/signing. The Windows build and 138
+> Tauri SQLite state migration, auto-update/signing. The Windows build and 141
 > tests pass; no tag or release until the user tests and approves.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: use superpowers:executing-plans

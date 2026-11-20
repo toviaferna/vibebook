@@ -8,7 +8,7 @@ la estable.
 
 | Área | Estado Flutter |
 |---|---|
-| Biblioteca, búsqueda, detalle, borrado | Implementado; tests de repositorio |
+| Biblioteca, búsqueda, detalle, borrado | Implementado; filtros por estado y orden; tests |
 | Importación EPUB, TOC, imágenes, portada, idioma | Implementado; tests de ingest |
 | Búsqueda de portada (Open Library/Google Books) | Implementado; tests y UI |
 | Lector de texto, paletas, tipografía, ilustraciones | Implementado |
