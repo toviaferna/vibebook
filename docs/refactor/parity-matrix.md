@@ -29,8 +29,9 @@ la estable.
 | Android: APK arm64, firma opcional | Implementado; sin dispositivo físico |
 | Drift, FTS5 | Pendiente (JSON por libro y jobs) |
 | Audio en segundo plano/media session | Pendiente |
-| Reparar sync, re-segmentar, restaurar backups | Pendiente |
-| Plugins VEP y eSpeak | Pendiente |
+| Reparar sync, re-segmentar, restaurar backups | Re-segmentación y backups implementados; reparar sync pendiente |
+| Plugins VEP | Implementado; cliente, panel y motores en el Estudio |
+| eSpeak | Pendiente |
 | Kokoro español | Pendiente; se muestra la limitación |
 | i18n es/en | Pendiente |
 | Auto-update, firma/notarización | Pendiente |

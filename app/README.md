@@ -49,11 +49,16 @@ release estable**; esta rama no crea tags ni publicaciones.
 - **Instalador Windows**: script de Inno Setup y job de CI sin firma.
 - **Android**: configuración de firma opcional por `key.properties`; sin
   keystore el APK queda firmado con la clave de debug.
-- **Tests**: 126 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
+- **Plugins VEP**: servidores HTTP/JSON que cumplen `vep/1`, con token
+  opcional, validación de URL, prueba, licencia/fuente visibles y voces
+  integradas en el Estudio.
+- **Reparación de segmentación**: compara el manifiesto con el EPUB fuente,
+  crea backups, marca los capítulos cambiados y permite restaurar.
+- **Tests**: 137 pruebas de texto, modelos, ingest EPUB, repositorio, timings,
   WAV, ambiente, plan por capítulo, reproducción, navegación del lector, modos
   Libro/Original, paginador, búsqueda, bookmarks de audio y lectura, catálogo
-  de voces, motores cloud, DRM/token Edge, cliente y sintetizador Edge,
-  proveedores, trabajos persistentes, portadas y widget.
+  de voces, motores cloud, VEP, DRM/token Edge, cliente y sintetizador Edge,
+  proveedores, trabajos persistentes, portadas, re-segmentación y widget.
 
 ## Requisitos
 
@@ -282,10 +287,12 @@ que la prueba y la aprobación explícita habiliten el cutover.
   session.
 - **Kokoro** y **eSpeak NG** todavía no están conectados en Flutter; la app
   muestra la limitación y ofrece Piper/Edge/cloud.
-- **Reparar sincronización, re-segmentar y restaurar backups** están
-  identificados como pendientes; el Estudio reanuda capítulos ya convertidos.
-- **Plugins VEP** y **actualización automática** están pendientes.
+- La re-segmentación marca los capítulos cambiados para re-síntesis; no reusa
+  audio por segmento porque el pipeline Flutter guarda audio por capítulo.
+- **Actualización automática** y firma/notarización están pendientes.
 - La interfaz está en español; la traducción al inglés (i18n) está pendiente.
+- La migración del estado de lectura/bookmarks desde la base SQLite de Tauri
+  está pendiente; la biblioteca y el audio en disco ya se leen sin cambios.
 - El instalador de Windows y los DMG de macOS son **sin firma**. No hay
   auto-update ni notarización.
 - **macOS** se compila sin firma en CI y genera `.dmg` arm64/x64, pero no se
