@@ -277,6 +277,8 @@ npm run sidecar
 npm run desktop:build
 ```
 
+Los instaladores se generan localmente; no hay workflow de release en CI.
+
 En Linux usar `--bundles appimage,deb`; en macOS `--bundles dmg` y el target
 correspondiente. El modo portable se activa creando `portable.flag` junto al
 ejecutable; la biblioteca se guarda en `data/library` al lado del ejecutable.

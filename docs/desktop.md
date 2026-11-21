@@ -93,6 +93,15 @@ la UI muestra el error y la ruta del log.
 
 ## Release
 
-Los tags `v*` disparan `.github/workflows/release.yml`. El workflow construye
-Windows, Linux, macOS arm64/x64 y publica un único Release con checksums. No se
-publica si un job falla.
+Los instaladores se generan **localmente**; los tags ya no disparan workflows de
+build ni publicación:
+
+```bash
+npm run sidecar
+npm run desktop:build
+```
+
+En Linux usar `--bundles appimage,deb`; en macOS `--bundles dmg` y el target
+correspondiente; en Windows `--bundles nsis,msi`. Android se compila con
+`npx tauri android build` y se firma manualmente. No hay publicación automática
+ni tags creados por CI.
