@@ -313,8 +313,12 @@ export function SettingsPage() {
               </select>
             </Field>
 
-            <Field label={`Tamaño de texto · ${form.reader_size ?? settings.reader_size}px`}>
+            <Field
+              label={`Tamaño de texto · ${form.reader_size ?? settings.reader_size}px`}
+              htmlFor="reader-size-settings"
+            >
               <input
+                id="reader-size-settings"
                 className="range"
                 type="range"
                 min={14}

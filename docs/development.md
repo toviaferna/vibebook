@@ -117,7 +117,7 @@ REST como fallback si falla la síntesis.
 
 ## CI
 
-`.github/workflows/ci.yml` ejecuta:
+`.github/workflows/ci.yml` solo ejecuta checks livianos:
 
 - `uv sync --frozen`
 - `ruff check`
@@ -126,8 +126,11 @@ REST como fallback si falla la síntesis.
 - `pytest`
 - `uv build`
 - `npm run lint`, `typecheck`, `test`, `build`
-- En Windows: PyInstaller del sidecar, `cargo fmt --check` y `cargo check`.
-- En Linux: Playwright E2E con motor fake y axe.
+- Playwright E2E con motor fake y axe.
+
+Los instaladores de Windows, macOS, Linux y Android **no se compilan en CI**:
+se generan localmente con `npm run sidecar` y `npm run desktop:build` (ver
+[`desktop.md`](desktop.md)) para no consumir minutos de GitHub Actions.
 
 ## Estructura
 

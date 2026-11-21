@@ -261,6 +261,15 @@ export function ReaderPage() {
   }, [palette]);
 
   useEffect(() => {
+    document.body.dataset.readerPalette = palette;
+    document.body.classList.add("reader-portal-theme");
+    return () => {
+      delete document.body.dataset.readerPalette;
+      document.body.classList.remove("reader-portal-theme");
+    };
+  }, [palette]);
+
+  useEffect(() => {
     window.localStorage.setItem("vibebook.ambience-volume", String(ambienceVolume));
   }, [ambienceVolume]);
 
@@ -1075,6 +1084,9 @@ export function ReaderPage() {
             <OriginalEpubView
               bookId={manifest.id}
               chapter={chapter}
+              palette={palette}
+              font={font}
+              size={size}
               initialCfi={
                 readingStateQuery.data?.chapter_index === chapterIndex
                   ? readingStateQuery.data.cfi
