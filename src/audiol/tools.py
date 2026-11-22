@@ -60,11 +60,17 @@ def resolve_shimmed_binary(
     return None
 
 
-def _resolve_binary(path: str, name: str) -> str | None:
-    resolved = resolve_shimmed_binary(path, name)
+def _resolve_binary(
+    path: str,
+    name: str,
+    *,
+    windows: bool | None = None,
+) -> str | None:
+    resolved = resolve_shimmed_binary(path, name, windows=windows)
     if resolved is not None:
         return resolved
-    if os.name == "nt" and Path(path).parent.name.lower() == "shims":
+    is_windows = os.name == "nt" if windows is None else windows
+    if is_windows and Path(path).parent.name.lower() == "shims":
         return None
     return path
 

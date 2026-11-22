@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from audiol.tools import find_optional_binary, resolve_shimmed_binary
+from audiol.tools import _resolve_binary, resolve_shimmed_binary
 
 
 def _scoop_layout(tmp_path: Path, versions: list[str]) -> tuple[Path, dict[str, Path]]:
@@ -51,11 +51,15 @@ def test_resolve_scoop_shim_is_windows_only(tmp_path: Path):
     assert resolve_shimmed_binary(str(shim), "ffmpeg", windows=False) is None
 
 
-def test_find_optional_binary_uses_the_real_path_behind_a_shim(tmp_path: Path, monkeypatch):
+def test_resolve_binary_uses_the_real_path_behind_a_shim(tmp_path: Path):
     shim, binaries = _scoop_layout(tmp_path, ["9.0.2"])
-    monkeypatch.delenv("FFMPEG_BINARY", raising=False)
-    monkeypatch.setattr("audiol.tools.os.name", "nt")
-    monkeypatch.setattr("audiol.tools._find_bundled", lambda name: None)
-    monkeypatch.setattr("audiol.tools.shutil.which", lambda name: str(shim))
 
-    assert find_optional_binary("ffmpeg") == str(binaries["9.0.2"])
+    assert _resolve_binary(str(shim), "ffmpeg", windows=True) == str(binaries["9.0.2"])
+
+
+def test_resolve_binary_rejects_an_unresolved_shim(tmp_path: Path):
+    shim = tmp_path / "shims" / "ffmpeg.exe"
+    shim.parent.mkdir(parents=True)
+    shim.write_bytes(b"shim")
+
+    assert _resolve_binary(str(shim), "ffmpeg", windows=True) is None

@@ -102,14 +102,15 @@ def validate_piper_settings(settings: PiperSettings) -> list[str]:
     return errors
 
 
-def flutter_voices_dir() -> Path | None:
+def flutter_voices_dir(platform: str | None = None) -> Path | None:
     """The folder the Flutter app used for downloaded Piper voices."""
-    if os.name == "nt":
+    current = platform or ("win32" if os.name == "nt" else sys.platform)
+    if current in {"win32", "windows"}:
         base = os.environ.get("APPDATA")
         if not base:
             return None
         candidate = Path(base) / "com.vibebook" / "vibebook_app" / "models" / "piper"
-    elif sys.platform == "darwin":
+    elif current == "darwin":
         candidate = (
             Path.home()
             / "Library"
@@ -125,9 +126,9 @@ def flutter_voices_dir() -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
-def suggested_voices_dirs() -> list[dict[str, object]]:
+def suggested_voices_dirs(platform: str | None = None) -> list[dict[str, object]]:
     suggestions: list[dict[str, object]] = []
-    flutter = flutter_voices_dir()
+    flutter = flutter_voices_dir(platform)
     if flutter is not None:
         suggestions.append(
             {

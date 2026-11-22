@@ -140,10 +140,7 @@ def test_suggested_dirs_include_the_flutter_folder(tmp_path, monkeypatch):
     flutter.mkdir(parents=True)
     _fake_voice(flutter, "es_MX-ald-medium")
     monkeypatch.setenv("APPDATA", str(appdata))
-    if os.name != "nt":
-        monkeypatch.setattr("audiol.tts.piper_settings.sys.platform", "win32")
-        monkeypatch.setattr("audiol.tts.piper_settings.os.name", "nt")
 
-    suggestions = suggested_voices_dirs()
+    suggestions = suggested_voices_dirs(platform="windows")
 
     assert any(item["path"] == str(flutter) for item in suggestions)
