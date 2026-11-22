@@ -359,6 +359,36 @@ export interface ProviderTest {
   warning: string | null;
 }
 
+export interface PiperVoice {
+  id: string;
+  name: string;
+  locale: string;
+  gender: string;
+  path: string;
+  available: boolean;
+}
+
+export interface PiperSuggestion {
+  path: string;
+  label: string;
+}
+
+export interface PiperStatus {
+  binary: string | null;
+  voices_dir: string | null;
+  espeak_data: string | null;
+  binary_configured: boolean;
+  voices: PiperVoice[];
+  suggestions: PiperSuggestion[];
+  errors: string[];
+}
+
+export interface PiperSettingsUpdate {
+  binary: string | null;
+  voices_dir: string | null;
+  espeak_data: string | null;
+}
+
 export interface ApiErrorPayload {
   error: {
     code: string;

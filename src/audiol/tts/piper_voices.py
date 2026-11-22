@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -74,6 +75,58 @@ def piper_voice_dir() -> Path:
     return user_data_path("vibebook") / "piper-voices"
 
 
+@dataclass(frozen=True)
+class DiscoveredPiperVoice:
+    id: str
+    path: Path
+    locale: str
+    gender: str
+
+
+def discover_piper_voices() -> list[DiscoveredPiperVoice]:
+    """Find installed Piper models, including nested voice folders.
+
+    The Flutter app stored models as
+    ``vits-piper-<voice>/<voice>.onnx``; the Tauri app and the CLI use a flat
+    folder. Recursive discovery lets both layouts coexist.
+    """
+    found: dict[str, DiscoveredPiperVoice] = {}
+    for directory in _voice_candidates():
+        if not directory.is_dir():
+            continue
+        for model in sorted(directory.rglob("*.onnx")):
+            if not _voice_files_present(model):
+                continue
+            voice_id = model.stem
+            if voice_id in found:
+                continue
+            locale, gender = _voice_metadata(voice_id)
+            found[voice_id] = DiscoveredPiperVoice(
+                id=voice_id,
+                path=model,
+                locale=locale,
+                gender=gender,
+            )
+    return sorted(found.values(), key=lambda voice: (voice.locale, voice.id))
+
+
+def _voice_metadata(voice_id: str) -> tuple[str, str]:
+    locale = "es"
+    match = re.match(r"^([a-z]{2,3})(?:[_-]([A-Z]{2}))?", voice_id)
+    if match:
+        locale = match.group(1)
+        if match.group(2):
+            locale = f"{locale}-{match.group(2)}"
+    if voice_id in PIPER_VOICES:
+        return locale, PIPER_VOICES[voice_id].gender
+    lowered = voice_id.lower()
+    if any(token in lowered for token in ("daniela", "dora", "glados", "female", "mujer")):
+        return locale, "female"
+    if any(token in lowered for token in ("ald", "alex", "dave", "claude", "male", "hombre")):
+        return locale, "male"
+    return locale, "neutral"
+
+
 def _voice_candidates() -> list[Path]:
     candidates: list[Path] = []
     if configured := os.environ.get("VIBEBOOK_PIPER_VOICES"):
@@ -106,7 +159,6 @@ def _voice_candidates() -> list[Path]:
 
 
 def resolve_piper_model(voice_id: str, optional: bool = False) -> Path | None:
-    get_piper_voice(voice_id)
     configured = os.environ.get("VIBEBOOK_PIPER_MODEL")
     if configured and voice_id == DEFAULT_PIPER_VOICE:
         model = Path(configured).expanduser()
@@ -119,15 +171,25 @@ def resolve_piper_model(voice_id: str, optional: bool = False) -> Path | None:
         )
 
     for directory in _voice_candidates():
-        model = directory / f"{voice_id}.onnx"
-        if _voice_files_present(model):
-            return model
+        if not directory.is_dir():
+            continue
+        direct = directory / f"{voice_id}.onnx"
+        if _voice_files_present(direct):
+            return direct
+        for model in directory.rglob(f"{voice_id}.onnx"):
+            if _voice_files_present(model):
+                return model
 
     if optional:
         return None
+    if voice_id in PIPER_VOICES:
+        raise PiperNotConfigured(
+            f"Piper voice {voice_id} is not installed. "
+            f"Run `vibebook piper download --voice {voice_id}` or set VIBEBOOK_PIPER_VOICES."
+        )
     raise PiperNotConfigured(
         f"Piper voice {voice_id} is not installed. "
-        f"Run `vibebook piper download --voice {voice_id}` or set VIBEBOOK_PIPER_VOICES."
+        "Configurá la carpeta de voces en Ajustes → Piper."
     )
 
 

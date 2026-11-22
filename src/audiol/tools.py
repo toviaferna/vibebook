@@ -78,9 +78,8 @@ def find_optional_binary(name: str, env_names: tuple[str, ...] = ()) -> str | No
     if found := _find_bundled(name):
         return found
 
-    if found := shutil.which(name):
-        if resolved := _resolve_binary(found, name):
-            return resolved
+    if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+        return resolved
 
     project_root = Path(__file__).resolve().parents[2]
     return _find_in_dir(project_root / ".tools" / "bin", name)
@@ -100,9 +99,8 @@ def find_binary(name: str) -> str:
     if found := _find_bundled(name):
         return found
 
-    if found := shutil.which(name):
-        if resolved := _resolve_binary(found, name):
-            return resolved
+    if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+        return resolved
 
     project_root = Path(__file__).resolve().parents[2]
     if found := _find_in_dir(project_root / ".tools" / "bin", name):
@@ -112,9 +110,8 @@ def find_binary(name: str) -> str:
         import static_ffmpeg
 
         static_ffmpeg.add_paths()
-        if found := shutil.which(name):
-            if resolved := _resolve_binary(found, name):
-                return resolved
+        if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+            return resolved
     except Exception as exc:
         raise RuntimeError(
             f"{name} not found. Install ffmpeg/ffprobe or run `uv sync` to use static-ffmpeg."

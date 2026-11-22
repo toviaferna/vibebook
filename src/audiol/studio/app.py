@@ -11,6 +11,7 @@ from audiol.ambience.library import AmbienceLibrary
 from audiol.studio.activity import BookActivity
 from audiol.studio.ambience_jobs import AmbienceJobManager
 from audiol.studio.api import ambience, books, engines, jobs, media, reader, voices
+from audiol.studio.api import piper as piper_api
 from audiol.studio.api import providers as providers_api
 from audiol.studio.api import settings as settings_api
 from audiol.studio.db import Database
@@ -23,6 +24,11 @@ from audiol.studio.settings import Settings
 from audiol.studio.static import mount_static
 from audiol.tools import find_binary
 from audiol.tts.base import TTSProvider
+from audiol.tts.piper_settings import (
+    apply_piper_settings,
+    config_path,
+    load_piper_settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +37,8 @@ def create_app(
     settings: Settings,
     provider_factory: Callable[[str], TTSProvider] | None = None,
 ) -> FastAPI:
+    if config_path().is_file():
+        apply_piper_settings(load_piper_settings())
     library = Library(settings.library_dir)
     db = Database(settings.library_dir / ".vibebook.db")
     ambience_library = AmbienceLibrary(settings.library_dir / "ambience", db)
@@ -96,6 +104,7 @@ def create_app(
     app.include_router(engines.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")
     app.include_router(media.router, prefix="/api")
+    app.include_router(piper_api.router, prefix="/api")
     app.include_router(providers_api.router, prefix="/api")
     app.include_router(reader.router, prefix="/api")
     app.include_router(voices.router, prefix="/api")

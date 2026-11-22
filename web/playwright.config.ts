@@ -30,6 +30,7 @@ export default defineConfig({
       cwd: rootDir,
       env: {
         VIBEBOOK_PROVIDER_KEYS: path.join(rootDir, ".tmp", "e2e-provider-keys.json"),
+        VIBEBOOK_PIPER_SETTINGS: path.join(rootDir, ".tmp", "e2e-piper.json"),
       },
       url: "http://127.0.0.1:8765/api/health",
       reuseExistingServer: false,

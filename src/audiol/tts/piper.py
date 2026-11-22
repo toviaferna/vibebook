@@ -12,6 +12,7 @@ from audiol.tts.paths import to_ascii_path
 from audiol.tts.piper_voices import (
     DEFAULT_PIPER_VOICE,
     PiperNotConfigured,
+    discover_piper_voices,
     piper_voice_available,
     resolve_piper_config,
     resolve_piper_model,
@@ -154,9 +155,9 @@ def _resolve_executable(value: str) -> Path | None:
 
 
 def piper_ready() -> bool:
-    return resolve_piper_binary(optional=True) is not None and piper_voice_available(
-        DEFAULT_PIPER_VOICE
-    )
+    if resolve_piper_binary(optional=True) is None:
+        return False
+    return piper_voice_available(DEFAULT_PIPER_VOICE) or bool(discover_piper_voices())
 
 
 def resolve_espeak_data(binary: Path) -> Path | None:

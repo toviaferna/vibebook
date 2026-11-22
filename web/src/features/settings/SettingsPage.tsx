@@ -20,6 +20,7 @@ import { useThemeMode } from "../../components/ThemeProvider";
 import { formatRate } from "../../lib/format";
 import type { ReaderPalette, ThemeMode } from "../../lib/theme";
 import { defaultVoiceForEngine, voiceLabel } from "../../lib/voices";
+import { PiperPanel } from "./PiperPanel";
 import { ProvidersPanel } from "./ProvidersPanel";
 
 const RATES = ["-20%", "-15%", "-10%", "-5%", "+0%", "+5%"];
@@ -358,6 +359,8 @@ export function SettingsPage() {
       </div>
 
       <ProvidersPanel />
+
+      <PiperPanel />
 
       <section className="panel" style={{ marginTop: "var(--space-5)" }}>
         <div className="panel-head">

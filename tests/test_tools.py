@@ -20,17 +20,13 @@ def _scoop_layout(tmp_path: Path, versions: list[str]) -> tuple[Path, dict[str, 
 def test_resolve_scoop_shim_to_the_real_binary(tmp_path: Path):
     shim, binaries = _scoop_layout(tmp_path, ["9.0.2"])
 
-    assert resolve_shimmed_binary(str(shim), "ffmpeg", windows=True) == str(
-        binaries["9.0.2"]
-    )
+    assert resolve_shimmed_binary(str(shim), "ffmpeg", windows=True) == str(binaries["9.0.2"])
 
 
 def test_resolve_scoop_shim_prefers_the_latest_version(tmp_path: Path):
     shim, binaries = _scoop_layout(tmp_path, ["8.0.0", "9.0.2"])
 
-    assert resolve_shimmed_binary(str(shim), "ffmpeg", windows=True) == str(
-        binaries["9.0.2"]
-    )
+    assert resolve_shimmed_binary(str(shim), "ffmpeg", windows=True) == str(binaries["9.0.2"])
 
 
 def test_resolve_scoop_shim_ignores_non_shim_paths(tmp_path: Path):
