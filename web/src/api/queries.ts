@@ -31,6 +31,7 @@ export const queryKeys = {
   job: (id: string) => ["job", id] as const,
   engines: ["engines"] as const,
   providers: ["providers"] as const,
+  piper: ["piper"] as const,
   plugins: ["plugins"] as const,
   voices: ["voices"] as const,
   settings: ["settings"] as const,
@@ -216,6 +217,26 @@ export function useDeleteProvider() {
 export function useTestProvider() {
   return useMutation({
     mutationFn: (providerId: string) => api.testProvider(providerId),
+  });
+}
+
+export function usePiper() {
+  return useQuery({
+    queryKey: queryKeys.piper,
+    queryFn: api.getPiper,
+    staleTime: 10_000,
+  });
+}
+
+export function useSavePiper() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.savePiper,
+    onSuccess: (status) => {
+      queryClient.setQueryData(queryKeys.piper, status);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.engines });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.voices });
+    },
   });
 }
 

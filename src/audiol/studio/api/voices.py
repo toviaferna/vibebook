@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from audiol.studio.errors import ApiError
 from audiol.studio.models import PreviewRequest, PreviewResponse, VoiceResponse
 from audiol.tts.base import validate_rate
+from audiol.tts.piper_voices import discover_piper_voices
 from audiol.tts.plugin import PluginVoiceSpec
 from audiol.tts.registry import get_engine
 from audiol.voices import get_voice, list_voices
@@ -19,6 +20,28 @@ router = APIRouter(tags=["voices"])
 logger = logging.getLogger(__name__)
 
 PREVIEW_KEY = re.compile(r"^[a-f0-9]{16}\.(mp3|wav)$")
+
+
+def _append_piper_voices(
+    voices: list[VoiceResponse],
+    engine: str | None,
+) -> None:
+    if engine is not None and engine != "piper":
+        return
+    known = {voice.id for voice in voices}
+    for voice in discover_piper_voices():
+        if voice.id in known:
+            continue
+        voices.append(
+            VoiceResponse(
+                id=voice.id,
+                locale=voice.locale,
+                gender=voice.gender,
+                engines=["piper"],
+                styles=[],
+            )
+        )
+        known.add(voice.id)
 
 
 @router.get("/voices", response_model=list[VoiceResponse])
@@ -45,6 +68,7 @@ def get_voices(request: Request, engine: str | None = Query(default=None)) -> li
         )
         for voice in list_voices(engine=engine)
     ]
+    _append_piper_voices(voices, engine)
     if engine is None:
         for record in plugins.records():
             if record.enabled:
@@ -93,29 +117,41 @@ def create_preview(request: Request, payload: PreviewRequest) -> PreviewResponse
         try:
             voice = get_voice(payload.voice)
         except ValueError as exc:
-            raise ApiError(422, "invalid_options", str(exc)) from exc
-        if spec.test_only:
-            if not settings.allow_fake:
-                raise ApiError(422, "invalid_options", "El motor fake está deshabilitado.")
-        elif payload.engine not in voice.engines:
+            if payload.engine == "piper" and any(
+                item.id == payload.voice for item in discover_piper_voices()
+            ):
+                voice = None
+            else:
+                raise ApiError(422, "invalid_options", str(exc)) from exc
+        if voice is not None:
+            if spec.test_only:
+                if not settings.allow_fake:
+                    raise ApiError(422, "invalid_options", "El motor fake está deshabilitado.")
+            elif payload.engine not in voice.engines:
+                raise ApiError(
+                    422,
+                    "invalid_options",
+                    f"{voice.id} no soporta el motor {payload.engine}.",
+                )
+            if payload.style != "neutral":
+                if not spec.supports_styles:
+                    raise ApiError(
+                        422,
+                        "invalid_options",
+                        f"El motor {payload.engine} no soporta estilos.",
+                    )
+                if payload.style not in voice.styles:
+                    raise ApiError(
+                        422,
+                        "invalid_options",
+                        f"{voice.id} no soporta el estilo {payload.style}.",
+                    )
+        elif payload.style != "neutral":
             raise ApiError(
                 422,
                 "invalid_options",
-                f"{voice.id} no soporta el motor {payload.engine}.",
+                f"El motor {payload.engine} no soporta estilos.",
             )
-        if payload.style != "neutral":
-            if not spec.supports_styles:
-                raise ApiError(
-                    422,
-                    "invalid_options",
-                    f"El motor {payload.engine} no soporta estilos.",
-                )
-            if payload.style not in voice.styles:
-                raise ApiError(
-                    422,
-                    "invalid_options",
-                    f"{voice.id} no soporta el estilo {payload.style}.",
-                )
     try:
         rate = validate_rate(payload.rate)
     except ValueError as exc:

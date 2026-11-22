@@ -9,6 +9,7 @@ import {
   sampleEngines,
   sampleJob,
   sampleManifest,
+  samplePiperStatus,
   samplePlugin,
   samplePlugins,
   sampleProviders,
@@ -183,6 +184,19 @@ export const server = setupServer(
   }),
   http.get("*/api/engines", () => HttpResponse.json(sampleEngines)),
   http.get("*/api/providers", () => HttpResponse.json(sampleProviders)),
+  http.get("*/api/piper", () => HttpResponse.json(samplePiperStatus)),
+  http.put("*/api/piper", async ({ request }) => {
+    const payload = (await request.json()) as {
+      binary?: string | null;
+      voices_dir?: string | null;
+      espeak_data?: string | null;
+    };
+    return HttpResponse.json({
+      ...samplePiperStatus,
+      ...payload,
+      binary_configured: Boolean(payload.binary),
+    });
+  }),
   http.put("*/api/providers/:providerId", async ({ request, params }) => {
     const payload = (await request.json()) as { api_key: string };
     const provider = sampleProviders.items.find((item) => item.id === params.providerId);

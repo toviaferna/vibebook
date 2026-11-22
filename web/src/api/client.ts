@@ -15,6 +15,8 @@ import type {
   EngineList,
   Job,
   Manifest,
+  PiperSettingsUpdate,
+  PiperStatus,
   Plugin,
   PluginList,
   PluginTest,
@@ -176,6 +178,12 @@ export const api = {
     apiFetch<void>(`/providers/${providerId}`, { method: "DELETE" }),
   testProvider: (providerId: string) =>
     apiFetch<ProviderTest>(`/providers/${providerId}/test`, { method: "POST" }),
+  getPiper: () => apiFetch<PiperStatus>("/piper"),
+  savePiper: (payload: PiperSettingsUpdate) =>
+    apiFetch<PiperStatus>("/piper", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
   installKokoroEngine: () =>
     apiFetch<{ installed: boolean; path: string }>("/engines/kokoro/install", {
       method: "POST",

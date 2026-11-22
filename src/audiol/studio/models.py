@@ -414,3 +414,35 @@ class ProviderTestResponse(BaseModel):
     credits_used: int | None = None
     credits_limit: int | None = None
     warning: str | None = None
+
+
+class PiperSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    binary: str | None = Field(default=None, max_length=1000)
+    voices_dir: str | None = Field(default=None, max_length=1000)
+    espeak_data: str | None = Field(default=None, max_length=1000)
+
+
+class PiperVoiceResponse(BaseModel):
+    id: str
+    name: str
+    locale: str
+    gender: str
+    path: str
+    available: bool = True
+
+
+class PiperSuggestionResponse(BaseModel):
+    path: str
+    label: str
+
+
+class PiperStatusResponse(BaseModel):
+    binary: str | None
+    voices_dir: str | None
+    espeak_data: str | None
+    binary_configured: bool
+    voices: list[PiperVoiceResponse]
+    suggestions: list[PiperSuggestionResponse]
+    errors: list[str] = Field(default_factory=list)

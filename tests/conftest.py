@@ -17,12 +17,17 @@ from PIL import Image
 @pytest.fixture(autouse=True)
 def _isolated_provider_keys(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("VIBEBOOK_PROVIDER_KEYS", str(tmp_path / "provider-keys.json"))
+    monkeypatch.setenv("VIBEBOOK_PIPER_SETTINGS", str(tmp_path / "piper.json"))
     for name in (
         "GEMINI_API_KEY",
         "GOOGLE_API_KEY",
         "ELEVENLABS_API_KEY",
         "AZURE_SPEECH_KEY",
         "AZURE_SPEECH_REGION",
+        "VIBEBOOK_PIPER_BIN",
+        "VIBEBOOK_PIPER_VOICES",
+        "VIBEBOOK_PIPER_ESPEAK_DATA",
+        "VIBEBOOK_PIPER_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
 

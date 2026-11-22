@@ -29,6 +29,52 @@ def _find_bundled(name: str) -> str | None:
     return None
 
 
+def resolve_shimmed_binary(
+    path: str,
+    name: str,
+    *,
+    windows: bool | None = None,
+) -> str | None:
+    """Resolve a Windows package-manager shim to the real executable.
+
+    Scoop and similar tools put a small launcher in ``shims`` that points at
+    ``apps/<name>/<version>/bin/<name>.exe``. Bundling that launcher in the
+    PyInstaller sidecar produces a binary that cannot find its target at
+    runtime ("Cannot open shim file for read"), so the real executable must be
+    resolved before packaging.
+    """
+    if windows is None:
+        windows = os.name == "nt"
+    if not windows:
+        return None
+    candidate = Path(path)
+    if candidate.parent.name.lower() != "shims":
+        return None
+    apps = candidate.parent.parent / "apps" / name
+    if not apps.is_dir():
+        return None
+    for item in sorted(apps.iterdir(), reverse=True):
+        binary = item / "bin" / f"{name}.exe"
+        if binary.is_file():
+            return str(binary)
+    return None
+
+
+def _resolve_binary(
+    path: str,
+    name: str,
+    *,
+    windows: bool | None = None,
+) -> str | None:
+    resolved = resolve_shimmed_binary(path, name, windows=windows)
+    if resolved is not None:
+        return resolved
+    is_windows = os.name == "nt" if windows is None else windows
+    if is_windows and Path(path).parent.name.lower() == "shims":
+        return None
+    return path
+
+
 def find_optional_binary(name: str, env_names: tuple[str, ...] = ()) -> str | None:
     """Resolve a native binary without raising or falling back to static-ffmpeg."""
     for env_name in (*env_names, f"{name.upper()}_BINARY"):
@@ -38,8 +84,8 @@ def find_optional_binary(name: str, env_names: tuple[str, ...] = ()) -> str | No
     if found := _find_bundled(name):
         return found
 
-    if found := shutil.which(name):
-        return found
+    if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+        return resolved
 
     project_root = Path(__file__).resolve().parents[2]
     return _find_in_dir(project_root / ".tools" / "bin", name)
@@ -59,8 +105,8 @@ def find_binary(name: str) -> str:
     if found := _find_bundled(name):
         return found
 
-    if found := shutil.which(name):
-        return found
+    if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+        return resolved
 
     project_root = Path(__file__).resolve().parents[2]
     if found := _find_in_dir(project_root / ".tools" / "bin", name):
@@ -70,8 +116,8 @@ def find_binary(name: str) -> str:
         import static_ffmpeg
 
         static_ffmpeg.add_paths()
-        if found := shutil.which(name):
-            return found
+        if (found := shutil.which(name)) and (resolved := _resolve_binary(found, name)):
+            return resolved
     except Exception as exc:
         raise RuntimeError(
             f"{name} not found. Install ffmpeg/ffprobe or run `uv sync` to use static-ffmpeg."

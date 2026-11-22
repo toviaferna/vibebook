@@ -6,6 +6,7 @@ import type {
   EngineList,
   Job,
   Manifest,
+  PiperStatus,
   PluginList,
   ProviderList,
   ReadingBookmarkList,
@@ -483,4 +484,14 @@ export const sampleJob: Job = {
   updated_at: "2026-11-07T10:01:00+00:00",
   started_at: "2026-11-07T10:00:00+00:00",
   finished_at: "2026-11-07T10:01:00+00:00",
+};
+
+export const samplePiperStatus: PiperStatus = {
+  binary: null,
+  voices_dir: null,
+  espeak_data: null,
+  binary_configured: false,
+  voices: [],
+  suggestions: [],
+  errors: [],
 };

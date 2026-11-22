@@ -15,6 +15,7 @@ from audiol.studio.models import (
 )
 from audiol.studio.plugins import PluginNotFound, PluginRecord
 from audiol.tts.kokoro_assets import KokoroNotConfigured, ensure_kokoro_assets
+from audiol.tts.piper_voices import discover_piper_voices
 from audiol.tts.plugin import PluginError
 from audiol.tts.registry import engine_available, get_engine, list_engines
 from audiol.voices import list_voices
@@ -137,7 +138,7 @@ def get_engine_voices(request: Request, plugin_id: str) -> list[VoiceResponse]:
         get_engine(plugin_id)
     except ValueError as exc:
         raise ApiError(404, "engine_not_found", str(exc)) from exc
-    return [
+    voices = [
         VoiceResponse(
             id=voice.id,
             locale=voice.locale,
@@ -147,6 +148,22 @@ def get_engine_voices(request: Request, plugin_id: str) -> list[VoiceResponse]:
         )
         for voice in list_voices(engine=plugin_id)
     ]
+    if plugin_id == "piper":
+        known = {voice.id for voice in voices}
+        for voice in discover_piper_voices():
+            if voice.id in known:
+                continue
+            voices.append(
+                VoiceResponse(
+                    id=voice.id,
+                    locale=voice.locale,
+                    gender=voice.gender,
+                    engines=["piper"],
+                    styles=[],
+                )
+            )
+            known.add(voice.id)
+    return voices
 
 
 def _plugin_response(request: Request, record: PluginRecord) -> PluginResponse:
